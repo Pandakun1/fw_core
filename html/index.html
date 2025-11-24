@@ -25,6 +25,264 @@
             </div>
         </div>
         <div id="notify-container"></div>
+        
+        <!-- Character Selection UI -->
+        <div id="char-selection-app">
+            <div id="char-selection" :class="{ hidden: !visible }">
+                <div class="char-selection-container">
+                    <div class="char-selection-header">
+                        <h1>Charakterauswahl</h1>
+                        <p>Wähle oder erstelle einen Charakter</p>
+                    </div>
+                    
+                    <div class="char-cards-container">
+                        <div 
+                            v-for="(char, index) in characters" 
+                            :key="char.id"
+                            class="char-card"
+                            :class="{ selected: selectedIndex === index }"
+                            @click="selectCharacter(index)"
+                        >
+                            <div class="char-card-header">
+                                <h3>{{ char.firstname }} {{ char.lastname }}</h3>
+                            </div>
+                            <div class="char-card-body">
+                                <div class="char-info">
+                                    <span class="info-label">Geschlecht:</span>
+                                    <span>{{ char.sex === 'male' ? 'Männlich' : 'Weiblich' }}</span>
+                                </div>
+                                <div class="char-info">
+                                    <span class="info-label">Geburtsdatum:</span>
+                                    <span>{{ char.dateofbirth }}</span>
+                                </div>
+                                <div class="char-info">
+                                    <span class="info-label">Größe:</span>
+                                    <span>{{ char.height }} cm</span>
+                                </div>
+                            </div>
+                            <div class="char-card-actions">
+                                <button class="btn btn-play" @click.stop="playCharacter(char.id)">Spielen</button>
+                                <button class="btn btn-delete" @click.stop="deleteCharacter(char.id)">Löschen</button>
+                            </div>
+                        </div>
+                        
+                        <!-- New Character Card -->
+                        <div 
+                            v-if="characters.length < maxChars"
+                            class="char-card char-card-new"
+                            @click="openCharCreator"
+                        >
+                            <div class="char-card-new-content">
+                                <div class="plus-icon">+</div>
+                                <h3>Neuen Charakter erstellen</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Character Creator UI -->
+        <div id="char-creator-app">
+            <div id="char-creator" :class="{ hidden: !visible }">
+                <div class="char-creator-container">
+                    <div class="char-creator-header">
+                        <h1>Charakter erstellen</h1>
+                        <button class="btn-close" @click="closeCreator">×</button>
+                    </div>
+                    
+                    <div class="char-creator-body">
+                        <div class="form-section">
+                            <h3>Persönliche Daten</h3>
+                            
+                            <div class="form-group">
+                                <label>Vorname</label>
+                                <input 
+                                    type="text" 
+                                    v-model="formData.firstname" 
+                                    placeholder="Max"
+                                    maxlength="50"
+                                />
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Nachname</label>
+                                <input 
+                                    type="text" 
+                                    v-model="formData.lastname" 
+                                    placeholder="Mustermann"
+                                    maxlength="50"
+                                />
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Geburtsdatum</label>
+                                <input 
+                                    type="date" 
+                                    v-model="formData.dateofbirth"
+                                />
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Geschlecht</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" v-model="formData.sex" value="male" />
+                                        Männlich
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" v-model="formData.sex" value="female" />
+                                        Weiblich
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Größe (cm)</label>
+                                <input 
+                                    type="range" 
+                                    v-model="formData.height" 
+                                    min="150" 
+                                    max="200"
+                                    step="1"
+                                />
+                                <span class="range-value">{{ formData.height }} cm</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h3>Aussehen</h3>
+                            <button class="btn btn-appearance" @click="openAppearanceEditor">
+                                Aussehen anpassen
+                            </button>
+                            <p class="appearance-note">Passe Gesicht, Haare und weitere Details an</p>
+                        </div>
+                    </div>
+                    
+                    <div class="char-creator-footer">
+                        <button class="btn btn-cancel" @click="closeCreator">Abbrechen</button>
+                        <button class="btn btn-create" @click="createCharacter">Charakter erstellen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Appearance Editor UI -->
+        <div id="appearance-app">
+            <div id="appearance-editor" :class="{ hidden: !visible }">
+                <div class="appearance-container">
+                    <div class="appearance-header">
+                        <h1>Aussehen anpassen</h1>
+                        <button class="btn-close" @click="closeAppearance">×</button>
+                    </div>
+                    
+                    <div class="appearance-body">
+                        <div class="appearance-tabs">
+                            <button 
+                                v-for="tab in tabs" 
+                                :key="tab.id"
+                                class="tab-button"
+                                :class="{ active: currentTab === tab.id }"
+                                @click="currentTab = tab.id"
+                            >
+                                {{ tab.label }}
+                            </button>
+                        </div>
+                        
+                        <div class="appearance-content">
+                            <!-- Face Tab -->
+                            <div v-if="currentTab === 'face'" class="tab-content">
+                                <div class="slider-group">
+                                    <label>Gesichtsform (Mutter)</label>
+                                    <input type="range" v-model="appearance.face.mother" min="0" max="45" step="1" />
+                                    <span>{{ appearance.face.mother }}</span>
+                                </div>
+                                <div class="slider-group">
+                                    <label>Gesichtsform (Vater)</label>
+                                    <input type="range" v-model="appearance.face.father" min="0" max="45" step="1" />
+                                    <span>{{ appearance.face.father }}</span>
+                                </div>
+                                <div class="slider-group">
+                                    <label>Ähnlichkeit</label>
+                                    <input type="range" v-model="appearance.face.resemblance" min="0" max="100" step="1" />
+                                    <span>{{ appearance.face.resemblance }}%</span>
+                                </div>
+                                <div class="slider-group">
+                                    <label>Hautton</label>
+                                    <input type="range" v-model="appearance.face.skinTone" min="0" max="100" step="1" />
+                                    <span>{{ appearance.face.skinTone }}%</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Hair Tab -->
+                            <div v-if="currentTab === 'hair'" class="tab-content">
+                                <div class="slider-group">
+                                    <label>Frisur</label>
+                                    <input type="range" v-model="appearance.hair.style" min="0" max="73" step="1" />
+                                    <span>{{ appearance.hair.style }}</span>
+                                </div>
+                                <div class="color-group">
+                                    <label>Haarfarbe</label>
+                                    <input type="color" v-model="appearance.hair.color" />
+                                </div>
+                                <div class="color-group">
+                                    <label>Highlight-Farbe</label>
+                                    <input type="color" v-model="appearance.hair.highlightColor" />
+                                </div>
+                            </div>
+                            
+                            <!-- Eyes Tab -->
+                            <div v-if="currentTab === 'eyes'" class="tab-content">
+                                <div class="slider-group">
+                                    <label>Augenfarbe</label>
+                                    <input type="range" v-model="appearance.eyes.color" min="0" max="31" step="1" />
+                                    <span>{{ appearance.eyes.color }}</span>
+                                </div>
+                                <div class="slider-group">
+                                    <label>Augenbrauen</label>
+                                    <input type="range" v-model="appearance.eyes.eyebrows" min="0" max="33" step="1" />
+                                    <span>{{ appearance.eyes.eyebrows }}</span>
+                                </div>
+                                <div class="color-group">
+                                    <label>Augenbrauenfarbe</label>
+                                    <input type="color" v-model="appearance.eyes.eyebrowColor" />
+                                </div>
+                            </div>
+                            
+                            <!-- Features Tab -->
+                            <div v-if="currentTab === 'features'" class="tab-content">
+                                <div class="slider-group">
+                                    <label>Nasenbreite</label>
+                                    <input type="range" v-model="appearance.features.noseWidth" min="-100" max="100" step="1" />
+                                    <span>{{ appearance.features.noseWidth }}</span>
+                                </div>
+                                <div class="slider-group">
+                                    <label>Nasenhöhe</label>
+                                    <input type="range" v-model="appearance.features.noseHeight" min="-100" max="100" step="1" />
+                                    <span>{{ appearance.features.noseHeight }}</span>
+                                </div>
+                                <div class="slider-group">
+                                    <label>Lippendicke</label>
+                                    <input type="range" v-model="appearance.features.lipThickness" min="-100" max="100" step="1" />
+                                    <span>{{ appearance.features.lipThickness }}</span>
+                                </div>
+                                <div class="slider-group">
+                                    <label>Kieferbreite</label>
+                                    <input type="range" v-model="appearance.features.jawWidth" min="-100" max="100" step="1" />
+                                    <span>{{ appearance.features.jawWidth }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="appearance-footer">
+                        <button class="btn btn-cancel" @click="closeAppearance">Abbrechen</button>
+                        <button class="btn btn-save" @click="saveAppearance">Speichern</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <div id="admin-app">
             <div id="admin-menu" :class="{ hidden: !visible }">
                 <div class="menu-header">
@@ -78,6 +336,9 @@
         </div>
         <script src="hud/app.js"></script>
         <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+        <script src="charselection/app.js"></script>
+        <script src="charcreator/app.js"></script>
+        <script src="appearance/app.js"></script>
         <script src="admin/app.js"></script>
         <script src="hud/notify.js"></script>
     </body>

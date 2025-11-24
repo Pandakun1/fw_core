@@ -39,8 +39,8 @@ CreateThread(function()
 end)
 
 RegisterNetEvent('fw:playerReady')
-AddEventHandler('fw:playerReady', function()
-    local src = source
+AddEventHandler('fw:playerReady', function(srcOverride)
+    local src = srcOverride or source
     local spawnData = {
         x = Config.Firstspawn.x,
         y = Config.Firstspawn.y,
@@ -54,18 +54,19 @@ AddEventHandler('fw:playerReady', function()
         thirst = 100
     }
     local player = FW.GetPlayer(src)
-    if player then
+    if player and player.data and player.data.character then
+        local char = player.data.character
         spawnData = {
-            x = player.position.x or Config.Resetspawn.x,
-            y = player.position.y or Config.Resetspawn.y,
-            z = player.position.z or Config.Resetspawn.z,
-            heading = player.heading or Config.Resetspawn.w or 0.0,
-            skin = player.skin or nil,
-            model = player.model or spawnData.model,
-            health = player.health or 200,
-            armor = player.armor or 0,
-            hunger = player.hunger or 100,
-            thirst = player.thirst or 100
+            x = player.position.x or Config.Firstspawn.x,
+            y = player.position.y or Config.Firstspawn.y,
+            z = player.position.z or Config.Firstspawn.z,
+            heading = 0.0,
+            skin = char.skin or nil,
+            model = (char.sex == 'male' and 'mp_m_freemode_01' or 'mp_f_freemode_01'),
+            health = 200,
+            armor = 0,
+            hunger = 100,
+            thirst = 100
         }
     end
 

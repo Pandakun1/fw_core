@@ -94,20 +94,20 @@ function FW.CreatePlayer(src, data)
     end
 
     function self.toRow()
-        local loadout = "filler"
-
         return {
             identifier = self.identifier,
             name = self.name,
             money = self.money.cash,
-            inventory = self.inventory,
+            money_cash = self.money.cash,
             bank = self.money.bank,
+            money_bank = self.money.bank,
             job = self.job.name,
+            job_name = self.job.name,
             job_grade = self.job.grade,
             position_x = self.position.x,
             position_y = self.position.y,
             position_z = self.position.z,
-            daten = json.encode(loadout)
+            daten = json.encode(self.data)
         }
     end
 

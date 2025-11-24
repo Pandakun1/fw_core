@@ -62,19 +62,20 @@ function FW.DB.InsertPlayer(row, cb)
     MySQL.insert(
         [[
             INSERT INTO players
-                (identifier, name, money_cash, money_bank, job_name, job_grade, position_x, position_y, position_z)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)        
+                (identifier, name, money_cash, money_bank, job_name, job_grade, position_x, position_y, position_z, daten)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        
         ]],
         {
             row.identifier,
             row.name,
-            row.money,
-            row.bank,
-            row.job,
-            row.job_grade,
-            row.position_x,
-            row.position_y,
-            row.position_z,
+            row.money_cash or row.money or 0,
+            row.money_bank or row.bank or 0,
+            row.job_name or row.job or 'unemployed',
+            row.job_grade or 0,
+            row.position_x or 0,
+            row.position_y or 0,
+            row.position_z or 75,
+            row.daten or '{}'
         },
         function(insertId)
             if cb then cb(insertId) end
@@ -104,14 +105,14 @@ function FW.DB.SavePlayer(row, cb)
         {
             row.identifier,
             row.name,
-            row.money,
-            row.bank,
-            row.job,
-            row.job_grade,
-            row.position_x,
-            row.position_y,
-            row.position_z,
-            row.daten
+            row.money or 0,
+            row.bank or 0,
+            row.job or 'unemployed',
+            row.job_grade or 0,
+            row.position_x or 0,
+            row.position_y or 0,
+            row.position_z or 75,
+            row.daten or '{}'
         },
         function(affectedRows)
             if cb then cb(affectedRows) end

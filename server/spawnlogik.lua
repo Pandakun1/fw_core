@@ -15,6 +15,100 @@ end)
 local ActiveCharacters = {} 
 -- Füge eine Getter-Funktion für ActiveCharacters in deine Exports ein, falls du sie brauchst.
 
+-- Handler for loading a character by ID
+RegisterNetEvent('fw:loadCharacter')
+AddEventHandler('fw:loadCharacter', function(src, charId)
+    if not src or not charId then return end
+    
+    local identifier = GetPlayerIdentifier(src)
+    if not identifier then return end
+    
+    -- Load character from database
+    MySQL.single('SELECT * FROM characters WHERE id = ? AND identifier = ?', {charId, identifier}, function(character)
+        if not character then
+            print(('[FW] Character %s not found for player %s'):format(charId, src))
+            return
+        end
+        
+        -- Parse skin data
+        local skinData = {}
+        if character.skin and character.skin ~= '' then
+            skinData = json.decode(character.skin) or {}
+        end
+        
+        -- Set active character
+        ActiveCharacters[src] = charId
+        
+        -- Update character as active in database
+        MySQL.update('UPDATE characters SET is_active = 1 WHERE id = ?', {charId})
+        MySQL.update('UPDATE characters SET is_active = 0 WHERE identifier = ? AND id != ?', {identifier, charId})
+        
+        -- Create or load player entry in players table
+        local fullName = character.firstname .. ' ' .. character.lastname
+        MySQL.single('SELECT * FROM players WHERE identifier = ?', {identifier}, function(playerRow)
+            if playerRow then
+                -- Update existing player with character data
+                local player = FW.CreatePlayer(src, playerRow)
+                if player then
+                    -- Update player data with character info
+                    player.data.character = {
+                        id = character.id,
+                        firstname = character.firstname,
+                        lastname = character.lastname,
+                        dateofbirth = character.dateofbirth,
+                        sex = character.sex,
+                        height = character.height,
+                        skin = skinData
+                    }
+                    player.unsaved = true
+                    
+                    TriggerClientEvent('fw:updateHud', src, src, player.money.cash, player.money.bank)
+                    TriggerClientEvent('FW:playerLoaded', src, player.toRow())
+                    
+                    -- Trigger spawn
+                    TriggerEvent('fw:playerReady', src)
+                end
+            else
+                -- Create new player entry for this character
+                local newPlayerRow = {
+                    identifier = identifier,
+                    name = fullName,
+                    money_cash = 5000,
+                    money_bank = 25000,
+                    inventory = '{}',
+                    job_name = 'unemployed',
+                    job_grade = 0,
+                    position_x = Config.Firstspawn.x,
+                    position_y = Config.Firstspawn.y,
+                    position_z = Config.Firstspawn.z,
+                    daten = json.encode({
+                        character = {
+                            id = character.id,
+                            firstname = character.firstname,
+                            lastname = character.lastname,
+                            dateofbirth = character.dateofbirth,
+                            sex = character.sex,
+                            height = character.height,
+                            skin = skinData
+                        }
+                    })
+                }
+                
+                FW.DB.InsertPlayer(newPlayerRow, function()
+                    local player = FW.CreatePlayer(src, newPlayerRow)
+                    if player then
+                        TriggerClientEvent('fw:updateHud', src, src, player.money.cash, player.money.bank)
+                        TriggerClientEvent('FW:playerLoaded', src, player.toRow())
+                        
+                        -- Trigger spawn
+                        TriggerEvent('fw:playerReady', src)
+                    end
+                end)
+            end
+        end)
+    end)
+end)
+
 -- NEU: Triggered, wenn ein Charakter aus dem Creator kommt
 RegisterNetEvent('charcreator:server:createCharacter')
 AddEventHandler('charcreator:server:createCharacter', function(data)
@@ -24,31 +118,40 @@ AddEventHandler('charcreator:server:createCharacter', function(data)
     if not identifier then return end
     
     -- Prüfen ob maximale Anzahl erreicht
-    MySQL.scalar.await('SELECT COUNT(id) FROM characters WHERE identifier = ?', {identifier}, function(count)
+    MySQL.scalar('SELECT COUNT(id) FROM characters WHERE identifier = ?', {identifier}, function(count)
         if count >= Config.MaxCharacters then
             TriggerClientEvent('charcreator:client:notify', src, "Maximale Anzahl an Charakteren erreicht.", "error")
             return
         end
 
-        -- Standard-Skin setzen (Wird in der UI festgelegt)
-        local defaultSkin = json.encode({
-            face = data.skin.face, -- Face data kommt vom Client
-            sex = data.sex
-            -- Weitere Appearance-Daten hier hinzufügen, z.B. Hair, Tattoos etc.
-        })
+        -- Standard-Skin setzen mit strukturierten Daten für das Appearance-System
+        local skinData = {
+            sex = data.sex,
+            model = data.sex == 'male' and 'mp_m_freemode_01' or 'mp_f_freemode_01'
+        }
+        
+        -- Wenn Skin-Daten vom Client kommen, übernehmen
+        if data.skin then
+            for k, v in pairs(data.skin) do
+                skinData[k] = v
+            end
+        end
+        
+        local defaultSkin = json.encode(skinData)
+        
+        -- Deaktiviere alle anderen Charaktere für diesen Spieler
+        MySQL.update('UPDATE characters SET is_active = 0 WHERE identifier = ?', {identifier})
         
         -- Charakter in DB einfügen
         MySQL.insert('INSERT INTO characters (identifier, firstname, lastname, dateofbirth, sex, height, skin, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)', 
         {identifier, data.firstname, data.lastname, data.dateofbirth, data.sex, data.height, defaultSkin}, 
         function(charId)
-            -- Startgeld und Inventar in der Haupt-Player-Tabelle initialisieren (falls benötigt)
-            -- Hier müsste die Logik zur Erstellung eines Eintrags in der 'players' Tabelle für diesen charId rein.
+            if not charId then
+                TriggerClientEvent('charcreator:client:notify', src, "Fehler beim Erstellen des Charakters.", "error")
+                return
+            end
             
-            local player = FW.GetPlayer(src)
-            -- Da FW.GetPlayer(src) auf der license:ID basiert, müssen wir hier einen neuen 'player' Kontext erstellen,
-            -- der die charId als primären Schlüssel verwendet, um die Daten in FW korrekt zu speichern.
-            
-            -- WICHTIG: Hier muss der neue Charakter geladen werden
+            -- Lade den neuen Charakter und erstelle Player-Eintrag
             TriggerEvent('fw:loadCharacter', src, charId)
         end)
     end)

@@ -1,0 +1,10 @@
+[
+    {"name": "itemname",        "label": "itemlabel",       "itemweight": 500,      "type": "item",      "canUse": false},
+    {"name": "itemname2",       "label": "itemlabel2",      "itemweight": 550,      "type": "weapon",    "canUse": true},
+    {"name": "itemname3",       "label": "itemlabel3",      "itemweight": 560,      "type": "food",      "canUse": true},
+    {"name": "itemname4",       "label": "itemlabel4",      "itemweight": 570,      "type": "ammo",      "canUse": true},
+    {"name": "itemname%",       "label": "itemlabel6",      "itemweight": 580,      "type": "bag",       "canUse": true},
+    {"name": "itemnametest",    "label": "TestLabel",       "itemweight": 530,      "type": "item",      "canUse": false},
+    {"name": "itemnametest2",    "label": "TestLabel2",       "itemweight": 530,      "type": "item",      "canUse": false},
+    {"name": "itemnametest3",    "label": "TestLabel3",       "itemweight": 30,      "type": "item",      "canUse": false} 
+]

@@ -1,0 +1,14 @@
+Geschriebenes:
+
+    Player:
+        Money
+            addMoney
+            removeMoney
+
+        Jobs
+            setJob
+            removeJob
+
+
+    Datenbank:
+        

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <title>Spielplatz Hud</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div id="hud">
+            <div class="hud-row">
+                <span class="label">ID:</span>
+                <span id="playerId">0</span>
+            </div>
+            <div class="hud-row">
+                <span class="label">Bargeld:</span>
+                <span id="cash">$0</span>
+            </div>
+            <div class="hud-row">
+                <span class="label">Bank:</span>
+                <span id="bank">$0</span>
+            </div>
+            <div class="hud-row">
+                <span class="label">Speed:</span>
+                <span id="speed">0 km/h</span>
+            </div>
+        </div>
+        <div id="notify-container"></div>
+        <div id="admin-app">
+            <div id="admin-menu" :class="{ hidden: !visible }">
+                <div class="menu-header">
+                    <span>Adminmenü</span>
+                    <button @click="closeMenu">X</button>
+                </div>
+
+                <div class="menu-body">
+                    <div class="category-list">
+                        <div
+                            v-for="(cat, idx) in categories"
+                            :key="cat.id"
+                            class="category-item"
+                            :class="{ active: focusPanel === 'categories' && idx === currentCategoryIndex }"
+                            @click="selectCategory(cat.id)"
+                        >
+                            {{ cat.label }}
+                        </div>
+                    </div>
+
+                    <div class="item-list">
+                        <button
+                            v-for="(item, idx) in currentItems"
+                            :key="item.id"
+                            class="item-button"
+                            :class="{ active: focusPanel === 'items' && idx === currentItemIndex }"
+                            @click="sendAction(item.id)"
+                        >
+                            {{ item.label }}
+                        </button>
+                    </div>
+                </div>
+                <div class="input-modal" v-if="inputVisible">
+                    <div class="input-content">
+                        <h3>{{ inputTitle }}</h3>
+                        <input
+                            type="text"
+                            :placeholder="inputPlaceholder"
+                            v-model="inputValue"
+                            @keydown.enter.prevent="submitInput"
+                            @keydown.escape.prevent="cancelInput"
+                            autofocus
+                        />
+                        <div class="input-actions">
+                            <button @click="submitInput">Ok</button>
+                            <button @click="cancelInput">Abbrechen</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="hud/app.js"></script>
+        <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+        <script src="admin/app.js"></script>
+        <script src="hud/notify.js"></script>
+    </body>
+</html>

@@ -192,3 +192,12 @@ RegisterNUICallback('close', function(data, cb)
     SetNuiFocus(false, false)
     cb('ok')
 end)
+
+RegisterNUICallback('showNotification', function(data, cb)
+    SendNUIMessage({
+        action = 'notify',
+        message = data.message,
+        type = data.type or 'info'
+    })
+    cb('ok')
+end)

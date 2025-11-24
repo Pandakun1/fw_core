@@ -1,3 +1,7 @@
+:root {
+    --slider-value-width: 60px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -822,7 +826,7 @@ body {
 }
 
 .slider-group input[type="range"] {
-    width: calc(100% - 60px);
+    width: calc(100% - var(--slider-value-width));
     margin-right: 10px;
     vertical-align: middle;
 }

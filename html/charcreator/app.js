@@ -58,12 +58,27 @@ createCharCreatorApp({
         const createCharacter = () => {
             // Validate form
             if (!formData.value.firstname || !formData.value.lastname) {
-                alert('Bitte füllen Sie alle Pflichtfelder aus.');
+                // Send notification through NUI for consistency
+                fetch(`https://${GetParentResourceName()}/showNotification`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=UTF-8" },
+                    body: JSON.stringify({ 
+                        message: 'Bitte füllen Sie alle Pflichtfelder aus.',
+                        type: 'error'
+                    })
+                });
                 return;
             }
 
             if (!formData.value.dateofbirth) {
-                alert('Bitte geben Sie ein Geburtsdatum an.');
+                fetch(`https://${GetParentResourceName()}/showNotification`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=UTF-8" },
+                    body: JSON.stringify({ 
+                        message: 'Bitte geben Sie ein Geburtsdatum an.',
+                        type: 'error'
+                    })
+                });
                 return;
             }
 

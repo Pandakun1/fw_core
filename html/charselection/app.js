@@ -21,6 +21,8 @@ createCharSelectionApp({
         };
 
         const deleteCharacter = (charId) => {
+            // TODO: Implement custom confirmation modal
+            // For now using browser confirm as a temporary solution
             if (confirm('Möchten Sie diesen Charakter wirklich löschen?')) {
                 fetch(`https://${GetParentResourceName()}/deleteCharacter`, {
                     method: "POST",

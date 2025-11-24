@@ -33,9 +33,9 @@ files {
     'html/admin/style.css',
     'html/hud/notify.js',
     'html/hud/notify.css',
-    'html/charselection/app.js',
-    'html/charcreator/app.js',
-    'html/appearance/app.js',
+    'html/char/charselection/app.js',
+    'html/char/charcreator/app.js',
+    'html/char/appearance/app.js',
     'html/inventory/app.js',
     'html/inventory/style.css'
 }

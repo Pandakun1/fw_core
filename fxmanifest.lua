@@ -30,6 +30,9 @@ files {
     'html/admin/menu.js',
     'html/admin/app.js',
     'html/hud/notify.js',
+    'html/charselection/app.js',
+    'html/charcreator/app.js',
+    'html/appearance/app.js',
 }
 
 provides {

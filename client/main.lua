@@ -45,6 +45,15 @@ RegisterNetEvent('fw:CopyToClipboard', function(text)
     FW.CopyToClipboard(text)
 end)
 
+-- Character Creator notifications
+RegisterNetEvent('charcreator:client:notify', function(message, type)
+    SendNUIMessage({
+        action = 'notify',
+        message = message,
+        type = type or 'info'
+    })
+end)
+
 -- NEU: Multichar beim Spawn aktivieren
 local hasLoadedMultichar = false
 local SelectionCam = nil
@@ -99,17 +108,86 @@ function OpenCharacterSelection()
     end)
 end
 
--- ... (Fügen Sie hier die NUI Callbacks aus dem Vue-Code hinzu: selectCharacter, createCharacter, deleteCharacter, close)
-
--- Beispiel: NUI Callback für 'selectCharacter'
+-- NUI Callbacks for Character Selection
 RegisterNUICallback('selectCharacter', function(data, cb)
     InCharSelection = false
     SetNuiFocus(false, false)
+    DoScreenFadeOut(500)
+    Wait(500)
     TriggerServerEvent('charcreator:server:selectCharacter', data.charid)
     cb('ok')
 end)
 
--- Beispiel: NUI Callback für 'close' (falls ESC gedrückt wird)
+RegisterNUICallback('deleteCharacter', function(data, cb)
+    TriggerServerEvent('charcreator:server:deleteCharacter', data.charid)
+    cb('ok')
+end)
+
+RegisterNUICallback('openCharCreator', function(data, cb)
+    -- Open character creator UI
+    SendNUIMessage({
+        action = 'openCharCreator'
+    })
+    cb('ok')
+end)
+
+RegisterNUICallback('closeCharCreator', function(data, cb)
+    -- Reopen character selection
+    OpenCharacterSelection()
+    cb('ok')
+end)
+
+RegisterNUICallback('createCharacter', function(data, cb)
+    SetNuiFocus(false, false)
+    DoScreenFadeOut(500)
+    Wait(500)
+    TriggerServerEvent('charcreator:server:createCharacter', data)
+    cb('ok')
+end)
+
+RegisterNUICallback('openAppearance', function(data, cb)
+    SendNUIMessage({
+        action = 'openAppearance',
+        currentSkin = data.currentSkin,
+        fromCreator = true
+    })
+    cb('ok')
+end)
+
+RegisterNUICallback('closeAppearance', function(data, cb)
+    if data.returnToCreator then
+        SendNUIMessage({
+            action = 'openCharCreator'
+        })
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('saveAppearance', function(data, cb)
+    if data.returnToCreator then
+        -- Update skin data in character creator
+        SendNUIMessage({
+            action = 'updateSkin',
+            skin = data.skin
+        })
+        SendNUIMessage({
+            action = 'openCharCreator',
+            skin = data.skin
+        })
+    else
+        -- Save to server (for existing characters)
+        TriggerServerEvent('charcreator:server:saveSkin', data.skin)
+        SetNuiFocus(false, false)
+    end
+    cb('ok')
+end)
+
+RegisterNUICallback('previewAppearance', function(data, cb)
+    -- Apply appearance preview to ped
+    -- This would update the player model in real-time
+    cb('ok')
+end)
+
 RegisterNUICallback('close', function(data, cb)
     SetNuiFocus(false, false)
     cb('ok')

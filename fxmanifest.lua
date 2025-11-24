@@ -27,12 +27,17 @@ files {
     'html/index.html',
     'html/style.css',
     'html/hud/app.js',
+    'html/hud/hud.css',
     'html/admin/menu.js',
     'html/admin/app.js',
+    'html/admin/style.css',
     'html/hud/notify.js',
+    'html/hud/notify.css',
     'html/charselection/app.js',
     'html/charcreator/app.js',
     'html/appearance/app.js',
+    'html/inventory/app.js',
+    'html/inventory/style.css'
 }
 
 provides {

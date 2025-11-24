@@ -3,9 +3,18 @@
     <head>
         <meta charset="UTF-8">
         <title>Spielplatz Hud</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="hud/hud.css">
+        <link rel="stylesheet" href="admin/style.css">
+        <link rel="stylesheet" href="hud/notify.css">
+        <link rel="stylesheet" href="char/style.css">
+        <link rel="stylesheet" href="inventory/style.css">
     </head>
     <body>
+        <!-- HUD UI -->
         <div id="hud">
             <div class="hud-row">
                 <span class="label">ID:</span>
@@ -24,6 +33,8 @@
                 <span id="speed">0 km/h</span>
             </div>
         </div>
+
+        <!-- Notification Container -->
         <div id="notify-container"></div>
         
         <!-- Character Selection UI -->
@@ -283,6 +294,7 @@
             </div>
         </div>
         
+        <!-- Admin Menu UI -->
         <div id="admin-app">
             <div id="admin-menu" :class="{ hidden: !visible }">
                 <div class="menu-header">
@@ -334,12 +346,111 @@
                 </div>
             </div>
         </div>
-        <script src="hud/app.js"></script>
+
+        <!-- Inventory UI -->
+        <div id="inventory-app"
+            class="inventory-root hidden bg-transparent overflow-hidden h-screen w-screen select-none font-sans">
+
+            <div class="w-full h-full flex items-center justify-center">
+                
+                <!-- Hauptcontainer -->
+                <div class="glass-panel rounded-xl shadow-2xl flex flex-col w-[1000px] h-[600px] text-white relative">
+                    
+                    <!-- Header -->
+                    <div class="flex justify-between items-center p-6 border-b border-gray-700/50">
+                        <h1 class="text-2xl font-bold tracking-wider text-blue-400">
+                            <i class="fa-solid fa-box-open mr-2"></i> INVENTAR
+                        </h1>
+                        <div class="text-sm text-gray-400">
+                            Gewicht:
+                            <span :class="{ 'text-red-500': weight > maxWeight }">
+                                {{ weight.toFixed(1) }}
+                            </span>
+                            / {{ maxWeight }} kg
+                        </div>
+                    </div>
+
+                    <!-- Content Area -->
+                    <div class="flex flex-1 p-6 gap-6 overflow-hidden">
+                        
+                        <!-- Spieler Inventar -->
+                        <div class="flex-1 flex flex-col">
+                            <h2 class="text-xs uppercase font-bold text-gray-500 mb-2">Deine Taschen</h2>
+                            <div class="grid grid-cols-5 gap-3 overflow-y-auto content-start pr-2">
+                                
+                                <!-- Item Loop -->
+                                <div v-for="(item, index) in inventoryList" :key="index" 
+                                    class="item-slot bg-gray-800/50 border border-gray-700 rounded-lg relative group cursor-pointer"
+                                    @contextmenu.prevent="openContextMenu($event, item)">
+                                    
+                                    <div v-if="item.name"
+                                        class="w-full h-full flex flex-col items-center justify-center p-2">
+                                        <div class="text-xs absolute top-1 right-2 font-mono text-gray-400">
+                                            x{{ item.amount }}
+                                        </div>
+
+                                        <i class="fa-solid fa-cube text-4xl text-gray-600 mb-2"></i>
+                                        <div class="text-xs text-center font-medium truncate w-full px-1">
+                                            {{ item.label }}
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- Leere Slots -->
+                                <div v-for="n in (maxSlots - inventoryList.length)" :key="'empty-'+n"
+                                    class="item-slot bg-gray-900/30 border border-gray-800/50 rounded-lg">
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Rechte Seite -->
+                        <div class="w-1/3 border-l border-gray-700/50 pl-6 flex flex-col justify-center items-center text-center text-gray-500">
+                            <div class="bg-gray-800/30 p-4 rounded-full mb-4">
+                                <i class="fa-solid fa-shirt text-6xl"></i>
+                            </div>
+                            <p>Hier könnte Kleidung oder das Boden-Inventar sein.</p>
+                        </div>
+
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="p-4 border-t border-gray-700/50 text-xs text-gray-500 flex justify-between">
+                        <span>Rechtsklick für Aktionen</span>
+                        <span>ESC zum Schließen</span>
+                    </div>
+
+                    <!-- Context Menu -->
+                    <div v-if="contextMenu.visible"
+                        class="fixed bg-gray-900 border border-gray-700 rounded shadow-xl py-1 z-50 w-32"
+                        :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
+                        
+                        <button @click="useItem"
+                                class="w-full text-left px-4 py-2 hover:bg-blue-600 hover:text-white text-sm transition-colors">
+                            <i class="fa-solid fa-hand-pointer mr-2 w-4"></i> Benutzen
+                        </button>
+                        <button @click="giveItem"
+                                class="w-full text-left px-4 py-2 hover:bg-yellow-600 hover:text-white text-sm transition-colors">
+                            <i class="fa-solid fa-hand-holding-hand mr-2 w-4"></i> Geben
+                        </button>
+                        <button @click="dropItem"
+                                class="w-full text-left px-4 py-2 hover:bg-red-600 hover:text-white text-sm transition-colors">
+                            <i class="fa-solid fa-trash mr-2 w-4"></i> Wegwerfen
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
         <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-        <script src="charselection/app.js"></script>
-        <script src="charcreator/app.js"></script>
-        <script src="appearance/app.js"></script>
+        <script src="hud/app.js"></script>
+        <script src="char/charselection/app.js"></script>
+        <script src="char/charcreator/app.js"></script>
+        <script src="char/appearance/app.js"></script>
         <script src="admin/app.js"></script>
         <script src="hud/notify.js"></script>
+        <script src="inventory/app.js"></script>
     </body>
 </html>

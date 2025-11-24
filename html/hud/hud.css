@@ -1,0 +1,22 @@
+.hud-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+}
+
+.label {
+    font-weight: bold;
+}
+
+#cash {
+    color: #2ecc71;
+}
+
+#bank {
+    color: #3498db;
+}
+
+#speed {
+    color: #f1c40f;
+}
+

@@ -1,0 +1,47 @@
+/* Root des Inventars: standardmäßig komplett unsichtbar */
+.inventory-root {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000; /* über HUD/Admin */
+}
+
+/* wenn Vue die Klasse .inventory-visible setzt → anzeigen */
+.inventory-root.inventory-visible {
+    display: block;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 3px;
+}
+
+.glass-panel {
+    background: rgba(17, 24, 39, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.item-slot {
+    transition: all 0.2s;
+    aspect-ratio: 1 / 1;
+}
+.item-slot:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}

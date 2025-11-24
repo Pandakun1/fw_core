@@ -20,7 +20,7 @@ RegisterNetEvent('fw:loadCharacter')
 AddEventHandler('fw:loadCharacter', function(src, charId)
     if not src or not charId then return end
     
-    local identifier = GetPlayerIdentifier(src)
+    local identifier = GetIdentifier(src)
     if not identifier then return end
     
     -- Load character from database
@@ -113,7 +113,7 @@ end)
 RegisterNetEvent('charcreator:server:createCharacter')
 AddEventHandler('charcreator:server:createCharacter', function(data)
     local src = source
-    local identifier = GetPlayerIdentifier(src)
+    local identifier = GetIdentifier(src)
     
     if not identifier then return end
     
@@ -170,7 +170,7 @@ end)
 RegisterNetEvent('charcreator:server:deleteCharacter')
 AddEventHandler('charcreator:server:deleteCharacter', function(charId)
     local src = source
-    local identifier = GetPlayerIdentifier(src)
+    local identifier = GetIdentifier(src)
     
     -- Löscht den Charakter nur, wenn er zur Identität passt
     MySQL.update('DELETE FROM characters WHERE id = ? AND identifier = ?', {charId, identifier}, function(affectedRows)

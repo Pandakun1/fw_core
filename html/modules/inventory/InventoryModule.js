@@ -4,6 +4,8 @@
 
 const { computed, ref, onMounted } = Vue;
 
+const useNUI = window.useNUI;
+
 const InventoryModule = {
     name: 'InventoryModule',
     

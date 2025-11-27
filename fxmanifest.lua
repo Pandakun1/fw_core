@@ -2,13 +2,12 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'Pandakun'
-description 'Core resource für PandaSpielplatz server'
-version '0.0.01'
+description 'Core resource für PandaSpielplatz server (Vue3 UI)'
+version '1.0.0'
 
--- Shared, client and server entry points
 shared_scripts {
     'configs/*.lua',
-    'shared/*.lua',
+    --'shared/*.lua',
     'handler/*.lua'
 }
 
@@ -25,20 +24,17 @@ ui_page 'html/index.html'
 
 files {
     'html/index.html',
-    'html/style.css',
-    'html/hud/app.js',
-    'html/hud/hud.css',
-    'html/admin/admin_new.js',
-    'html/admin/style.css',
-    'html/hud/notify.js',
-    'html/hud/notify.css',
-    'html/char/charselection/app.js',
-    'html/char/charcreator/app.js',
-    'html/char/appearance/app.js',
-    'html/inventory/inventory_draggable.js',
-    'html/inventory/modern_inventory_integration.js',
-    'html/inventory/style.css',
-    'html/inventory/images/*.webp'
+    'html/app.js',
+    -- Lade alle Module und Core-Systeme rekursiv
+    'html/core/**/*.js',
+    'html/modules/**/*.js',
+    'html/shared/**/*.js',
+    'html/styles/*.css', -- Falls vorhanden, oder tailwind output
+    -- Bilder
+    --'html/img/*.png',
+    --'html/img/*.jpg',
+    'html/img/*.webp',
+    --'html/img/*.svg'
 }
 
 provides {
@@ -47,10 +43,3 @@ provides {
 }
 
 dependency 'oxmysql'
--- Exports and dependencies (uncomment/use as needed)
--- exports { 'SomeFunction' }
--- dependency 'essentialmode'  -- example dependency
-
--- Supported languages/locales (optional)
--- files { 'locales/en.json', 'locales/de.json' }
--- data_file 'LOCALE_FILE' 'locales/en.json'

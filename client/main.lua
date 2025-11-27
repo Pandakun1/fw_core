@@ -18,9 +18,9 @@ AddEventHandler('onClientResourceStart', function(resName)
         ShutdownLoadingScreen()
         ShutdownLoadingScreenNui()
         Wait(2500)
-        --TriggerServerEvent('fw:loadPlayer', GetPlayerServerId(PlayerId()))
-        --Wait(5000)
-        --TriggerServerEvent('fw:playerReady', GetPlayerServerId(PlayerId()))
+        TriggerServerEvent('fw:loadPlayer', GetPlayerServerId(PlayerId()))
+        Wait(5000)
+        TriggerServerEvent('fw:playerReady', GetPlayerServerId(PlayerId()))
     end
 end)
 

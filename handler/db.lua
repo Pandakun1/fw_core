@@ -61,7 +61,7 @@ end)
 
 function FW.DB.LoadPlayer(source, identifier, cb)
     MySQL.single(
-        'SELECT * FROM players where identifier = ?',
+        'SELECT * FROM players where license = ? AND is_active = 1',
         {identifier},
         function(row)
             cb(row)
@@ -108,6 +108,12 @@ function FW.DB.SavePlayer(row, cb)
     MySQL.query(
         [[
             UPDATE players SET
+                firstname = ?,
+                lastname = ?,
+                dateofbirth = ?,
+                sex = ?,
+                height = ?,
+                skin = ?,
                 money_cash = ?,
                 money_bank = ?,
                 job_name = ?,
@@ -121,9 +127,15 @@ function FW.DB.SavePlayer(row, cb)
             WHERE identifier = ?
         ]],
         {
-            row.money or 0,
-            row.bank or 0,
-            row.job or 'unemployed',
+            row.firstname,
+            row.lastname,
+            row.dateofbirth,
+            row.sex,
+            row.height,
+            row.skin,
+            row.money_cash or 0,
+            row.money_bank or 0,
+            row.job_name or 'unemployed',
             row.job_grade or 0,
             row.position_x or 0,
             row.position_y or 0,

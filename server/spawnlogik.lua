@@ -90,6 +90,9 @@ AddEventHandler('fw:loadCharacter', function(src, charId)
             -- Trigger spawn
             print(('[FW] Triggering playerReady for player %s with character %s'):format(src, character.id))
             TriggerEvent('fw:playerReady', src)
+            
+            -- Load the player's data
+            FW.LoadPlayer(src, charIdentifier)
         else
             print(('[FW] ERROR: Failed to create player object for %s'):format(src))
         end

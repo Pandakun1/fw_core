@@ -1,377 +1,80 @@
 <!DOCTYPE html>
 <html lang="de">
-    <head>
-        <meta charset="UTF-8">
-        <title>Spielplatz Hud</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <link rel="stylesheet" href="style.css">
-        <!-- <link rel="stylesheet" href="html/hud/hud.css"> -->
-        <!-- <link rel="stylesheet" href="html/admin/style.css"> -->
-        <!-- <link rel="stylesheet" href="html/hud/notify.css"> -->
-        <!-- <link rel="stylesheet" href="html/char/style.css"> -->
-        <!-- <link rel="stylesheet" href="html/inventory/style.css"> -->
-    </head>
-    <body>
-        <!-- HUD UI -->
-        <div id="hud">
-            <div class="hud-row">
-                <span class="label">ID:</span>
-                <span id="playerId">0</span>
-            </div>
-            <div class="hud-row">
-                <span class="label">Bargeld:</span>
-                <span id="cash">$0</span>
-            </div>
-            <div class="hud-row">
-                <span class="label">Bank:</span>
-                <span id="bank">$0</span>
-            </div>
-            <div class="hud-row">
-                <span class="label">Speed:</span>
-                <span id="speed">0 km/h</span>
-            </div>
-        </div>
-
-        <!-- Notification Container -->
-        <div id="notify-container"></div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PandaSpielplatz UI</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pinia/2.1.6/pinia.iife.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        <!-- Character Selection UI -->
-        <div id="char-selection-app" style="display: none; pointer-events: none;">
-            <div id="char-selection" v-show="visible" style="display: none;">
-                <div class="char-selection-container">
-                    <div class="char-selection-header">
-                        <h1>Charakterauswahl</h1>
-                        <p>Wähle oder erstelle einen Charakter</p>
-                    </div>
-                    
-                    <div class="char-cards-container">
-                        <div 
-                            v-for="(char, index) in characters" 
-                            :key="char.id"
-                            class="char-card"
-                            :class="{ selected: selectedIndex === index }"
-                            @click="selectCharacter(index)"
-                        >
-                            <div class="char-card-header">
-                                <h3>{{ char.firstname }} {{ char.lastname }}</h3>
-                            </div>
-                            <div class="char-card-body">
-                                <div class="char-info">
-                                    <span class="info-label">Geschlecht:</span>
-                                    <span>{{ char.sex === 'male' ? 'Männlich' : 'Weiblich' }}</span>
-                                </div>
-                                <div class="char-info">
-                                    <span class="info-label">Geburtsdatum:</span>
-                                    <span>{{ char.dateofbirth }}</span>
-                                </div>
-                                <div class="char-info">
-                                    <span class="info-label">Größe:</span>
-                                    <span>{{ char.height }} cm</span>
-                                </div>
-                            </div>
-                            <div class="char-card-actions">
-                                <button class="btn btn-play" @click.stop="playCharacter(char.id)">Spielen</button>
-                                <button class="btn btn-delete" @click.stop="confirmDelete(char.id)">Löschen</button>
-                            </div>
-                        </div>
-                        
-                        <!-- New Character Card -->
-                        <div 
-                            v-if="characters.length < maxChars"
-                            class="char-card char-card-new"
-                            @click="openCharCreator"
-                        >
-                            <div class="char-card-new-content">
-                                <div class="plus-icon">+</div>
-                                <h3>Neuen Charakter erstellen</h3>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Delete Confirmation Modal -->
-                    <div v-if="charToDelete" class="delete-modal" @click.self="cancelDelete">
-                        <div class="delete-modal-content">
-                            <h2>Charakter löschen?</h2>
-                            <p>Möchtest du diesen Charakter wirklich löschen?</p>
-                            <p class="delete-warning">Diese Aktion kann nicht rückgängig gemacht werden!</p>
-                            <div class="delete-modal-actions">
-                                <button class="btn btn-delete" @click="deleteCharacter">Löschen</button>
-                                <button class="btn btn-cancel" @click="cancelDelete">Abbrechen</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Character Creator UI -->
-        <div id="char-creator-app" style="display: none; pointer-events: none;">
-            <div id="char-creator" v-show="visible" style="display: none;">
-                <div class="char-creator-container">
-                    <div class="char-creator-header">
-                        <h1>Charakter erstellen</h1>
-                        <button class="btn-close" @click="closeCreator">×</button>
-                    </div>
-                    
-                    <div class="char-creator-body">
-                        <div class="form-section">
-                            <h3>Persönliche Daten</h3>
-                            
-                            <div class="form-group">
-                                <label>Vorname</label>
-                                <input 
-                                    type="text" 
-                                    v-model="formData.firstname" 
-                                    placeholder="Max"
-                                    maxlength="50"
-                                />
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Nachname</label>
-                                <input 
-                                    type="text" 
-                                    v-model="formData.lastname" 
-                                    placeholder="Mustermann"
-                                    maxlength="50"
-                                />
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Geburtsdatum</label>
-                                <input 
-                                    type="date" 
-                                    v-model="formData.dateofbirth"
-                                />
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Geschlecht</label>
-                                <div class="radio-group">
-                                    <label class="radio-label">
-                                        <input type="radio" v-model="formData.sex" value="male" />
-                                        Männlich
-                                    </label>
-                                    <label class="radio-label">
-                                        <input type="radio" v-model="formData.sex" value="female" />
-                                        Weiblich
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Größe (cm)</label>
-                                <input 
-                                    type="range" 
-                                    v-model="formData.height" 
-                                    min="150" 
-                                    max="200"
-                                    step="1"
-                                />
-                                <span class="range-value">{{ formData.height }} cm</span>
-                            </div>
-                        </div>
-                        
-                        <div class="form-section">
-                            <h3>Aussehen</h3>
-                            <button class="btn btn-appearance" @click="openAppearanceEditor">
-                                Aussehen anpassen
-                            </button>
-                            <p class="appearance-note">Passe Gesicht, Haare und weitere Details an</p>
-                        </div>
-                    </div>
-                    
-                    <div class="char-creator-footer">
-                        <button class="btn btn-cancel" @click="closeCreator">Abbrechen</button>
-                        <button class="btn btn-create" @click="createCharacter">Charakter erstellen</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Appearance Editor UI -->
-        <div id="appearance-app" style="display: none; pointer-events: none;">
-            <div id="appearance-editor" v-show="visible" style="display: none;">
-                <div class="appearance-container">
-                    <div class="appearance-header">
-                        <h1>Aussehen anpassen</h1>
-                        <button class="btn-close" @click="closeAppearance">×</button>
-                    </div>
-                    
-                    <div class="appearance-body">
-                        <div class="appearance-tabs">
-                            <button 
-                                v-for="tab in tabs" 
-                                :key="tab.id"
-                                class="tab-button"
-                                :class="{ active: currentTab === tab.id }"
-                                @click="currentTab = tab.id"
-                            >
-                                {{ tab.label }}
-                            </button>
-                        </div>
-                        
-                        <div class="appearance-content">
-                            <!-- Face Tab -->
-                            <div v-if="currentTab === 'face'" class="tab-content">
-                                <div class="slider-group">
-                                    <label>Gesichtsform (Mutter)</label>
-                                    <input type="range" v-model="appearance.face.mother" min="0" max="45" step="1" />
-                                    <span>{{ appearance.face.mother }}</span>
-                                </div>
-                                <div class="slider-group">
-                                    <label>Gesichtsform (Vater)</label>
-                                    <input type="range" v-model="appearance.face.father" min="0" max="45" step="1" />
-                                    <span>{{ appearance.face.father }}</span>
-                                </div>
-                                <div class="slider-group">
-                                    <label>Ähnlichkeit</label>
-                                    <input type="range" v-model="appearance.face.resemblance" min="0" max="100" step="1" />
-                                    <span>{{ appearance.face.resemblance }}%</span>
-                                </div>
-                                <div class="slider-group">
-                                    <label>Hautton</label>
-                                    <input type="range" v-model="appearance.face.skinTone" min="0" max="100" step="1" />
-                                    <span>{{ appearance.face.skinTone }}%</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Hair Tab -->
-                            <div v-if="currentTab === 'hair'" class="tab-content">
-                                <div class="slider-group">
-                                    <label>Frisur</label>
-                                    <input type="range" v-model="appearance.hair.style" min="0" max="73" step="1" />
-                                    <span>{{ appearance.hair.style }}</span>
-                                </div>
-                                <div class="color-group">
-                                    <label>Haarfarbe</label>
-                                    <input type="color" v-model="appearance.hair.color" />
-                                </div>
-                                <div class="color-group">
-                                    <label>Highlight-Farbe</label>
-                                    <input type="color" v-model="appearance.hair.highlightColor" />
-                                </div>
-                            </div>
-                            
-                            <!-- Eyes Tab -->
-                            <div v-if="currentTab === 'eyes'" class="tab-content">
-                                <div class="slider-group">
-                                    <label>Augenfarbe</label>
-                                    <input type="range" v-model="appearance.eyes.color" min="0" max="31" step="1" />
-                                    <span>{{ appearance.eyes.color }}</span>
-                                </div>
-                                <div class="slider-group">
-                                    <label>Augenbrauen</label>
-                                    <input type="range" v-model="appearance.eyes.eyebrows" min="0" max="33" step="1" />
-                                    <span>{{ appearance.eyes.eyebrows }}</span>
-                                </div>
-                                <div class="color-group">
-                                    <label>Augenbrauenfarbe</label>
-                                    <input type="color" v-model="appearance.eyes.eyebrowColor" />
-                                </div>
-                            </div>
-                            
-                            <!-- Features Tab -->
-                            <div v-if="currentTab === 'features'" class="tab-content">
-                                <div class="slider-group">
-                                    <label>Nasenbreite</label>
-                                    <input type="range" v-model="appearance.features.noseWidth" min="-100" max="100" step="1" />
-                                    <span>{{ appearance.features.noseWidth }}</span>
-                                </div>
-                                <div class="slider-group">
-                                    <label>Nasenhöhe</label>
-                                    <input type="range" v-model="appearance.features.noseHeight" min="-100" max="100" step="1" />
-                                    <span>{{ appearance.features.noseHeight }}</span>
-                                </div>
-                                <div class="slider-group">
-                                    <label>Lippendicke</label>
-                                    <input type="range" v-model="appearance.features.lipThickness" min="-100" max="100" step="1" />
-                                    <span>{{ appearance.features.lipThickness }}</span>
-                                </div>
-                                <div class="slider-group">
-                                    <label>Kieferbreite</label>
-                                    <input type="range" v-model="appearance.features.jawWidth" min="-100" max="100" step="1" />
-                                    <span>{{ appearance.features.jawWidth }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="appearance-footer">
-                        <button class="btn btn-cancel" @click="closeAppearance">Abbrechen</button>
-                        <button class="btn btn-save" @click="saveAppearance">Speichern</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Admin Menu UI -->
-        <div id="admin-app">
-            <div id="admin-menu" v-show="visible">
-                <div class="menu-header">
-                    <span>Adminmenü</span>
-                    <button @click="closeAdminMenu">X</button>
-                </div>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+            background: transparent;
+        }
 
-                <div class="menu-body">
-                    <div class="category-list">
-                        <div
-                            v-for="(cat, idx) in categories"
-                            :key="cat.id"
-                            class="category-item"
-                            :class="{ active: focusPanel === 'categories' && idx === currentCategoryIndex }"
-                            @click="selectCategory(idx)"
-                        >
-                            {{ cat.label }}
-                        </div>
-                    </div>
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
 
-                    <div class="item-list">
-                        <button
-                            v-for="(item, idx) in currentItems"
-                            :key="item.id"
-                            class="item-button"
-                            :class="{ active: focusPanel === 'items' && idx === currentItemIndex }"
-                            @click="executeAction(item)"
-                        >
-                            {{ item.label }}
-                        </button>
-                    </div>
-                </div>
-                <div class="input-modal" v-if="inputVisible">
-                    <div class="input-content">
-                        <h3>{{ inputTitle }}</h3>
-                        <input
-                            type="text"
-                            :placeholder="inputPlaceholder"
-                            v-model="inputValue"
-                            @keydown.enter.prevent="submitInput"
-                            @keydown.escape.prevent="inputVisible = false"
-                            ref="inputField"
-                        />
-                        <div class="input-actions">
-                            <button @click="submitInput">Ok</button>
-                            <button @click="inputVisible = false">Abbrechen</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        /* Animationen */
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.2s ease;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
 
-        <!-- Inventory UI -->
-        <div id="inventory-app"></div>
+        .slide-enter-active, .slide-leave-active {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .slide-enter-from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+        .slide-leave-to {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
 
-        <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/vuedraggable@next"></script>
-        <script src="hud/app.js"></script>
-        <script src="char/charselection/app.js"></script>
-        <script src="char/charcreator/app.js"></script>
-        <script src="char/appearance/app.js"></script>
-        <script src="admin/admin_new.js"></script>
-        <script src="hud/notify.js"></script>
-        <script src="inventory/modern_inventory_integration.js"></script>
-    </body>
+    <!-- Core System -->
+    <script src="core/NUIBridge.js"></script>
+    <script src="core/focusManager.js"></script>
+    <script src="core/UIManager.js"></script>
+
+    <!-- Shared -->
+    <script src="shared/stores/appStore.js"></script>
+    <script src="shared/composables/useNUI.js"></script>
+
+    <!-- Modules -->
+    <script src="modules/inventory/InventoryStore.js"></script>
+    <script src="modules/inventory/InventoryModule.js"></script>
+    <script src="modules/admin/AdminStore.js"></script>
+    <script src="modules/admin/AdminModule.js"></script>
+
+    <!-- App Initialization -->
+    <script src="app.js"></script>
+</body>
 </html>

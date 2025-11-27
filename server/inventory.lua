@@ -597,16 +597,19 @@ RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
             return
         end
 
-        -- Finde Items basierend auf Slot (Name-basiertes Inventar mit slot property)
+        local fromItemData = nil
+        local toItemData = nil
         local fromItemName = nil
         local toItemName = nil
         
-        for itemName, itemData in pairs(inventory) do
-            if itemData.slot == fromSlot then
-                fromItemName = itemName
+        for name, data in pairs(inventory) do
+            if data.slot == fromSlot then
+                fromItemData = data
+                fromItemName = name
             end
-            if itemData.slot == toSlot then
-                toItemName = itemName
+            if data.slot == toSlot then
+                toItemData = data
+                toItemName = name
             end
         end
 
@@ -626,12 +629,12 @@ RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
         -- Items tauschen oder verschieben
         if toItemName then
             -- Swap: Tausche die Slot-Positionen
-            inventory[fromItemName].slot = toSlot
-            inventory[toItemName].slot = fromSlot
+            fromItemData.slot = toSlot
+            toItemData.slot = fromSlot
             print(('[FW] Swap: %s ↔ %s'):format(fromItemName, toItemName))
         else
             -- Move: Verschiebe zu leerem Slot
-            inventory[fromItemName].slot = toSlot
+            fromItemData.slot = toSlot
             print(('[FW] Move: %s → Slot %d'):format(fromItemName, toSlot))
         end
 

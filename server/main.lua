@@ -83,10 +83,10 @@ function GetIdentifier(src)
     return identifiers[1] or nil
 end
 
-function FW.LoadPlayer(src)
+function FW.LoadPlayer(src, identifier)
     print('Lade Spieler mit der Quelle: ' .. tostring(src))
     while not src do Wait(100) src = source end
-    local identifier = GetIdentifier(src)
+    local identifier = identifier or GetIdentifier(src)
     if not identifier then
         print('Keine gültige Identifikation gefunden.')
         DropPlayer(src, 'Keine gültige Identifikation gefunden.')

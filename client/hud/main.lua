@@ -1,91 +1,70 @@
 FW = FW or {}
 FW.Hud = FW.Hud or {}
 
-local cash  = 0
-local bank  = 0
-local playerId = PlayerPedId()
-local showHud = true
+-- ============================================
+-- FW Core: HUD & Notify Logic
+-- ============================================
+
+local showHUD = true
+
+-- === NOTIFY SYSTEM ===
+
+RegisterNetEvent('fw:client:notify')
+AddEventHandler('fw:client:notify', function(message, type, duration)
+    SendNUIMessage({
+        action = 'notify',
+        data = {
+            message = message,
+            type = type or 'info',
+            duration = duration or 3000
+        }
+    })
+end)
+
+-- Legacy Support für Framework
+RegisterNetEvent('FW:Notify')
+AddEventHandler('FW:Notify', function(msg, type, duration)
+    TriggerEvent('fw:client:notify', msg, type, duration)
+end)
+
+-- === HUD SYSTEM ===
 
 Citizen.CreateThread(function()
     while true do
-        Wait(200)
-        if showHud then
-            local ped = PlayerPedId()
-            local speed = 0
+        if showHUD then
+            local playerPed = PlayerPedId()
+            
+            -- Daten sammeln
+            local hudData = {
+                health = (GetEntityHealth(playerPed) - 100),
+                armor = GetPedArmour(playerPed),
+                hunger = 100, -- TODO: Aus FW holen
+                thirst = 100, -- TODO: Aus FW holen
+                inVehicle = false
+            }
 
-            if IsPedInAnyVehicle(ped, false) then
-                local veh = GetVehiclePedIsIn(ped, false)
-                speed = GetEntitySpeed(veh) * 3.6
+            if IsPedInAnyVehicle(playerPed, false) then
+                local vehicle = GetVehiclePedIsIn(playerPed, false)
+                hudData.inVehicle = true
+                hudData.speed = GetEntitySpeed(vehicle) * 3.6 -- km/h
+                hudData.fuel = GetVehicleFuelLevel(vehicle)
             end
+
+            -- An NUI senden (action: 'updateHUD')
             SendNUIMessage({
-                action = "updateHud",
-                speed = math.floor(speed)
+                action = 'updateHUD',
+                data = hudData
             })
         end
-    end
-
-end)
-
-
-RegisterNetEvent("fw:MoneyChange", function(account, oldAmount, newAmount)
-    if account == "cash" then
-        SendNUIMessage({
-            action = "updateHud",
-            cash = newAmount,
-        })
-    else
-        SendNUIMessage({
-            action = "updateHud",
-            bank = newAmount
-        })
+        Wait(500) -- Aktualisierungsrate (nicht zu schnell für Performance)
     end
 end)
 
-RegisterNetEvent("fw:IdLoad", function(id)
-    if id ~= 0 or id ~= nil then
-        SendNUIMessage({
-            action = "updateHud",
-            playerId = id
-        })
-    end
-end)
-
-RegisterNetEvent('fw:updateHud', function (id, cash1, bank1)
-    local newID = id
-    local newCash = cash1
-    local newBank = bank1
+-- HUD Toggle Command
+RegisterCommand('togglehud', function()
+    showHUD = not showHUD
     SendNUIMessage({
-        action = "updateHud",
-        cash = newCash,
-        bank = newBank,
-        playerId = id,
+        action = 'toggleHUD',
+        data = { visible = showHUD }
     })
 end)
-
-RegisterCommand('updateHud', function ()
-    FW.TriggerCallback("fw:getPlayer", function(Player)
-        local inhalt = 'Spieler id: '.. Player.id .. ' und PlayerPedId: ' .. PlayerPedId()
-        FW.ClientNotify(inhalt, 8000)
-        SendNUIMessage({
-            action = "updateHud",
-            cash = Player.money.cash or 0,
-            bank = Player.money.bank or 0,
-            playerId = PlayerPedId(),
-        })
-    end)
-end, false)
-
-RegisterCommand('toggleHud', function()
-    showHud = not showHud
-    SendNUIMessage({
-        action = "toggleHud",
-        state = showHud
-    })
-end, false)
-
-RegisterCommand('id', function()
-    print(playerId)
-end,false)
-
-RegisterKeyMapping('toggleHud', 'ToggleHud', 'keyboard', 'F10')
-

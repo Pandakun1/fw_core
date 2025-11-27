@@ -1,4 +1,4 @@
-import { createApp, ref, computed, onMounted, onUnmounted } from 'vue';
+const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
 
 // --- IMPORTS DER MODULE ---
 import InventoryModule from './modules/inventory/InventoryModule.js';

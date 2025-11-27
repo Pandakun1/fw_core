@@ -44,3 +44,5 @@ const HUDModule = {
     </div>
     `
 };
+
+export default HUDModule;

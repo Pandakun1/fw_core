@@ -226,3 +226,4 @@ const InventoryModule = {
     </Transition>
     `
 };
+export default InventoryModule;

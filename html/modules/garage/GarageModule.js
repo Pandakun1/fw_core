@@ -261,3 +261,5 @@ const GarageModule = {
         </Transition>
     `
 };
+
+export default GarageModule;

@@ -300,3 +300,5 @@ const AdminModule = {
         </Transition>
     `
 };
+
+export default AdminModule;

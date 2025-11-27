@@ -47,3 +47,5 @@ const MulticharModule = {
     </div>
     `
 };
+
+export default MulticharModule;

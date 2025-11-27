@@ -38,3 +38,5 @@ const NotifyModule = {
     </div>
     `
 };
+
+export default NotifyModule;

@@ -1,11 +1,11 @@
-// Globale Variablen explizit holen
-const useNUI = window.useNUI;
+// [NEU] Globale Variablen explizit abrufen
+const useNUI = window.useNUI; 
 
 const MulticharModule = {
     name: 'MulticharModule',
-    props: ['data'],
+    props: ['data'], 
     setup(props) {
-        const { send } = useNUI(); 
+        const { send } = useNUI(); // Jetzt funktioniert useNUI()
 
         const selectChar = (charid) => {
             send('selectCharacter', { charid });

@@ -1,13 +1,14 @@
 /**
  * Inventory Store - Verwaltung des Inventar-States
  */
-
 const { defineStore } = Pinia;
 
-const useInventoryStore = defineStore('inventory', {
+// Wir definieren den Store und hängen ihn direkt an window, damit er global verfügbar ist
+window.useInventoryStore = defineStore('inventory', {
+    // 1. STATE (Die Daten)
     state: () => ({
         // Inventory Data
-        items: [],           // Array of items: { slot, name, label, amount, weight, image }
+        items: [],           // Array of items
         maxWeight: 50,
         currentWeight: 0,
         maxSlots: 20,        // 5x4 Grid
@@ -30,39 +31,22 @@ const useInventoryStore = defineStore('inventory', {
         dragSourceSlot: null
     }),
 
+    // 2. GETTERS (Berechnete Werte)
     getters: {
-        /**
-         * Get Item by Slot
-         */
         getItemBySlot: (state) => (slot) => {
             return state.items.find(item => item.slot === slot) || null;
         },
 
-        /**
-         * Freie Slots
-         */
         freeSlots: (state) => {
             const usedSlots = state.items.map(item => item.slot);
             return state.maxSlots - usedSlots.length;
         },
 
-        /**
-         * Gewichts-Prozent
-         */
         weightPercent: (state) => {
+            if (state.maxWeight === 0) return 0;
             return Math.min(100, (state.currentWeight / state.maxWeight) * 100);
         },
 
-        /**
-         * Ist Inventar voll?
-         */
-        isFull: (state) => {
-            return state.currentWeight >= state.maxWeight;
-        },
-
-        /**
-         * Alle Slots als Array (für Grid-Rendering)
-         */
         slotsGrid: (state) => {
             const grid = [];
             for (let i = 0; i < state.maxSlots; i++) {
@@ -76,181 +60,100 @@ const useInventoryStore = defineStore('inventory', {
         }
     },
 
+    // 3. ACTIONS (Funktionen)
     actions: {
-        /**
-         * Öffne Inventar
-         */
         open() {
             this.isOpen = true;
             console.log('[InventoryStore] Inventory opened');
         },
 
-        /**
-         * Schließe Inventar
-         */
         close() {
             this.isOpen = false;
             this.selectedSlot = null;
             this.hideContextMenu();
             this.clearDrag();
-            console.log('[InventoryStore] Inventory closed');
+            // Optional: Fokus entfernen via NUI
+            if(window.NUIBridge) window.NUIBridge.send('closeInventory'); 
         },
 
-        /**
-         * Lade Inventar-Daten vom Server
-         */
         loadInventoryData(data) {
             console.log('[InventoryStore] Loading inventory data', data);
             
-            this.items = data.main || [];
+            // Mapping sicherstellen (Falls data.inventory oder data.main kommt)
+            this.items = data.main || data.inventory || []; 
             this.maxWeight = data.maxWeight || 50;
             this.groundItems = data.groundItems || [];
-            
-            // Berechne aktuelles Gewicht
-            this.currentWeight = this.items.reduce((sum, item) => {
-                return sum + ((item.weight || 0) * (item.amount || 1));
-            }, 0);
-        },
-
-        /**
-         * Update einzelnes Item
-         */
-        updateItem(slot, itemData) {
-            const index = this.items.findIndex(item => item.slot === slot);
-            
-            if (index !== -1) {
-                if (itemData) {
-                    this.items[index] = { ...this.items[index], ...itemData };
-                } else {
-                    // Item entfernen
-                    this.items.splice(index, 1);
-                }
-            } else if (itemData) {
-                // Neues Item hinzufügen
-                this.items.push({ slot, ...itemData });
-            }
             
             this.recalculateWeight();
         },
 
-        /**
-         * Gewicht neu berechnen
-         */
         recalculateWeight() {
             this.currentWeight = this.items.reduce((sum, item) => {
                 return sum + ((item.weight || 0) * (item.amount || 1));
             }, 0);
         },
 
-        /**
-         * Context Menu anzeigen
-         */
+        // Context Menu
         showContextMenu(x, y, item) {
-            this.contextMenu = {
-                visible: true,
-                x,
-                y,
-                item
-            };
+            this.contextMenu = { visible: true, x, y, item };
         },
-
-        /**
-         * Context Menu verstecken
-         */
         hideContextMenu() {
-            this.contextMenu = {
-                visible: false,
-                x: 0,
-                y: 0,
-                item: null
-            };
+            this.contextMenu = { visible: false, x: 0, y: 0, item: null };
         },
 
-        /**
-         * Drag Start
-         */
+        // Drag & Drop
         startDrag(slot, item) {
             this.draggedItem = item;
             this.dragSourceSlot = slot;
-            console.log(`[InventoryStore] Drag started from slot ${slot}`);
         },
-
-        /**
-         * Drag End
-         */
         endDrag(targetSlot) {
             if (this.dragSourceSlot === null) return;
             
-            console.log(`[InventoryStore] Drag ended at slot ${targetSlot}`);
+            // Server Request
+            if(window.NUIBridge) {
+                window.NUIBridge.send('moveItem', {
+                    fromSlot: this.dragSourceSlot,
+                    toSlot: targetSlot
+                });
+            }
             
-            // Sende Move-Request an Server
-            window.NUIBridge.send('moveItem', {
-                fromSlot: this.dragSourceSlot,
-                toSlot: targetSlot
-            });
+            // Optimistisches Update im UI (optional, sonst auf Server warten)
+            // this.updateItem(...) 
             
             this.clearDrag();
         },
-
-        /**
-         * Clear Drag State
-         */
         clearDrag() {
             this.draggedItem = null;
             this.dragSourceSlot = null;
         },
 
-        /**
-         * Item benutzen
-         */
+        // Item Actions
         async useItem(item, slot) {
-            console.log(`[InventoryStore] Using item: ${item.name} from slot ${slot}`);
-            
-            try {
-                const result = await window.NUIBridge.send('useItem', {
-                    itemName: item.name,
-                    slot: slot,
-                    zone: 'main',
-                    amount: 1
+            if(window.NUIBridge) {
+                await window.NUIBridge.send('useItem', { 
+                    name: item.name, // WICHTIG: name statt itemName, damit Lua es direkt versteht
+                    slot: slot 
                 });
-                
-                console.log('[InventoryStore] Use item result:', result);
-                
-                // Server wird inventory:refresh Event senden wenn erfolgreich
-            } catch (error) {
-                console.error('[InventoryStore] Error using item:', error);
             }
         },
 
-        /**
-         * Item droppen
-         */
         async dropItem(item, slot, amount = 1) {
-            console.log(`[InventoryStore] Dropping ${amount}x ${item.name} from slot ${slot}`);
-            
-            try {
-                await window.NUIBridge.send('dropItem', {
-                    slot: slot,
-                    amount: amount
+            if(window.NUIBridge) {
+                await window.NUIBridge.send('dropItem', { 
+                    name: item.name,
+                    slot: slot, 
+                    amount: amount 
                 });
-            } catch (error) {
-                console.error('[InventoryStore] Error dropping item:', error);
             }
         },
 
-        /**
-         * Item geben
-         */
         async giveItem(item, slot, amount = 1) {
-            console.log(`[InventoryStore] Giving ${amount}x ${item.name} from slot ${slot}`);
-            
-            try {
-                await window.NUIBridge.send('giveItem', {
-                    slot: slot,
-                    amount: amount
+            if(window.NUIBridge) {
+                await window.NUIBridge.send('giveItem', { 
+                    name: item.name,
+                    slot: slot, 
+                    amount: amount 
                 });
-            } catch (error) {
-                console.error('[InventoryStore] Error giving item:', error);
             }
         }
     }

@@ -4,7 +4,7 @@
 
 const { defineStore } = Pinia;
 
-const useAdminStore = defineStore('admin', {
+window.useAdminStore = Pinia.defineStore('admin', {
     state: () => ({
         isOpen: false,
         

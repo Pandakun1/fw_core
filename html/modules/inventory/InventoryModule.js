@@ -3,8 +3,10 @@
  */
 
 const { computed, ref, onMounted } = Vue;
-
 const useNUI = window.useNUI;
+
+const useInventoryStore = window.useInventoryStore;
+const useAppStore = window.useAppStore;
 
 const InventoryModule = {
     name: 'InventoryModule',

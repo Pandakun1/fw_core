@@ -6,17 +6,13 @@
     <title>PandaSpielplatz UI</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue-demi/0.14.6/index.iife.min.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pinia/2.1.6/pinia.iife.min.js"></script>
-    
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; overflow: hidden; background: transparent; }
-        
         .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
@@ -28,6 +24,10 @@
     <script src="core/focusManager.js"></script>
     <script src="core/UIManager.js"></script>
 
+    <script src="shared/composables/useNUI.js"></script>
+    <script src="shared/stored/appStore.js"></script>
+    <script src="modules/inventory/InventoryStore.js"></script>
+    <script src="modules/admin/AdminStore.js"></script>
     <script type="module" src="app.js"></script>
 </body>
 </html>

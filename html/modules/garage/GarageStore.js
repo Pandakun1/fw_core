@@ -4,7 +4,7 @@
 
 const { defineStore } = Pinia;
 
-const useGarageStore = defineStore('garage', {
+window.useGarageStore = Pinia.defineStore('garage', {
     state: () => ({
         isOpen: false,
         vehicles: [],           // Spieler Fahrzeuge

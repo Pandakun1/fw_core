@@ -9,7 +9,7 @@
 
 const { defineStore } = Pinia;
 
-const useAppStore = defineStore('app', {
+window.useAppStore = Pinia.defineStore('app', {
     state: () => ({
         // UI State
         currentModule: null,

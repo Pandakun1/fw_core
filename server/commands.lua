@@ -65,3 +65,19 @@ RegisterCommand('addmoney', function(source, args, rawCommand)
     })
 end, false)
 
+-- Zurück zum Multichar Menü
+RegisterCommand('logout', function(source, args, rawCommand)
+    local src = source
+    if src == 0 then return end
+    
+    -- Trigger client to open multichar
+    TriggerClientEvent('fw:client:returnToMultichar', src)
+end, false)
+
+RegisterCommand('multichar', function(source, args, rawCommand)
+    local src = source
+    if src == 0 then return end
+    
+    TriggerClientEvent('fw:client:returnToMultichar', src)
+end, false)
+

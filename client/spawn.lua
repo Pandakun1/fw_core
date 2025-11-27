@@ -3,8 +3,11 @@ local firstSpawn = true
 local spawned1 = false
 RegisterNetEvent('fw:spawnPlayer')
 AddEventHandler('fw:spawnPlayer', function(data)
+    print('[FW Client] Received fw:spawnPlayer event')
+    print('[FW Client] Spawn data: ' .. json.encode(data))
     if spawned1 == false then
         spawned1 = true
+        print('[FW Client] Starting spawn process')
         FW.ClientNotify("spawnPlayer gestartet", 100)
         local ped = PlayerPedId()
         if data.model then
@@ -19,18 +22,25 @@ AddEventHandler('fw:spawnPlayer', function(data)
 
             SetPlayerModel(PlayerId(), model)
             SetModelAsNoLongerNeeded(model)
+            
+            -- Warte kurz damit das Model geladen wird
+            Wait(100)
             ped = PlayerPedId()
             SetPedDefaultComponentVariation(ped)
-            TriggerServerEvent('fw:serverTeleportTo', data.x, data.y, data.z, data.heading)
-            --NetworkResurrectLocalPlayer(data.x, data.y, data.z, data.heading, true, true, false)
+            
+            -- Setze Ped-Einstellungen BEVOR Teleport
             FreezeEntityPosition(ped, false)
             SetEntityCollision(ped, true, true)
-            SetEntityVisible(ped, true)
-            Wait(100)
-            if not IsEntityVisible(ped) then
-                SetEntityVisible(ped, true)
-            end
+            SetEntityVisible(ped, true, false)
+            SetEntityInvincible(ped, false)
+            
+            TriggerServerEvent('fw:serverTeleportTo', data.x, data.y, data.z, data.heading)
         end
+        
+        print('[FW Client] Spawn completed, fading in screen')
+        DoScreenFadeIn(1000)
+        Wait(1000)
+        print('[FW Client] Spawn fully complete')
 
         --[[FreezeEntityPosition(ped, true)
         SetEntityCollision(ped, false, false)

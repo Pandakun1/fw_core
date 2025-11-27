@@ -6,7 +6,10 @@ function FW.CreatePlayer(src, data)
 
     self.id = src
     self.identifier = data.identifier or 'Unbekannt'
-    self.name = data.name or 'Unbekannt'
+    self.license = data.license or ''
+    self.firstname = data.firstname or 'John'
+    self.lastname = data.lastname or 'Doe'
+    self.name = (data.firstname or 'John') .. ' ' .. (data.lastname or 'Doe')
     self.money = {
         cash = data.money_cash or data.money or 0,
         bank = data.money_bank or data.bank or 0
@@ -23,8 +26,18 @@ function FW.CreatePlayer(src, data)
     }
 
     local daten = {}
-    if data.daten and data.daten ~= '' then
-        daten = json.decode(data.daten) or {}
+    if data.daten and data.daten ~= '' and data.daten ~= 'filler' then
+        if type(data.daten) == 'string' then
+            local success, decoded = pcall(json.decode, data.daten)
+            if success and decoded and type(decoded) == 'table' then
+                daten = decoded
+            else
+                print(('[FW] WARNING: Failed to decode daten for player %s - invalid JSON, resetting to empty: %s'):format(src, tostring(data.daten)))
+                daten = {}
+            end
+        elseif type(data.daten) == 'table' then
+            daten = data.daten
+        end
     end
 
     self.data = daten
@@ -96,7 +109,9 @@ function FW.CreatePlayer(src, data)
     function self.toRow()
         return {
             identifier = self.identifier,
-            name = self.name,
+            license = self.license,
+            firstname = self.firstname,
+            lastname = self.lastname,
             money = self.money.cash,
             money_cash = self.money.cash,
             bank = self.money.bank,
@@ -107,6 +122,7 @@ function FW.CreatePlayer(src, data)
             position_x = self.position.x,
             position_y = self.position.y,
             position_z = self.position.z,
+            inventory = data.inventory or '{}',
             daten = json.encode(self.data)
         }
     end

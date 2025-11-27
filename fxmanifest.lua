@@ -28,16 +28,17 @@ files {
     'html/style.css',
     'html/hud/app.js',
     'html/hud/hud.css',
-    'html/admin/menu.js',
-    'html/admin/app.js',
+    'html/admin/admin_new.js',
     'html/admin/style.css',
     'html/hud/notify.js',
     'html/hud/notify.css',
     'html/char/charselection/app.js',
     'html/char/charcreator/app.js',
     'html/char/appearance/app.js',
-    'html/inventory/app.js',
-    'html/inventory/style.css'
+    'html/inventory/inventory_draggable.js',
+    'html/inventory/modern_inventory_integration.js',
+    'html/inventory/style.css',
+    'html/inventory/images/*.webp'
 }
 
 provides {

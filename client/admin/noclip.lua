@@ -84,6 +84,7 @@ CreateThread(function()
     local speed = 3.0
 
     while true do
+        Wait(0)
         if freecam and cam ~= nil then
             DisableAllControlActions(0) -- Spieler soll nichts anderes machen
 
@@ -121,9 +122,9 @@ CreateThread(function()
             )
 
             SetCamCoord(cam, newPos.x, newPos.y, newPos.z)
+        else
+            Wait(100)
         end
-
-        Wait(0)
     end
 end)
 

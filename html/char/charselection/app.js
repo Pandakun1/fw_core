@@ -6,9 +6,18 @@ createCharSelectionApp({
         const characters = Vue.ref([]);
         const maxChars = Vue.ref(5);
         const selectedIndex = Vue.ref(-1);
+        const charToDelete = Vue.ref(null);
 
         const selectCharacter = (index) => {
             selectedIndex.value = index;
+        };
+        
+        const confirmDelete = (charId) => {
+            charToDelete.value = charId;
+        };
+        
+        const cancelDelete = () => {
+            charToDelete.value = null;
         };
 
         const playCharacter = (charId) => {
@@ -20,18 +29,27 @@ createCharSelectionApp({
             visible.value = false;
         };
 
-        const deleteCharacter = (charId) => {
-            // TODO: Implement custom confirmation modal
-            // For now using browser confirm as a temporary solution
-            if (confirm('Möchten Sie diesen Charakter wirklich löschen?')) {
-                fetch(`https://${GetParentResourceName()}/deleteCharacter`, {
+        const deleteCharacter = async () => {
+            if (!charToDelete.value) return;
+            
+            const charId = charToDelete.value;
+            console.log('[CharSelection] Deleting character:', charId);
+            
+            try {
+                // Send delete request to server
+                await fetch(`https://${GetParentResourceName()}/deleteCharacter`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json; charset=UTF-8" },
                     body: JSON.stringify({ charid: charId })
-                }).then(() => {
-                    // Remove character from list
-                    characters.value = characters.value.filter(c => c.id !== charId);
                 });
+                
+                // Remove character from local list immediately
+                characters.value = characters.value.filter(c => c.id !== charId);
+                charToDelete.value = null;
+                console.log('[CharSelection] Character deleted successfully');
+            } catch (error) {
+                console.error('[CharSelection] Error deleting character:', error);
+                charToDelete.value = null;
             }
         };
 
@@ -46,19 +64,28 @@ createCharSelectionApp({
         };
 
         Vue.onMounted(() => {
+            const appContainer = document.getElementById('char-selection-app');
+            
             window.addEventListener("message", (event) => {
                 const data = event.data;
                 if (!data || !data.action) return;
 
+                // Nur Character Selection relevante Actions verarbeiten
+                const validActions = ['openCharSelection', 'closeCharSelection', 'updateCharacters'];
+                if (!validActions.includes(data.action)) return;
+
                 if (data.action === "openCharSelection") {
+                    console.log('[CharSelection] Opening with characters:', data.characters);
                     characters.value = data.characters || [];
                     maxChars.value = data.maxChars || 5;
                     selectedIndex.value = -1;
                     visible.value = true;
+                    if (appContainer) appContainer.style.display = 'block';
                 }
 
                 if (data.action === "closeCharSelection") {
                     visible.value = false;
+                    if (appContainer) appContainer.style.display = 'none';
                 }
 
                 if (data.action === "updateCharacters") {
@@ -85,8 +112,11 @@ createCharSelectionApp({
             characters,
             maxChars,
             selectedIndex,
+            charToDelete,
             selectCharacter,
             playCharacter,
+            confirmDelete,
+            cancelDelete,
             deleteCharacter,
             openCharCreator
         };

@@ -4,18 +4,30 @@ FW.DB = FW.DB or {}
 function FW.DB.SetupTables()
     local createPlayersTableQuery = [[
         CREATE TABLE IF NOT EXISTS players (
-            identifier      VARCHAR(64) NOT NULL PRIMARY KEY,
-            name            VARCHAR(100) NOT NULL,
+            id              INT AUTO_INCREMENT PRIMARY KEY,
+            identifier      VARCHAR(64) NOT NULL UNIQUE,
+            license         VARCHAR(64) NOT NULL,
+            firstname       VARCHAR(50) NOT NULL,
+            lastname        VARCHAR(50) NOT NULL,
+            dateofbirth     VARCHAR(20) NOT NULL,
+            sex             VARCHAR(10) NOT NULL,
+            height          INT NOT NULL DEFAULT 180,
+            skin            LONGTEXT DEFAULT NULL,
             money_cash      INT NOT NULL DEFAULT 0,
             money_bank      INT NOT NULL DEFAULT 0,
-            inventory       LONGTEXT NOT NULL,
+            inventory       LONGTEXT NOT NULL DEFAULT '{}',
             job_name        VARCHAR(50) NOT NULL DEFAULT 'unemployed',
             job_grade       INT NOT NULL DEFAULT 0,
             position_x      DOUBLE NOT NULL DEFAULT 0,
             position_y      DOUBLE NOT NULL DEFAULT 0,
             position_z      DOUBLE NOT NULL DEFAULT 0,
-            daten           LONGTEXT NOT NULL,
-            last_seen       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            is_active       TINYINT(1) DEFAULT 0,
+            daten           LONGTEXT NOT NULL DEFAULT '{}',
+            last_seen       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_license (license),
+            INDEX idx_identifier (identifier),
+            INDEX idx_active (license, is_active)
         ) ENGINE=InnoDB
     ]]
 
@@ -62,19 +74,27 @@ function FW.DB.InsertPlayer(row, cb)
     MySQL.insert(
         [[
             INSERT INTO players
-                (identifier, name, money_cash, money_bank, job_name, job_grade, position_x, position_y, position_z, daten)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        
+                (identifier, license, firstname, lastname, dateofbirth, sex, height, skin, money_cash, money_bank, inventory, job_name, job_grade, position_x, position_y, position_z, is_active, daten)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        
         ]],
         {
             row.identifier,
-            row.name,
+            row.license or '',
+            row.firstname or 'John',
+            row.lastname or 'Doe',
+            row.dateofbirth or '01.01.1990',
+            row.sex or 'male',
+            row.height or 180,
+            row.skin or '{}',
             row.money_cash or row.money or 0,
             row.money_bank or row.bank or 0,
+            row.inventory or '{}',
             row.job_name or row.job or 'unemployed',
             row.job_grade or 0,
             row.position_x or 0,
             row.position_y or 0,
             row.position_z or 75,
+            row.is_active or 0,
             row.daten or '{}'
         },
         function(insertId)
@@ -87,24 +107,20 @@ function FW.DB.SavePlayer(row, cb)
     print('Speichere Spieler: ' .. json.encode(row))
     MySQL.query(
         [[
-            INSERT INTO players
-                (identifier, name, money_cash, money_bank, job_name, job_grade, position_x, position_y, position_z, daten)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-                name = VALUES(name),
-                money_cash = VALUES(money_cash),
-                money_bank = VALUES(money_bank),
-                job_name = VALUES(job_name),
-                job_grade = VALUES(job_grade),
-                position_x = VALUES(position_x),
-                position_y = VALUES(position_y),
-                position_z = VALUES(position_z),
-                daten = VALUES(daten),
+            UPDATE players SET
+                money_cash = ?,
+                money_bank = ?,
+                job_name = ?,
+                job_grade = ?,
+                position_x = ?,
+                position_y = ?,
+                position_z = ?,
+                inventory = ?,
+                daten = ?,
                 last_seen = CURRENT_TIMESTAMP
+            WHERE identifier = ?
         ]],
         {
-            row.identifier,
-            row.name,
             row.money or 0,
             row.bank or 0,
             row.job or 'unemployed',
@@ -112,7 +128,9 @@ function FW.DB.SavePlayer(row, cb)
             row.position_x or 0,
             row.position_y or 0,
             row.position_z or 75,
-            row.daten or '{}'
+            row.inventory or '{}',
+            row.daten or '{}',
+            row.identifier
         },
         function(affectedRows)
             if cb then cb(affectedRows) end

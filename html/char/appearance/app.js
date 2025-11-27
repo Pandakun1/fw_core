@@ -39,7 +39,10 @@ createAppearanceApp({
         });
 
         const closeAppearance = () => {
+            const appContainer = document.getElementById('appearance-app');
             visible.value = false;
+            if (appContainer) appContainer.style.display = 'none';
+            
             if (fromCreator.value) {
                 // Return to character creator
                 fetch(`https://${GetParentResourceName()}/closeAppearance`, {
@@ -58,6 +61,10 @@ createAppearanceApp({
         };
 
         const saveAppearance = () => {
+            const appContainer = document.getElementById('appearance-app');
+            visible.value = false;
+            if (appContainer) appContainer.style.display = 'none';
+            
             // Send appearance data to Lua
             fetch(`https://${GetParentResourceName()}/saveAppearance`, {
                 method: "POST",
@@ -67,7 +74,6 @@ createAppearanceApp({
                     returnToCreator: fromCreator.value
                 })
             });
-            visible.value = false;
         };
 
         // Watch for changes and send to Lua for preview
@@ -82,11 +88,19 @@ createAppearanceApp({
         }, { deep: true });
 
         Vue.onMounted(() => {
+            const appContainer = document.getElementById('appearance-app');
+            
             window.addEventListener("message", (event) => {
                 const data = event.data;
                 if (!data || !data.action) return;
 
+                // Nur Appearance relevante Actions verarbeiten
+                const validActions = ['openAppearance', 'closeAppearance'];
+                if (!validActions.includes(data.action)) return;
+
                 if (data.action === "openAppearance") {
+                    console.log('[Appearance] Opening editor');
+                    if (appContainer) appContainer.style.display = 'block';
                     if (data.currentSkin) {
                         appearance.value = data.currentSkin;
                     }
@@ -97,6 +111,7 @@ createAppearanceApp({
 
                 if (data.action === "closeAppearance") {
                     visible.value = false;
+                    if (appContainer) appContainer.style.display = 'none';
                 }
             });
         });

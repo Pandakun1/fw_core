@@ -89,42 +89,32 @@ function OpenCharacterSelection()
             maxChars = Config.MaxCharacters
         })
         
-        -- Screen Fade und Kamera setzen
+        -- Screen Fade
         DoScreenFadeOut(500)
         Wait(500)
-        
-        -- HIER: Setzen Sie eine Standard-Auswahlkamera (z.B. im Himmel)
-        -- SelectionCam = CreateCam(...)
-        
-        -- Setze einen unsichtbaren, inaktiven Ped
-        local model = GetHashKey('mp_m_freemode_01')
-        RequestModel(model)
-        while not HasModelLoaded(model) do Wait(0) end
-        
-        -- Verwenden Sie den Ped, um Charaktere anzuzeigen (z.B. in einer Reihe)
-        -- ...
-        
         DoScreenFadeIn(1000)
     end)
 end
 
 -- NUI Callbacks for Character Selection
 RegisterNUICallback('selectCharacter', function(data, cb)
+    print('[FW Client] Character selected: ' .. tostring(data.charid))
     InCharSelection = false
     SetNuiFocus(false, false)
-    DoScreenFadeOut(500)
-    Wait(500)
+    SendNUIMessage({ action = 'hideUI' })
+    
     TriggerServerEvent('charcreator:server:selectCharacter', data.charid)
     cb('ok')
 end)
 
 RegisterNUICallback('deleteCharacter', function(data, cb)
     TriggerServerEvent('charcreator:server:deleteCharacter', data.charid)
+    -- Focus bleibt aktiv, Character Selection ist noch offen
     cb('ok')
 end)
 
 RegisterNUICallback('openCharCreator', function(data, cb)
-    -- Open character creator UI
+    -- Open character creator UI (Focus bleibt aktiv)
     SendNUIMessage({
         action = 'openCharCreator'
     })
@@ -132,20 +122,21 @@ RegisterNUICallback('openCharCreator', function(data, cb)
 end)
 
 RegisterNUICallback('closeCharCreator', function(data, cb)
-    -- Reopen character selection
+    -- Reopen character selection (Focus bleibt aktiv)
     OpenCharacterSelection()
     cb('ok')
 end)
 
 RegisterNUICallback('createCharacter', function(data, cb)
+    print('[FW Client] Creating character')
     SetNuiFocus(false, false)
-    DoScreenFadeOut(500)
-    Wait(500)
+    SendNUIMessage({ action = 'hideUI' })
     TriggerServerEvent('charcreator:server:createCharacter', data)
     cb('ok')
 end)
 
 RegisterNUICallback('openAppearance', function(data, cb)
+    -- Wechselt zu Appearance Editor (Focus bleibt aktiv)
     SendNUIMessage({
         action = 'openAppearance',
         currentSkin = data.currentSkin,
@@ -156,23 +147,25 @@ end)
 
 RegisterNUICallback('closeAppearance', function(data, cb)
     if data.returnToCreator then
+        -- Zurück zu Creator (Focus bleibt aktiv, fromAppearance flag)
         SendNUIMessage({
-            action = 'openCharCreator'
+            action = 'openCharCreator',
+            fromAppearance = true
         })
+    else
+        -- Komplett schließen
+        SetNuiFocus(false, false)
     end
     cb('ok')
 end)
 
 RegisterNUICallback('saveAppearance', function(data, cb)
     if data.returnToCreator then
-        -- Update skin data in character creator
-        SendNUIMessage({
-            action = 'updateSkin',
-            skin = data.skin
-        })
+        -- Update skin data in character creator und zurück mit fromAppearance flag
         SendNUIMessage({
             action = 'openCharCreator',
-            skin = data.skin
+            skin = data.skin,
+            fromAppearance = true
         })
     else
         -- Save to server (for existing characters)
@@ -200,4 +193,20 @@ RegisterNUICallback('showNotification', function(data, cb)
         type = data.type or 'info'
     })
     cb('ok')
+end)
+
+-- Zurück zum Multichar Menü
+RegisterNetEvent('fw:client:returnToMultichar', function()
+    -- Close all open UIs
+    SendNUIMessage({ action = 'hideUI' })
+    SendNUIMessage({ action = 'close' })
+    SendNUIMessage({ action = 'closeInventory' })
+    SendNUIMessage({ action = 'closeAdminMenu' })
+    
+    -- Reset player state
+    DoScreenFadeOut(500)
+    Wait(500)
+    
+    -- Reopen multichar
+    OpenCharacterSelection()
 end)

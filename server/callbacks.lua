@@ -55,7 +55,7 @@ FW.RegisterServerCallback('charcreator:loadCharacters', function(src, cb)
         cb({})
         return
     end
-    MySQL.query('SELECT id, firstname, lastname, dateofbirth, sex, height FROM characters WHERE identifier = ? ORDER BY last_played DESC', {identifier[1]}, function(result)
+    MySQL.query('SELECT id, firstname, lastname, dateofbirth, sex, height FROM players WHERE license = ? ORDER BY last_seen DESC', {identifier[1]}, function(result)
         local characters = {}
         
         for i = 1, #result do
@@ -74,7 +74,7 @@ FW.RegisterServerCallback('charcreator:loadCharacters', function(src, cb)
 end)
 
 FW.RegisterServerCallback('charcreator:loadCharacterById', function(src, cb, charId)
-    MySQL.single('SELECT * FROM characters WHERE id = ?', {charId}, function(result)
+    MySQL.single('SELECT * FROM players WHERE id = ?', {charId}, function(result)
         cb(result)
     end)
 end)

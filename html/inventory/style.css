@@ -1,0 +1,115 @@
+/* Inventory Specific Styles */
+.inventory-root {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+}
+
+.inventory-root.hidden {
+    display: none;
+}
+
+/* Item Slot Hover Effects & Drag & Drop */
+.item-slot {
+    position: relative;
+    cursor: grab;
+    transition: all 0.2s ease;
+    min-height: 96px;
+}
+
+.item-slot:active {
+    cursor: grabbing;
+}
+
+.item-slot:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(79, 195, 247, 0.3);
+}
+
+.item-slot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(79, 195, 247, 0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.item-slot:hover::after {
+    opacity: 1;
+}
+
+/* Drag Over Effect */
+.item-slot.drag-over,
+[data-drag-zone]:hover {
+    background: rgba(79, 195, 247, 0.2) !important;
+    border-color: #4fc3f7 !important;
+    box-shadow: 0 0 20px rgba(79, 195, 247, 0.5);
+}
+
+/* Context Menu Improvements */
+#inventory-app button {
+    transition: all 0.2s ease;
+}
+
+#inventory-app button:hover {
+    transform: translateX(4px);
+}
+
+/* Weight Bar Styling */
+.weight-indicator {
+    position: relative;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.weight-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #66BB6A, #FFA726);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.weight-fill.overweight {
+    background: linear-gradient(90deg, #FFA726, #F44336);
+}
+
+/* Item Preview Animation */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translate(110%, -10%) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translate(110%, -10%) scale(1);
+    }
+}
+
+/* Drag Ghost Styling - bewegt sich mit der Maus */
+.drag-ghost {
+    opacity: 0.0 !important;
+    background: rgba(17, 24, 39, 0.95) !important;
+    border: 2px solid #4fc3f7 !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 10px 30px rgba(79, 195, 247, 0.5) !important;
+    transform: scale(1.05) !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+.drag-ghost * {
+    pointer-events: none !important;
+}
+
+/* Fallback-Element verstecken */
+.drag-fallback {
+    display: none !important;
+    opacity: 0 !important;
+}

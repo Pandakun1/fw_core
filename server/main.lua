@@ -18,29 +18,12 @@ AddEventHandler('onServerResourceStop', function(resourceName)
     print('FW Core Stopped')
 end)
 
-CreateThread(function()
-    MySQL.query([[
-        CREATE TABLE IF NOT EXISTS characters (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            identifier VARCHAR(64) NOT NULL,
-            firstname VARCHAR(50) NOT NULL,
-            lastname VARCHAR(50) NOT NULL,
-            dateofbirth VARCHAR(20) NOT NULL,
-            sex VARCHAR(10) NOT NULL,
-            height INT NOT NULL,
-            skin LONGTEXT DEFAULT NULL,
-            is_active TINYINT(1) DEFAULT 0,
-            last_played TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_identifier (identifier),
-            INDEX idx_active (identifier, is_active)
-        )
-    ]])
-end)
+-- Characters table is now merged with players table in handler/db.lua
 
 RegisterNetEvent('fw:playerReady')
 AddEventHandler('fw:playerReady', function(srcOverride)
     local src = srcOverride or source
+    print(('[FW] playerReady handler called for player %s'):format(src))
     local spawnData = {
         x = Config.Firstspawn.x,
         y = Config.Firstspawn.y,
@@ -68,8 +51,12 @@ AddEventHandler('fw:playerReady', function(srcOverride)
             hunger = 100,
             thirst = 100
         }
+        print(('[FW] Spawning player %s with character data: %s at %s,%s,%s'):format(src, char.firstname, spawnData.x, spawnData.y, spawnData.z))
+    else
+        print(('[FW] Spawning player %s without character data (first spawn)'):format(src))
     end
 
+    print(('[FW] Sending fw:spawnPlayer to client %s with model: %s'):format(src, spawnData.model))
     TriggerClientEvent('fw:spawnPlayer', src, spawnData)
 end)
 
@@ -152,42 +139,47 @@ function FW.SaveAllPlayers()
     local placeholder = {}
     local params = {}
 
+    -- Use individual UPDATE queries since characters already exist
+    local updateCount = 0
     for _, row in ipairs(rowsToSave) do
-        table.insert(placeholder, '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        table.insert(params, row.identifier)
-        table.insert(params, row.name)
-        table.insert(params, row.money_cash)
-        table.insert(params, row.money_bank)
-        table.insert(params, row.job_name)
-        table.insert(params, row.job_grade)
-        table.insert(params, row.position_x)
-        table.insert(params, row.position_y)
-        table.insert(params, row.position_z)
-        table.insert(params, row.daten)
+        MySQL.query([[
+            UPDATE players SET
+                money_cash = ?,
+                money_bank = ?,
+                job_name = ?,
+                job_grade = ?,
+                position_x = ?,
+                position_y = ?,
+                position_z = ?,
+                inventory = ?,
+                daten = ?,
+                last_seen = CURRENT_TIMESTAMP
+            WHERE identifier = ?
+        ]], {
+            row.money_cash,
+            row.money_bank,
+            row.job_name,
+            row.job_grade,
+            row.position_x,
+            row.position_y,
+            row.position_z,
+            row.inventory,
+            row.daten,
+            row.identifier
+        }, function(affectedRows)
+            updateCount = updateCount + 1
+            if updateCount >= #rowsToSave then
+                for _, player in pairs(FW.Players) do
+                    player.saveClean()
+                end
+                print(('[FW] - %d Spieler wurden gespeichert.'):format(#rowsToSave))
+            end
+        end)
     end
-    local query = [[
-        INSERT INTO players
-            (identifier, name, money_cash, money_bank, job_name, job_grade, position_x, position_y, position_z, daten)
-        VALUES ]] .. table.concat(placeholder, ',') .. [[
-        ON DUPLICATE KEY UPDATE
-            name = VALUES(name),
-            money_cash = VALUES(money_cash),
-            money_bank = VALUES(money_bank),
-            job_name = VALUES(job_name),
-            job_grade = VALUES(job_grade),
-            position_x = VALUES(position_x),
-            position_y = VALUES(position_y),
-            position_z = VALUES(position_z),
-            daten = VALUES(daten),
-            last_seen = CURRENT_TIMESTAMP
-    ]]
-
-    MySQL.query(query, params, function(affectedRows)
-        for _, player in pairs(FW.Players) do
-            player.saveClean()
-        end
-        print(('[FW] - %d Spieler wurden gespeichert.'):format(#rowsToSave))
-    end)
+    
+    if #rowsToSave == 0 then
+        print('[FW] - Keine ungespeicherten Spieler gefunden.')
+    end
 end
 
 local SAVE_INTERVAL = 60 * Config.AutoSaveInterval

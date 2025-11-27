@@ -50,15 +50,25 @@ function ToggleAdminMenu()
 
                     }
                 },
+                {
+                    id = "licenses",
+                    label = "Lizenzen",
+                    items = {
+                        { id = "give_license", label = "Lizenz an Spieler vergeben" },
+                        { id = "revoke_license", label = "Lizenz von Spieler entziehen" },
+                        { id = "list_licenses", label = "Alle verfügbaren Lizenzen anzeigen" },
+                        { id = "player_licenses", label = "Lizenzen eines Spielers anzeigen" },
+                    }
+                },
             }
         }
 
         SendNUIMessage({
-            action = "open",
-            data   = menuData
+            action = "openAdminMenu",
+            categories = menuData.categories
         })
     else
-        SendNUIMessage({ action = "close" })
+        SendNUIMessage({ action = "closeAdminMenu" })
     end
 end
 
@@ -79,6 +89,9 @@ RegisterNUICallback('adminAction', function(data, cb)
         spawn_car =         { placeholder = "Fahrzeug-Model (adder)", label = "Fahrzeug spawnen" },
         announce =          { placeholder = "Nachricht eingeben...", label = "Servernachricht senden" },
         testnachricht =     { placeholder = "Testnachricht eingeben...", label = "Testnachricht" },
+        give_license =      { placeholder = "Spieler-ID Lizenz-Name (1 driver_license)", label = "Lizenz vergeben" },
+        revoke_license =    { placeholder = "Spieler-ID Lizenz-Name (1 driver_license)", label = "Lizenz entziehen" },
+        player_licenses =   { placeholder = "Spieler-ID (1)", label = "Lizenzen anzeigen" },
     }
 
     if requiresInput[item] then
@@ -112,6 +125,8 @@ RegisterNUICallback('adminAction', function(data, cb)
         FW.Admin.DeleteVehicle()
     elseif cat == "server" and item == "reload_itemlist" then
         FW.Admin.ReloadItemList()
+    elseif cat == "licenses" and item == "list_licenses" then
+        TriggerServerEvent('fw:admin:listAllLicenses')
     end
 
     cb({})
@@ -149,6 +164,27 @@ RegisterNUICallback('inputAction', function(data, cb)
         TriggerServerEvent('fw:admin:sendAnnouncement', input)
     elseif action == "testnachricht" then
         FW.ClientNotify("Testnachricht vom Admin-Menü: "..input, 5000)
+    elseif action == "give_license" then
+        local playerId, licenseName = input:match("^(%d+)%s+(%S+)$")
+        if playerId and licenseName then
+            TriggerServerEvent('fw:admin:giveLicense', tonumber(playerId), licenseName)
+        else
+            FW.ClientNotify("[Admin] Ungültiges Format. Benutze: spieler_id lizenz_name", 5000)
+        end
+    elseif action == "revoke_license" then
+        local playerId, licenseName = input:match("^(%d+)%s+(%S+)$")
+        if playerId and licenseName then
+            TriggerServerEvent('fw:admin:revokeLicense', tonumber(playerId), licenseName)
+        else
+            FW.ClientNotify("[Admin] Ungültiges Format. Benutze: spieler_id lizenz_name", 5000)
+        end
+    elseif action == "player_licenses" then
+        local playerId = tonumber(input)
+        if playerId then
+            TriggerServerEvent('fw:admin:getPlayerLicenses', playerId)
+        else
+            FW.ClientNotify("[Admin] Ungültige Spieler-ID", 5000)
+        end
     end
     cb({})
 end)

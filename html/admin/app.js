@@ -86,6 +86,13 @@ createApp({
         const closeMenu = () => {
             visible.value = false;
             inputVisible.value = false;
+            
+            const adminApp = document.getElementById('admin-app');
+            if (adminApp) {
+                adminApp.style.display = 'none';
+                adminApp.style.pointerEvents = 'none';
+            }
+            
             fetch(`https://${GetParentResourceName()}/closeMenu`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json; charset=UTF-8" },
@@ -116,11 +123,17 @@ createApp({
 
 
         onMounted(() => {
+            const adminApp = document.getElementById('admin-app');
+            
             window.addEventListener("message", (event) => {
                 const data = event.data;
                 if (!data || !data.action) return;
 
-                if (data.action === "open") {
+                // NUR Admin-spezifische Actions verarbeiten - alles andere ignorieren
+                const adminActions = ["openAdminMenu", "closeAdminMenu", "showInput"];
+                if (!adminActions.includes(data.action)) return;
+
+                if (data.action === "openAdminMenu") {
                     const menuData = data.data || {};
                     categories.value = menuData.categories || [];
 
@@ -129,11 +142,29 @@ createApp({
                     focusPanel.value = "categories";
                     visible.value = true;
                     inputVisible.value = false;
+                    
+                    // Zeige Admin App
+                    if (adminApp) {
+                        console.log('[Admin] Opening menu');
+                        console.log('[Admin] Before - display:', adminApp.style.display, 'pointer-events:', adminApp.style.pointerEvents);
+                        
+                        adminApp.style.display = 'block';
+                        adminApp.style.pointerEvents = 'all';
+                        
+                        console.log('[Admin] After - display:', adminApp.style.display, 'pointer-events:', adminApp.style.pointerEvents);
+                        console.log('[Admin] Computed:', window.getComputedStyle(adminApp).pointerEvents);
+                    }
                 }
 
-                if (data.action === "close") {
+                if (data.action === "closeAdminMenu") {
                     visible.value = false;
                     inputVisible.value = false;
+                    
+                    // Verstecke Admin App
+                    if (adminApp) {
+                        adminApp.style.display = 'none';
+                        adminApp.style.pointerEvents = 'none';
+                    }
                 }
                 
                 if (data.action === "showInput") {

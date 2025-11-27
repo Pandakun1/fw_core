@@ -1,29 +1,93 @@
+/* Z-Index Hierarchie */
+/* 100: HUD (immer sichtbar, kein pointer-events Problem)
+   1000: Inventory
+   1999: Admin App Container
+   2000: Admin Menu
+   3000: Character Selection/Creator/Appearance (Fullscreen Modals) */
+
 .hidden {
     display: none !important;
 }
 
+/* Globale Regel: Alle position:fixed/absolute Container die versteckt sind blockieren keine Klicks */
+[style*="display: none"] {
+    pointer-events: none !important;
+}
 
-/* Hud Css */
+/* Hud Css - Clean Design */
+    #hud {
+        position: fixed;
+        top: 25px;
+        left: 25px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', Arial, sans-serif;
+        color: white;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
     .hud-row {
         display: flex;
+        align-items: center;
         justify-content: space-between;
-        margin: 3px 0;
+        background: rgba(20, 20, 30, 0.75);
+        padding: 10px 16px;
+        border-radius: 6px;
+        backdrop-filter: blur(8px);
+        border-left: 3px solid var(--accent-color, #4FC3F7);
+        min-width: 220px;
+        transition: all 0.2s ease;
+    }
+
+    .hud-row:hover {
+        background: rgba(25, 25, 35, 0.85);
+    }
+
+    .hud-row:nth-child(1) {
+        --accent-color: #4FC3F7;
+    }
+
+    .hud-row:nth-child(2) {
+        --accent-color: #66BB6A;
+    }
+
+    .hud-row:nth-child(3) {
+        --accent-color: #FFA726;
+    }
+
+    .hud-row:nth-child(4) {
+        --accent-color: #EC407A;
     }
 
     .label {
-        font-weight: bold;
+        font-weight: 500;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-right: 12px;
+    }
+
+    .hud-row span:not(.label) {
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: 0.3px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    #playerId {
+        color: #4FC3F7;
     }
 
     #cash {
-        color: #2ecc71;
+        color: #66BB6A;
     }
 
     #bank {
-        color: #3498db;
+        color: #FFA726;
     }
 
     #speed {
-        color: #f1c40f;
+        color: #EC407A;
     }
 
 
@@ -124,18 +188,19 @@
     }
 
     #admin-app {
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        pointer-events: none;
+        /* pointer-events wird dynamisch von JavaScript gesetzt */
         font-family: Arial, sans-serif;
         color: #f0f0f0;
+        z-index: 1999;
     }
 
     #admin-menu {
-        position: absolute;
+        position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
@@ -149,6 +214,7 @@
         pointer-events: all;
         border-radius: 8px;
         overflow: hidden;
+        z-index: 2000;
     }
 
     #admin-menu.hidden {
@@ -323,7 +389,8 @@
         left: 0;
         width: 100%;
         height: 100%;
-        pointer-events: none;
+        z-index: 3000;
+        /* pointer-events wird durch inline style im HTML gesteuert */
     }
 
     #char-selection {
@@ -459,6 +526,66 @@
         font-size: 1.1em;
     }
 
+    /* Delete Confirmation Modal */
+    .delete-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        animation: fadeIn 0.2s;
+    }
+
+    .delete-modal-content {
+        background: rgba(30, 30, 40, 0.98);
+        border-radius: 12px;
+        border: 2px solid #f44336;
+        padding: 30px;
+        max-width: 400px;
+        text-align: center;
+        animation: scaleIn 0.3s;
+    }
+
+    .delete-modal-content h2 {
+        color: #f44336;
+        margin-bottom: 15px;
+        font-size: 1.5em;
+    }
+
+    .delete-modal-content p {
+        color: #ddd;
+        margin-bottom: 10px;
+        font-size: 1em;
+    }
+
+    .delete-warning {
+        color: #ff9800;
+        font-weight: bold;
+        margin-bottom: 25px !important;
+    }
+
+    .delete-modal-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+    }
+
+    @keyframes scaleIn {
+        from {
+            transform: scale(0.8);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
 /* Character Creator Styles */
     #char-creator-app {
         position: absolute;
@@ -466,7 +593,8 @@
         left: 0;
         width: 100%;
         height: 100%;
-        pointer-events: none;
+        z-index: 3000;
+        /* pointer-events wird durch inline style im HTML gesteuert */
     }
 
     #char-creator {
@@ -698,7 +826,8 @@
         left: 0;
         width: 100%;
         height: 100%;
-        pointer-events: none;
+        z-index: 3000;
+        /* pointer-events wird durch inline style im HTML gesteuert */
     }
 
     #appearance-editor {
@@ -855,16 +984,13 @@
 /* Inventory CSS */
 /* Root des Inventars: standardmäßig komplett unsichtbar */
 .inventory-root {
-    display: none;
     position: fixed;
     inset: 0;
     z-index: 1000; /* über HUD/Admin */
+    /* display und pointer-events wird dynamisch von Vue/JavaScript gesetzt */
 }
 
-/* wenn Vue die Klasse .inventory-visible setzt → anzeigen */
-.inventory-root.inventory-visible {
-    display: block;
-}
+/* Entfernt: pointer-events wird komplett von JavaScript gesteuert */
 
 ::-webkit-scrollbar {
     width: 6px;

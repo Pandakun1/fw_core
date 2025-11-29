@@ -1,6 +1,7 @@
 // Globale Variablen holen
-const { ref } = Vue;
-const useNUI = window.useNUI;
+const useNUI = window.useNUI; 
+const { ref, computed } = Vue;
+const useAppearanceStore = window.useAppearanceStore; 
 
 const AppearanceModule = {
     name: 'AppearanceModule',

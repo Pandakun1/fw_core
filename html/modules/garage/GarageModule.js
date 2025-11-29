@@ -2,7 +2,9 @@
 // 2. COMPONENT: modules/garage/GarageModule.js
 // ============================================
 
-const { computed, ref } = Vue;
+const useNUI = window.useNUI; 
+const { ref, computed } = Vue; 
+const useGarageStore = window.useGarageStore; 
 
 const GarageModule = {
     name: 'GarageModule',

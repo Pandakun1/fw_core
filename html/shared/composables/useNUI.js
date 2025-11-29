@@ -4,7 +4,7 @@
  * Vereinfacht NUI Callbacks und Event-Handling in Vue Components
  */
 
-function useNUI() {
+window.useNUI = function() {
     const { ref, onMounted, onUnmounted } = Vue;
 
     /**
@@ -85,6 +85,3 @@ function useNUI() {
         onClose
     };
 }
-
-// Globale Composable-Funktion
-window.useNUI = useNUI;

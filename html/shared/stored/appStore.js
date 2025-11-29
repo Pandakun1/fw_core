@@ -7,8 +7,6 @@
  * - Globale Settings
  */
 
-const { defineStore } = Pinia;
-
 window.useAppStore = Pinia.defineStore('app', {
     state: () => ({
         // UI State

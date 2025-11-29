@@ -1,3 +1,5 @@
+const { ref, onMounted, onUnmounted } = Vue;
+
 const NotifyModule = {
     name: 'NotifyModule',
     setup() {

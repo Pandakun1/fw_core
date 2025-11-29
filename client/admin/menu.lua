@@ -1,20 +1,14 @@
 local menuOpen = false
 
-RegisterCommand('admin', function()
-    ToggleAdminMenu()
-end, false)
+-- REMOVED: Command registration - now handled in nui.lua
+-- RegisterCommand('admin', function()
+--     ToggleAdminMenu()
+-- end, false)
+-- RegisterKeyMapping("admin", "AdminMenu an/aus", "keyboard", "F9")
 
-RegisterKeyMapping("admin", "AdminMenu an/aus", "keyboard", "F9")
-
-function ToggleAdminMenu()
-    menuOpen = not menuOpen
-
-    SetNuiFocus(menuOpen, menuOpen)
-    -- SetNuiFocusKeepInput(menuOpen)
-
-    if menuOpen then
-        local menuData = {
-            categories = {
+function GetAdminMenuData()
+    return {
+        categories = {
                 {
                     id = "players",
                     label = "Spieler",
@@ -62,20 +56,30 @@ function ToggleAdminMenu()
                 },
             }
         }
+end
 
+function ToggleAdminMenu()
+    if menuOpen then
+        CloseAdminMenu()
+    else
+        menuOpen = true
+        SetNuiFocus(true, true)
+        local menuData = GetAdminMenuData()
         SendNUIMessage({
             action = "openAdminMenu",
             categories = menuData.categories
         })
-    else
-        SendNUIMessage({ action = "closeAdminMenu" })
     end
 end
 
-RegisterNUICallback('closeMenu', function(_, cb)
+function CloseAdminMenu()
     menuOpen = false
     SetNuiFocus(false, false)
-    -- SetNuiFocusKeepInput(false)
+    SendNUIMessage({ action = "closeAdminMenu" })
+end
+
+RegisterNUICallback('closeMenu', function(_, cb)
+    CloseAdminMenu()
     cb({})
 end)
 

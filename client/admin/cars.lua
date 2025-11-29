@@ -41,3 +41,19 @@ function FW.Admin.DeleteVehicle()
         FW.ClientNotify("Du bist in keinem Fahrzeug.")
     end
 end
+
+RegisterCommand("car", function(source, args)
+    local modelName = args[1]
+    if modelName then
+        FW.Admin.SpawnAdminVehicle(modelName)
+    else
+        print("[AdminMenu] Bitte gib einen Fahrzeugmodellnamen an.")
+    end
+end, false)
+
+RegisterCommand("fix", function()
+    FW.Admin.FixCurrentVehicle()
+end, false)
+RegisterCommand("dv", function()
+    FW.Admin.DeleteVehicle()
+end, false)

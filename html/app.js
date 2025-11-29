@@ -60,7 +60,7 @@ const App = {
                 isVisible.value = true;
             }
 
-            if (action === 'openAdmin') {
+            if (action === 'openAdmin' || action === 'openAdminMenu') {
                 activeRoute.value = 'admin';
                 routeData.value = eventData;
                 isVisible.value = true;
@@ -81,7 +81,7 @@ const App = {
             }
 
             // 4. SCHLIESSEN
-            if (action === 'close' || action === 'closeUI' || action === 'closeInventory' || action === 'closeAdmin') {
+            if (action === 'close' || action === 'closeUI' || action === 'closeInventory' || action === 'closeAdmin' || action === 'closeAdminMenu' || action === 'closeMenu') {
                 isVisible.value = false;
                 activeRoute.value = null;
                 showHUD.value = true; // HUD wieder an
@@ -101,17 +101,6 @@ const App = {
     },
     template: `
     <div class="w-full h-full select-none overflow-hidden relative font-sans">
-        <!-- Layer 1: HUD -->
-        <div v-show="showHUD" class="absolute inset-0 pointer-events-none z-10">
-            <hud-component></hud-component>
-        </div>
-
-        <!-- Layer 2: Notifications -->
-        <div class="absolute inset-0 pointer-events-none z-50">
-            <notify-component></notify-component>
-        </div>
-
-        <!-- Layer 3: Active Module -->
         <Transition name="fade">
             <div v-if="isVisible" class="absolute inset-0 z-40 bg-black/60 pointer-events-auto flex items-center justify-center">
                 <component :is="CurrentComponent" :data="routeData"></component>

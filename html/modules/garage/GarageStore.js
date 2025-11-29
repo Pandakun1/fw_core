@@ -2,7 +2,6 @@
 // 1. STORE: modules/garage/GarageStore.js
 // ============================================
 
-const { defineStore } = Pinia;
 
 window.useGarageStore = Pinia.defineStore('garage', {
     state: () => ({

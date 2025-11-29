@@ -5,17 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PandaSpielplatz UI</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue-demi/0.14.6/index.iife.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pinia/2.1.6/pinia.iife.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; overflow: hidden; background: transparent; }
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; }
-    </style>
+    /* CSS Reset */
+    * { 
+        margin: 0; 
+        padding: 0; 
+        box-sizing: border-box; 
+    }
+    
+    /* WICHTIG: Definiert die volle Größe des NUI-Fensters */
+    html, body, #app {
+        width: 100%;
+        height: 100%;
+        overflow: hidden; /* Verhindert ungewollte Scrollbars */
+        position: relative; /* Wichtig für die korrekte Positionierung der Children */
+    }
+    
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: transparent; /* Muss transparent bleiben, damit man das Spiel sieht */
+    }
+
+    /* Transitions */
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
+</style>
 </head>
 <body>
     <div id="app"></div>

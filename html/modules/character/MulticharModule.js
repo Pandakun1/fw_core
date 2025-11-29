@@ -1,5 +1,7 @@
 // [NEU] Globale Variablen explizit abrufen
 const useNUI = window.useNUI; 
+const { ref } = Vue;
+const useMultiCharStore = window.useMultiCharStore; 
 
 const MulticharModule = {
     name: 'MulticharModule',

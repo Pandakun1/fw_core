@@ -122,10 +122,22 @@ RegisterNetEvent('fw:inventory:useItem', function(data)
 end)
 
 -- MoveItem Event Handler
-RegisterNetEvent('fw:inventory:moveItem', function(data)
+RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
     local source = source
-    local fromSlot = data.fromSlot
-    local toSlot = data.toSlot
+    
+    -- Handle both formats: direct parameters OR table
+    if type(fromSlot) == 'table' then
+        toSlot = fromSlot.toSlot
+        fromSlot = fromSlot.fromSlot
+    end
+    
+    fromSlot = tonumber(fromSlot)
+    toSlot = tonumber(toSlot)
+    
+    if not fromSlot or not toSlot then
+        print('[FW Core] Invalid slots provided')
+        return
+    end
     
     print(string.format('[FW Core] Player %d moving item: slot %d -> slot %d', source, fromSlot, toSlot))
     

@@ -21,6 +21,25 @@ function OpenInventory()
                 local groundArray = {}
                 for _, item in pairs(groundItems or {}) do table.insert(groundArray, item) end
                 
+                -- Konvertiere Inventory Object zu Array für Frontend
+                local inventoryArray = {}
+                for itemName, itemData in pairs(inventory or {}) do
+                    if itemData and itemData.slot then
+                        table.insert(inventoryArray, {
+                            name = itemName,
+                            label = itemData.label or itemName,
+                            emoji = itemData.emoji or '📦',
+                            amount = itemData.amount or 1,
+                            slot = itemData.slot,
+                            itemweight = itemData.itemweight,
+                            type = itemData.type,
+                            canUse = itemData.canUse
+                        })
+                    end
+                end
+                
+                print('[Inventory] Converted inventory:', #inventoryArray, 'items')
+                
                 local playerPed = PlayerPedId()
                 local health = (GetEntityHealth(playerPed) - 100) / (GetEntityMaxHealth(playerPed) - 100) * 100
                 local armor = GetPedArmour(playerPed)
@@ -28,12 +47,7 @@ function OpenInventory()
                 -- NUI Nachricht
                 SendNUIMessage({
                     action = 'openInventory',
-                    inventory = {
-                        wallet = {}, 
-                        keys = {},   
-                        main = inventory or {},
-                        hotbar = {}  
-                    },
+                    inventory = inventoryArray,  -- Jetzt als Array
                     maxWeight = 50, 
                     cash = 0,       
                     bank = 0,       
@@ -60,6 +74,12 @@ function CloseInventory()
     
     -- Manager informieren
     exports['fw_core']:RegisterUIClose('inventory')
+    
+    -- Inventar nach 800ms speichern
+    Citizen.SetTimeout(800, function()
+        print('[Inventory] Speichere Inventar nach Schließen...')
+        TriggerServerEvent('fw:inventory:saveInventory')
+    end)
 end
 
 function ToggleInventory()

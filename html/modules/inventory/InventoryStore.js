@@ -1,64 +1,72 @@
-/**
- * Inventory Store
- */
-// KEIN const { defineStore } = Pinia; hier!
-
 window.useInventoryStore = Pinia.defineStore('inventory', {
     state: () => ({
-        items: [],
+        items: Array(50).fill(null),
         maxWeight: 50,
         currentWeight: 0,
-        maxSlots: 20,
-        groundItems: [],
+        maxSlots: 50,
         isOpen: false,
-        selectedSlot: null,
-        contextMenu: { visible: false, x: 0, y: 0, item: null },
-        draggedItem: null,
-        dragSourceSlot: null
+        layoutKey: 'briefcase',
+        themeKey: 'classicLeather',
+        animationKey: 'none'
     }),
 
     getters: {
-        getItemBySlot: (state) => (slot) => state.items.find(item => item.slot === slot) || null,
-        freeSlots: (state) => state.maxSlots - state.items.map(item => item.slot).length,
-        weightPercent: (state) => state.maxWeight === 0 ? 0 : Math.min(100, (state.currentWeight / state.maxWeight) * 100),
-        slotsGrid: (state) => {
-            const grid = [];
-            for (let i = 0; i < state.maxSlots; i++) {
-                grid.push({ slot: i, item: state.items.find(item => item.slot === i) || null });
-            }
-            return grid;
+        getItemBySlot: (state) => (slot) => {
+            return state.items[slot] || null;
+        },
+        freeSlots: (state) => {
+            return state.items.filter(item => item === null).length;
+        },
+        filledSlots: (state) => {
+            return state.items.filter(item => item !== null).length;
         }
     },
 
     actions: {
-        open() { this.isOpen = true; },
-        close() { 
-            this.isOpen = false; 
-            this.selectedSlot = null; 
-            this.hideContextMenu(); 
-            this.clearDrag();
+        open() {
+            this.isOpen = true;
+        },
+        close() {
+            this.isOpen = false;
             if(window.NUIBridge) window.NUIBridge.send('closeInventory');
         },
         loadInventoryData(data) {
-            this.items = data.main || data.inventory || [];
+            // Convert old format to new format (50 slots)
+            const newItems = Array(50).fill(null);
+            
+            if (data.main || data.inventory) {
+                const items = data.main || data.inventory;
+                items.forEach(item => {
+                    if (item.slot >= 0 && item.slot < 50) {
+                        newItems[item.slot] = {
+                            id: item.slot,
+                            name: item.label || item.name,
+                            emoji: item.emoji || '📦',
+                            quantity: item.amount || 1
+                        };
+                    }
+                });
+            }
+            
+            this.items = newItems;
             this.maxWeight = data.maxWeight || 50;
-            this.groundItems = data.groundItems || [];
             this.recalculateWeight();
         },
         recalculateWeight() {
-            this.currentWeight = this.items.reduce((sum, item) => sum + ((item.weight || 0) * (item.amount || 1)), 0);
+            this.currentWeight = this.items
+                .filter(item => item !== null)
+                .reduce((sum, item) => sum + ((item.weight || 1) * (item.quantity || 1)), 0);
         },
-        showContextMenu(x, y, item) { this.contextMenu = { visible: true, x, y, item }; },
-        hideContextMenu() { this.contextMenu = { visible: false, x: 0, y: 0, item: null }; },
-        startDrag(slot, item) { this.draggedItem = item; this.dragSourceSlot = slot; },
-        endDrag(targetSlot) {
-            if (this.dragSourceSlot === null) return;
-            if(window.NUIBridge) window.NUIBridge.send('moveItem', { fromSlot: this.dragSourceSlot, toSlot: targetSlot });
-            this.clearDrag();
-        },
-        clearDrag() { this.draggedItem = null; this.dragSourceSlot = null; },
-        async useItem(item, slot) { if(window.NUIBridge) await window.NUIBridge.send('useItem', { name: item.name, slot: slot }); },
-        async dropItem(item, slot, amount = 1) { if(window.NUIBridge) await window.NUIBridge.send('dropItem', { name: item.name, slot: slot, amount }); },
-        async giveItem(item, slot, amount = 1) { if(window.NUIBridge) await window.NUIBridge.send('giveItem', { name: item.name, slot: slot, amount }); }
+        moveItem(fromSlot, toSlot) {
+            const itemA = this.items[fromSlot];
+            const itemB = this.items[toSlot];
+            
+            if (itemA === null) return;
+            
+            this.items[toSlot] = itemA;
+            this.items[fromSlot] = itemB;
+            
+            if(window.NUIBridge) window.NUIBridge.send('moveItem', { fromSlot, toSlot });
+        }
     }
 });

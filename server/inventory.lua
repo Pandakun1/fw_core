@@ -264,6 +264,25 @@ RegisterNetEvent('fw:inventory:RemoveItemSelf', function (itemName, amount)
     FW.Inventory.RemoveItem(source, itemName, amount)
 end)
 
+-- Manuelles Inventar speichern (nach Close mit Delay)
+RegisterNetEvent('fw:inventory:saveInventory', function()
+    local src = source
+    print('[FW Server] Manuelles Speichern für Spieler:', src)
+    
+    FW.Inventory.GetInventory(src, function(inventory)
+        if inventory then
+            SaveInventory(src, inventory, function(result)
+                -- MySQL.query gibt ein result object zurück, nicht nur affected rows
+                if result then
+                    print('[FW Server] ✅ Inventar erfolgreich gespeichert für Spieler:', src)
+                else
+                    print('[FW Server] ⚠️ Inventar-Speicherung fehlgeschlagen für Spieler:', src)
+                end
+            end)
+        end
+    end)
+end)
+
 -- Callback: Inventar an Client senden
 FW.RegisterServerCallback('fw:inventory:getInventoryData', function(source, cb)
     local src = source

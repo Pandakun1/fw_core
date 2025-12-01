@@ -1,5 +1,94 @@
 <!DOCTYPE html>
 <html lang="de">
+    <style>
+/* Theme Variables */
+:root {
+    --accent-1: #f97316;
+    --accent-2: #38bdf8;
+    --accent-3: #22c55e;
+}
+
+.theme-classicLeather {
+    --accent-1: #f97316;
+    --accent-2: #22c55e;
+    --accent-3: #eab308;
+}
+
+.theme-nightOps {
+    --accent-1: #0ea5e9;
+    --accent-2: #22c55e;
+    --accent-3: #f97316;
+}
+
+.theme-desertDust {
+    --accent-1: #f97316;
+    --accent-2: #eab308;
+    --accent-3: #22c55e;
+}
+
+.theme-neonMiami {
+    --accent-1: #ec4899;
+    --accent-2: #22d3ee;
+    --accent-3: #fbbf24;
+}
+
+.theme-arcticBlue {
+    --accent-1: #38bdf8;
+    --accent-2: #22c55e;
+    --accent-3: #e5e7eb;
+}
+.briefcase-design {
+    --slot-bg: rgba(30, 41, 59, 0.5);
+    --slot-border: rgba(71, 85, 105, 0.6);
+    --panel-bg: rgba(51, 65, 85, 0.9);
+    --panel-border: rgba(71, 85, 105, 0.5);
+}
+
+/* Backdrop Blur für bessere Lesbarkeit */
+.backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* Drag & Drop Visual Feedback */
+.dragging {
+    opacity: 0.5;
+    border: 2px dashed #f97316 !important;
+}
+
+.drag-hover {
+    box-shadow: 0 0 10px 4px var(--accent-1), inset 0 0 0 2px var(--accent-1) !important;
+    transform: scale(1.01);
+}
+
+/* Fade Animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translate(-50%, -110%); }
+    to { opacity: 1; transform: translate(-50%, -100%); }
+}
+
+/* Settings Fade Transition */
+.settings-fade-enter-active,
+.settings-fade-leave-active {
+    transition: opacity 0.3s ease;
+}
+
+.settings-fade-enter-from,
+.settings-fade-leave-to {
+    opacity: 0;
+}
+
+.settings-fade-enter-active > div,
+.settings-fade-leave-active > div {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.settings-fade-enter-from > div,
+.settings-fade-leave-to > div {
+    transform: scale(0.9);
+    opacity: 0;
+}
+</style>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,9 +123,106 @@
     /* Transitions */
     .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
     .fade-enter-from, .fade-leave-to { opacity: 0; }
-</style>
+
+    /* =============================================== */
+    /* Custom Scrollbars für alle Inventory Designs */
+    /* =============================================== */
+
+    /* Briefcase Design - Goldene/Bronze Leder-Scrollbar */
+    .custom-scrollbar-briefcase::-webkit-scrollbar { width: 0.8vw; }
+    .custom-scrollbar-briefcase::-webkit-scrollbar-track {
+        background: linear-gradient(180deg, rgba(45,24,16,0.7), rgba(61,40,23,0.6));
+        border-radius: 0.5vw;
+        box-shadow: inset 0 0 0.5vw rgba(0,0,0,0.5);
+    }
+    .custom-scrollbar-briefcase::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, rgba(212,175,55,0.95), rgba(180,120,60,0.85));
+        border-radius: 0.5vw;
+        border: 0.1vw solid rgba(212,175,55,0.6);
+        box-shadow: 0 0 0.5vw rgba(212,175,55,0.5), inset 0 0.2vw 0.3vw rgba(255,255,255,0.2);
+    }
+    .custom-scrollbar-briefcase::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, rgba(212,175,55,1), rgba(180,120,60,1));
+        box-shadow: 0 0 1vw rgba(212,175,55,0.8);
+    }
+
+    /* Tactical Backpack - Militärische graue Scrollbar */
+    .custom-scrollbar-tactical::-webkit-scrollbar { width: 0.7vw; }
+    .custom-scrollbar-tactical::-webkit-scrollbar-track {
+        background: linear-gradient(180deg, rgba(5,10,15,0.9), rgba(15,20,25,0.8));
+        border-radius: 0.3vw;
+        box-shadow: inset 0 0 0.4vw rgba(0,0,0,0.8);
+    }
+    .custom-scrollbar-tactical::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, rgba(71,85,105,0.95), rgba(51,65,85,0.9));
+        border-radius: 0.3vw;
+        border: 0.1vw solid rgba(71,85,105,0.5);
+        box-shadow: 0 0 0.3vw rgba(71,85,105,0.6);
+    }
+    .custom-scrollbar-tactical::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, rgba(100,116,139,1), rgba(71,85,105,1));
+        box-shadow: 0 0 0.8vw rgba(100,116,139,0.8);
+    }
+
+    /* Retro Drawer - Vintage Bronze/Orange Scrollbar */
+    .custom-scrollbar-retro::-webkit-scrollbar { width: 0.9vw; }
+    .custom-scrollbar-retro::-webkit-scrollbar-track {
+        background: linear-gradient(180deg, rgba(90,60,40,0.9), rgba(74,47,26,0.8));
+        border-radius: 0.6vw;
+        box-shadow: inset 0 0 0.6vw rgba(0,0,0,0.6);
+    }
+    .custom-scrollbar-retro::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, rgba(217,119,6,0.95), rgba(180,83,9,0.9));
+        border-radius: 0.6vw;
+        border: 0.15vw solid rgba(217,119,6,0.5);
+        box-shadow: 0 0 0.6vw rgba(217,119,6,0.6), inset 0 0.2vw 0.4vw rgba(255,255,255,0.15);
+    }
+    .custom-scrollbar-retro::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, rgba(251,146,60,1), rgba(217,119,6,1));
+        box-shadow: 0 0 1.2vw rgba(251,146,60,0.9);
+    }
+
+    /* Sci-Fi HUD - Cyber Cyan Neon Scrollbar */
+    .custom-scrollbar-scifi::-webkit-scrollbar { width: 0.6vw; }
+    .custom-scrollbar-scifi::-webkit-scrollbar-track {
+        background: linear-gradient(180deg, rgba(8,47,73,0.95), rgba(4,24,38,0.9));
+        border-radius: 0.2vw;
+        box-shadow: inset 0 0 0.8vw rgba(6,182,212,0.2);
+    }
+    .custom-scrollbar-scifi::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, rgba(6,182,212,0.95), rgba(16,185,129,0.9));
+        border-radius: 0.2vw;
+        border: 0.05vw solid rgba(6,182,212,0.8);
+        box-shadow: 0 0 1vw rgba(6,182,212,1), inset 0 0 0.5vw rgba(255,255,255,0.3);
+    }
+    .custom-scrollbar-scifi::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, rgba(34,211,238,1), rgba(6,182,212,1));
+        box-shadow: 0 0 1.5vw rgba(6,182,212,1), 0 0 2vw rgba(16,185,129,0.8);
+    }
+
+    /* Forest - Natürliche Grün/Braun Scrollbar */
+    .custom-scrollbar-forest::-webkit-scrollbar { width: 0.8vw; }
+    .custom-scrollbar-forest::-webkit-scrollbar-track {
+        background: linear-gradient(180deg, rgba(45,24,16,0.95), rgba(26,15,8,0.9));
+        border-radius: 0.5vw;
+        box-shadow: inset 0 0 0.5vw rgba(0,0,0,0.7);
+    }
+    .custom-scrollbar-forest::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, rgba(34,197,94,0.95), rgba(22,163,74,0.9));
+        border-radius: 0.5vw;
+        border: 0.1vw solid rgba(34,197,94,0.5);
+        box-shadow: 0 0 0.6vw rgba(34,197,94,0.7), inset 0 0.2vw 0.3vw rgba(255,255,255,0.15);
+    }
+    .custom-scrollbar-forest::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, rgba(52,211,153,1), rgba(34,197,94,1));
+        box-shadow: 0 0 1vw rgba(52,211,153,0.9);
+    }
+
+    </style>
+    
 </head>
 <body>
+    <link rel="stylesheet" href="modules/inventory/briefcase.css">
     <div id="app"></div>
 
     <script src="core/NUIBridge.js"></script>

@@ -65,9 +65,9 @@ export function generateBriefcaseTemplate() {
                 
                 <!-- Second Inventory (when dual mode active) OR Stats (top-right) -->
                 <div v-if="dualInventoryOpen" class="order-2 max-h-[47vh] rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(180,120,60,0.3), rgba(212,175,55,0.2)); border-color: rgba(212,175,55,0.5);">
-                    <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(90,61,37,0.8), rgba(61,40,23,0.85)); border-color: rgba(212,175,55,0.4); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+                    <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(92,67,50,0.9), rgba(69,50,37,0.95)); border-color: rgba(217,119,6,0.3); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
                         <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-amber-200" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">📦 {{ dualInventoryTitle }}</div>
-                        <div class="text-[0.6vw] uppercase text-amber-300/80">{{ secondInventoryItems.filter(isItemDefined).length }}/50</div>
+                        <div class="text-[0.6vw] uppercase text-amber-300/80">{{ secondInventoryItems.filter(isItemDefined).length }}/{{ secondInventoryItems.length }}</div>
                     </div>
                     
                     <div class="flex-1 overflow-y-auto min-h-0 p-[0.8vw] custom-scrollbar-briefcase" style="scrollbar-width: thin; scrollbar-color: rgba(212,175,55,0.7) rgba(61,40,23,0.8);">
@@ -98,24 +98,14 @@ export function generateBriefcaseTemplate() {
                 
                 <!-- Button Column (only visible in dual mode) - Briefcase style -->
                 <div v-if="dualInventoryOpen" class="order-3 flex flex-col gap-[1.5vh] justify-center max-h-[47vh]">
-                    <!-- Bestätigen Button -->
-                    <button @click="confirmDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(74,133,71,0.95), rgba(56,103,54,0.98)); color: #e7f4e7; border-color: rgba(134,239,172,0.6); box-shadow: 0 0.5vh 1vh rgba(56,103,54,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        ✅ Bestätigen
-                    </button>
-                    
-                    <!-- Zwischenspeichern Button -->
-                    <button @click="saveDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(90,61,37,0.95), rgba(74,47,26,0.98)); color: #fef3c7; border-color: rgba(212,175,55,0.6); box-shadow: 0 0.5vh 1vh rgba(74,47,26,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        💾 Speichern
-                    </button>
-                    
-                    <!-- Leeren Button -->
+                    <!-- Items Entfernen Button -->
                     <button @click="clearDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(180,120,60,0.95), rgba(139,90,43,0.98)); color: #fed7aa; border-color: rgba(251,191,36,0.6); box-shadow: 0 0.5vh 1vh rgba(139,90,43,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        🗑️ Leeren
+                        🗑️ Items Entfernen
                     </button>
                     
-                    <!-- Abbrechen Button -->
-                    <button @click="closeDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(74,47,26,0.85), rgba(45,24,16,0.95)); color: #fca5a5; border-color: rgba(185,28,28,0.5); box-shadow: 0 0.5vh 1vh rgba(127,29,29,0.5), inset 0 1px 3px rgba(255,255,255,0.1); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        ❌ Abbrechen
+                    <!-- Schließen & Speichern Button -->
+                    <button @click="closeDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(74,133,71,0.95), rgba(56,103,54,0.98)); color: #e7f4e7; border-color: rgba(134,239,172,0.6); box-shadow: 0 0.5vh 1vh rgba(56,103,54,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
+                        ✅ Schließen & Speichern
                     </button>
                 </div>
                 

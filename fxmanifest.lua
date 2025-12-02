@@ -16,8 +16,19 @@ client_scripts {
 }
 
 server_scripts {
-    'server/**/*.lua',
-    '@oxmysql/lib/MySQL.lua'
+    '@oxmysql/lib/MySQL.lua',
+    'server/main.lua',
+    'server/callbacks.lua',
+    'server/players.lua',
+    'server/inventory.lua',
+    'server/inventory_secondary.lua',  -- Secondary Inventory System (5 Modi)
+    'server/inventory_equipment.lua',  -- Equipment Storage System (Rucksäcke/Taschen)
+    'server/inventory_items.lua',
+    'server/commands.lua',
+    'server/licenses.lua',
+    'server/shutdown.lua',
+    'server/spawnlogik.lua',
+    'server/Abfragepunkte.lua'
 }
 
 ui_page 'html/index.html'

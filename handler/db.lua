@@ -16,6 +16,7 @@ function FW.DB.SetupTables()
             money_cash      INT NOT NULL DEFAULT 0,
             money_bank      INT NOT NULL DEFAULT 0,
             inventory       LONGTEXT NOT NULL DEFAULT '{}',
+            inventory_slots LONGTEXT DEFAULT NULL,
             job_name        VARCHAR(50) NOT NULL DEFAULT 'unemployed',
             job_grade       INT NOT NULL DEFAULT 0,
             position_x      DOUBLE NOT NULL DEFAULT 0,
@@ -64,6 +65,50 @@ function FW.DB.LoadPlayer(source, identifier, cb)
         'SELECT * FROM players where license = ? AND is_active = 1',
         {identifier},
         function(row)
+            if row then
+                -- AUTO-MIGRATION: Convert old inventory to inventory_slots if needed
+                if (not row.inventory_slots or row.inventory_slots == '') and row.inventory and row.inventory ~= '{}' then
+                    print('[FW] Auto-migrating inventory to slot-based format for:', row.identifier)
+                    
+                    local oldInv = {}
+                    local ok, decoded = pcall(json.decode, row.inventory)
+                    if ok and type(decoded) == 'table' then
+                        oldInv = decoded
+                    end
+                    
+                    -- Convert to slot-based array
+                    local slots = {}
+                    local slotIndex = 1
+                    for itemName, itemData in pairs(oldInv) do
+                        if itemData and type(itemData) == 'table' then
+                            slots[slotIndex] = {
+                                name = itemName,
+                                label = itemData.label,
+                                emoji = itemData.emoji or '📦',
+                                quantity = itemData.amount or 1,
+                                itemweight = itemData.itemweight,
+                                type = itemData.type,
+                                canUse = itemData.canUse,
+                                slot = slotIndex - 1
+                            }
+                            slotIndex = slotIndex + 1
+                        end
+                    end
+                    
+                    row.inventory_slots = json.encode(slots)
+                    
+                    -- Save migrated data
+                    MySQL.update('UPDATE players SET inventory_slots = ? WHERE identifier = ?',
+                        { row.inventory_slots, row.identifier },
+                        function()
+                            print('[FW] ✅ Inventory migrated to slots for:', row.identifier)
+                        end
+                    )
+                elseif not row.inventory_slots or row.inventory_slots == '' then
+                    -- No inventory at all - initialize empty
+                    row.inventory_slots = '[]'
+                end
+            end
             cb(row)
         end
     )
@@ -88,7 +133,7 @@ function FW.DB.InsertPlayer(row, cb)
             row.skin or '{}',
             row.money_cash or row.money or 0,
             row.money_bank or row.bank or 0,
-            row.inventory or '{}',
+            row.inventory or '[]',
             row.job_name or row.job or 'unemployed',
             row.job_grade or 0,
             row.position_x or 0,
@@ -129,10 +174,10 @@ function FW.DB.SavePlayer(row, cb)
         {
             row.firstname,
             row.lastname,
-            row.dateofbirth,
-            row.sex,
-            row.height,
-            row.skin,
+            row.dateofbirth or '01.01.1990',
+            row.sex or 'male',
+            row.height or 180,
+            row.skin or '{}',
             row.money_cash or 0,
             row.money_bank or 0,
             row.job_name or 'unemployed',
@@ -140,7 +185,7 @@ function FW.DB.SavePlayer(row, cb)
             row.position_x or 0,
             row.position_y or 0,
             row.position_z or 75,
-            row.inventory or '{}',
+            row.inventory or '[]',
             row.daten or '{}',
             row.identifier
         },

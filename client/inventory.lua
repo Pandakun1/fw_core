@@ -21,34 +21,26 @@ function OpenInventory()
                 local groundArray = {}
                 for _, item in pairs(groundItems or {}) do table.insert(groundArray, item) end
                 
-                -- Konvertiere Inventory Object zu Array für Frontend
-                local inventoryArray = {}
-                for itemName, itemData in pairs(inventory or {}) do
-                    if itemData and itemData.slot then
-                        table.insert(inventoryArray, {
-                            name = itemName,
-                            label = itemData.label or itemName,
-                            emoji = itemData.emoji or '📦',
-                            amount = itemData.amount or 1,
-                            slot = itemData.slot,
-                            itemweight = itemData.itemweight,
-                            type = itemData.type,
-                            canUse = itemData.canUse
-                        })
-                    end
+                -- Server sends { inventory: { itemName_slotX: {...} } }
+                -- Extract the inventory object from the response
+                local inventoryData = inventory
+                if type(inventory) == 'table' and inventory.inventory then
+                    inventoryData = inventory.inventory
                 end
                 
-                print('[Inventory] Converted inventory:', #inventoryArray, 'items')
+                print('[Inventory] Received inventory type:', type(inventoryData))
+                print('[Inventory] Inventory data:', json.encode(inventoryData))
                 
                 local playerPed = PlayerPedId()
                 local health = (GetEntityHealth(playerPed) - 100) / (GetEntityMaxHealth(playerPed) - 100) * 100
                 local armor = GetPedArmour(playerPed)
                 
-                -- NUI Nachricht
+                -- NUI Nachricht (send inventory object directly)
                 SendNUIMessage({
                     action = 'openInventory',
-                    inventory = inventoryArray,  -- Jetzt als Array
-                    maxWeight = 50, 
+                    inventory = inventoryData.inventory or inventoryData,  -- Extract inventory object
+                    maxSlots = Config.Inventory.MaxSlots,
+                    maxWeight = Config.Inventory.MaxWeight, 
                     cash = 0,       
                     bank = 0,       
                     groundItems = groundArray,
@@ -66,6 +58,9 @@ function OpenInventory()
     end
 end
 
+-- Flag to prevent auto-save after dual-inventory close
+local skipNextSave = false
+
 function CloseInventory()
     if not isInventoryOpen then return end
     
@@ -75,8 +70,14 @@ function CloseInventory()
     -- Manager informieren
     exports['fw_core']:RegisterUIClose('inventory')
     
-    -- Inventar nach 800ms speichern
+    -- Inventar nach 800ms speichern (nur wenn nicht gerade Dual-Inventar geschlossen wurde)
     Citizen.SetTimeout(800, function()
+        if skipNextSave then
+            print('[Inventory] Speichern übersprungen (Dual-Inventar gerade gespeichert)')
+            skipNextSave = false
+            return
+        end
+        
         print('[Inventory] Speichere Inventar nach Schließen...')
         TriggerServerEvent('fw:inventory:saveInventory')
     end)
@@ -120,6 +121,12 @@ RegisterNUICallback('moveItem', function(data, cb)
     cb('ok')
 end)
 
+RegisterNUICallback('updateInventoryOrder', function(data, cb)
+    print('[Inventory Client] 📦 Updating inventory order after mouse-wheel split')
+    TriggerServerEvent('fw:inventory:updateInventoryOrder', data)
+    cb('ok')
+end)
+
 RegisterNUICallback('giveItem', function(data, cb)
     local closestPlayer, closestDistance = FW.Functions.GetClosestPlayer()
     if closestPlayer ~= -1 and closestDistance < 3.0 then
@@ -159,6 +166,445 @@ end)
 -- Server Events (Refresh)
 RegisterNetEvent('fw:inventory:refresh', function(inventory)
     if isInventoryOpen then
-        SendNUIMessage({ action = 'updateSlots', inventory = inventory or {} })
+        -- Count object keys properly (can't use # on object)
+        local count = 0
+        for _ in pairs(inventory or {}) do count = count + 1 end
+        print('[Inventory Client] 🔄 Refreshing inventory with', count, 'items')
+        SendNUIMessage({ action = 'updateInventory', inventory = inventory or {} })
     end
+end)
+
+-- ============================================
+-- SECONDARY INVENTORY SYSTEM (DUAL-INVENTAR)
+-- ============================================
+
+-- NUI Callback: Geben-Modus (Items von NUI an Server schicken)
+RegisterNUICallback('giveItems', function(data, cb)
+    local mode = data.mode
+    local items = data.items or {}
+    
+    if mode == 'give' then
+        -- Spieler zu Spieler: Hole nächsten Spieler
+        local closestPlayer, closestDistance = FW.Functions.GetClosestPlayer()
+        
+        if closestPlayer ~= -1 and closestDistance < 3.0 then
+            local targetId = GetPlayerServerId(closestPlayer)
+            TriggerServerEvent('fw:inventory:giveItems', targetId, items)
+        else
+            TriggerEvent('FW:Notify', 'Kein Spieler in der Nähe (< 3m)', 'error')
+        end
+    elseif mode == 'ground' then
+        -- Items auf Boden legen
+        for _, item in ipairs(items) do
+            if item and item.name and item.quantity then
+                TriggerServerEvent('fw:inventory:dropItem', item.name, item.quantity)
+            end
+        end
+    end
+    
+    cb('ok')
+end)
+
+-- === KOFFERRAUM (TRUNK) ===
+
+RegisterCommand('trunk', function()
+    local playerPed = PlayerPedId()
+    local coords = GetEntityCoords(playerPed)
+    local vehicle = GetClosestVehicle(coords.x, coords.y, coords.z, 5.0, 0, 71)
+    
+    if vehicle == 0 then
+        TriggerEvent('FW:Notify', 'Kein Fahrzeug in der Nähe', 'error')
+        return
+    end
+    
+    local vehicleModel = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle))
+    
+    -- Prüfe ob Kofferraum vorne ist (z.B. Supersportwagen)
+    -- Bei Front-Kofferraum muss Spieler VORNE am Fahrzeug sein
+    local trunkBone = GetEntityBoneIndexByName(vehicle, 'boot')
+    local frontBone = GetEntityBoneIndexByName(vehicle, 'bonnet')
+    local vehCoords = GetEntityCoords(vehicle)
+    local vehForward = GetEntityForwardVector(vehicle)
+    local toPlayer = coords - vehCoords
+    local dotProduct = toPlayer.x * vehForward.x + toPlayer.y * vehForward.y
+    
+    -- Supersportwagen wie Adder, Zentorno haben Kofferraum vorne
+    local frontTrunkVehicles = { 'ADDER', 'ZENTORNO', 'T20', 'OSIRIS', 'TURISMOR', 'REAPER' }
+    local isFrontTrunk = false
+    for _, model in ipairs(frontTrunkVehicles) do
+        if vehicleModel == model then
+            isFrontTrunk = true
+            break
+        end
+    end
+    
+    -- Validiere Position: Vorne für Front-Trunk, Hinten für normalen Trunk
+    if isFrontTrunk and dotProduct < 0.5 then
+        TriggerEvent('FW:Notify', 'Du musst VORNE am Fahrzeug stehen', 'error')
+        return
+    elseif not isFrontTrunk and dotProduct > -0.5 then
+        TriggerEvent('FW:Notify', 'Du musst HINTEN am Fahrzeug stehen', 'error')
+        return
+    end
+    
+    local plate = GetVehicleNumberPlateText(vehicle)
+    plate = string.gsub(plate, '^%s*(.-)%s*$', '%1') -- Trim whitespace
+    
+    -- Öffne richtige Tür (Kofferraum hinten=5 oder Motorhaube vorne=4)
+    local doorIndex = 5 -- Standard: Kofferraum hinten
+    if isFrontTrunk then
+        doorIndex = 4 -- Motorhaube vorne
+    end
+    
+    local trunkOpen = GetVehicleDoorAngleRatio(vehicle, doorIndex) > 0.0
+    if not trunkOpen then
+        SetVehicleDoorOpen(vehicle, doorIndex, false, false)
+    end
+    
+    -- Request Trunk Inventory vom Server (mit Fahrzeugmodell)
+    FW.TriggerCallback('fw:inventory:getTrunkInventory', function(trunkData)
+        if not trunkData then
+            TriggerEvent('FW:Notify', 'Kofferraum kann nicht geöffnet werden', 'error')
+            return
+        end
+        
+        print('[Inventory Client] Opening Trunk:', plate)
+        
+        -- ERST Haupt-Inventar laden und öffnen
+        FW.TriggerCallback('fw:inventory:getInventoryData', function(mainInventory)
+            local mainInv = (mainInventory and mainInventory.inventory) or {}
+            SendNUIMessage({
+                action = 'openInventory',
+                inventory = mainInv,
+                maxSlots = Config.Inventory.MaxSlots
+            })
+            
+            -- Warte kurz damit UI geladen ist
+            Citizen.Wait(100)
+            
+            -- JETZT Dual-Inventory öffnen
+            SendNUIMessage({
+                action = 'openDualInventory',
+                mode = 'trunk',
+                title = '🚗 Kofferraum - ' .. plate,
+                secondaryInventory = trunkData.inventory,
+                maxSlots = trunkData.maxSlots,
+                maxWeight = trunkData.maxWeight,
+                metadata = {
+                    plate = plate,
+                    model = trunkData.model
+                }
+            })
+            
+            isInventoryOpen = true
+            exports['fw_core']:RegisterUIOpen('inventory', true)
+        end)
+    end, plate, vehicleModel)
+end)
+
+RegisterKeyMapping('trunk', 'Kofferraum öffnen', 'keyboard', 'L')
+
+-- NUI Callback: Kofferraum speichern
+RegisterNUICallback('saveTrunk', function(data, cb)
+    local plate = data.plate
+    local trunkInventory = data.inventory
+    local mainInventory = data.mainInventory
+    
+    if plate and trunkInventory then
+        TriggerServerEvent('fw:inventory:saveTrunkInventory', plate, trunkInventory, mainInventory)
+        skipNextSave = true -- Verhindere doppeltes Speichern beim nächsten Close
+    end
+    
+    cb('ok')
+end)
+
+-- === HANDSCHUHFACH (GLOVEBOX) ===
+
+RegisterCommand('glovebox', function()
+    local playerPed = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(playerPed, false)
+    
+    if vehicle == 0 then
+        TriggerEvent('FW:Notify', 'Du musst in einem Fahrzeug sitzen', 'error')
+        return
+    end
+    
+    local plate = GetVehicleNumberPlateText(vehicle)
+    plate = string.gsub(plate, '^%s*(.-)%s*$', '%1')
+    
+    local vehicleModel = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle))
+    
+    -- Request Glovebox Inventory vom Server
+    FW.TriggerCallback('fw:inventory:getGloveboxInventory', function(gloveboxData)
+        if not gloveboxData then
+            TriggerEvent('FW:Notify', 'Handschuhfach kann nicht geöffnet werden', 'error')
+            return
+        end
+        
+        print('[Inventory Client] Opening Glovebox:', plate)
+        
+        -- ERST Haupt-Inventar laden und öffnen
+        FW.TriggerCallback('fw:inventory:getInventoryData', function(mainInventory)
+            local mainInv = (mainInventory and mainInventory.inventory) or {}
+            SendNUIMessage({
+                action = 'openInventory',
+                inventory = mainInv,
+                maxSlots = 50
+            })
+            
+            Citizen.Wait(100)
+            
+            -- DANN Dual-Inventory
+            SendNUIMessage({
+                action = 'openDualInventory',
+                mode = 'glovebox',
+                title = '🧤 Handschuhfach - ' .. plate,
+                secondaryInventory = gloveboxData.inventory,
+                maxSlots = gloveboxData.maxSlots,
+                maxWeight = gloveboxData.maxWeight,
+                metadata = {
+                    plate = plate,
+                    model = gloveboxData.model
+                }
+            })
+            
+            isInventoryOpen = true
+            exports['fw_core']:RegisterUIOpen('inventory', true)
+        end)
+    end, plate, vehicleModel)
+end)
+
+RegisterKeyMapping('glovebox', 'Handschuhfach öffnen', 'keyboard', 'K')
+
+-- NUI Callback: Handschuhfach speichern
+RegisterNUICallback('saveGlovebox', function(data, cb)
+    local plate = data.plate
+    local gloveboxInventory = data.inventory
+    local mainInventory = data.mainInventory
+    
+    if plate and gloveboxInventory then
+        TriggerServerEvent('fw:inventory:saveGloveboxInventory', plate, gloveboxInventory, mainInventory)
+        skipNextSave = true -- Verhindere doppeltes Speichern
+    end
+    
+    cb('ok')
+end)
+
+-- === LAGER (STASH) ===
+
+function OpenStash(stashId)
+    if not stashId then
+        TriggerEvent('FW:Notify', 'Ungültige Lager-ID', 'error')
+        return
+    end
+    
+    FW.TriggerCallback('fw:inventory:getStashInventory', function(stashData)
+        if not stashData then
+            TriggerEvent('FW:Notify', 'Lager kann nicht geöffnet werden', 'error')
+            return
+        end
+        
+        print('[Inventory Client] Opening Stash:', stashId)
+        
+        -- ERST Haupt-Inventar laden und öffnen
+        FW.TriggerCallback('fw:inventory:getInventoryData', function(mainInventory)
+            local mainInv = (mainInventory and mainInventory.inventory) or {}
+            SendNUIMessage({
+                action = 'openInventory',
+                inventory = mainInv,
+                maxSlots = Config.Inventory.MaxSlots
+            })
+            
+            Citizen.Wait(100)
+            
+            -- DANN Dual-Inventory
+            SendNUIMessage({
+                action = 'openDualInventory',
+                mode = 'stash',
+                title = '🏢 Lager - ' .. stashId,
+                secondaryInventory = stashData.inventory or {},
+                maxSlots = stashData.maxSlots or Config.Inventory.StashMaxSlots,
+                maxWeight = stashData.maxWeight or 100,
+                metadata = {
+                    stashId = stashId,
+                    stashType = stashData.stashType
+                }
+            })
+            
+            isInventoryOpen = true
+            exports['fw_core']:RegisterUIOpen('inventory', true)
+        end)
+    end, stashId)
+end
+
+-- Export für andere Scripts
+exports('OpenStash', OpenStash)
+
+-- NUI Callback: Lager speichern
+RegisterNUICallback('saveStash', function(data, cb)
+    local stashId = data.stashId
+    local stashInventory = data.inventory
+    local mainInventory = data.mainInventory
+    
+    if stashId and stashInventory then
+        TriggerServerEvent('fw:inventory:saveStashInventory', stashId, stashInventory, mainInventory)
+        skipNextSave = true -- Verhindere doppeltes Speichern
+    end
+    
+    cb('ok')
+end)
+
+-- Beispiel Command für Testing
+RegisterCommand('openstash', function(source, args)
+    local stashId = args[1]
+    if stashId then
+        OpenStash(stashId)
+    else
+        TriggerEvent('FW:Notify', 'Verwendung: /openstash [id]', 'error')
+    end
+end)
+
+-- === BODEN-MODUS (GROUND) ===
+
+RegisterCommand('ground', function()
+    FW.TriggerCallback('fw:inventory:getGroundInventory', function(groundData)
+        print('[Inventory Client] Opening Ground Inventory')
+        
+        -- ERST Haupt-Inventar laden und öffnen
+        FW.TriggerCallback('fw:inventory:getInventoryData', function(mainInventory)
+            local mainInv = (mainInventory and mainInventory.inventory) or {}
+            SendNUIMessage({
+                action = 'openInventory',
+                inventory = mainInv,
+                maxSlots = Config.Inventory.MaxSlots
+            })
+            
+            Citizen.Wait(100)
+            
+            -- DANN Dual-Inventory
+            SendNUIMessage({
+                action = 'openDualInventory',
+                mode = 'ground',
+                title = '🌍 Boden',
+                secondaryInventory = groundData or {},
+                maxSlots = Config.Inventory.MaxSlots,
+                maxWeight = 999,
+                metadata = {}
+            })
+            
+            isInventoryOpen = true
+            exports['fw_core']:RegisterUIOpen('inventory', true)
+        end)
+    end)
+end)
+
+RegisterKeyMapping('ground', 'Boden-Inventar öffnen', 'keyboard', 'G')
+
+-- ============================================
+-- EQUIPMENT STORAGE SYSTEM
+-- ============================================
+
+-- Equipment Storage öffnen (Rucksäck, Taschen)
+function OpenEquipmentStorage(equipmentId, itemName)
+    if not equipmentId or not itemName then
+        TriggerEvent('FW:Notify', 'Ungültige Equipment-Daten', 'error')
+        return
+    end
+    
+    FW.TriggerCallback('fw:equipment:getStorage', function(equipmentData)
+        if not equipmentData then
+            TriggerEvent('FW:Notify', 'Equipment-Storage kann nicht geöffnet werden', 'error')
+            return
+        end
+        
+        print('[Inventory Client] Opening Equipment Storage:', equipmentId)
+        
+        -- Hole Equipment-Info aus Config
+        local label = itemName
+        local emoji = '🎒'
+        
+        -- Map bekannter Items
+        local equipmentLabels = {
+            backpack_small = '🎒 Kleiner Rucksack',
+            backpack_medium = '🎒 Rucksack',
+            backpack_large = '🎒 Großer Rucksack',
+            backpack_tactical = '🎒 Taktischer Rucksack',
+            bag_duffel = '👜 Seesack',
+            bag_sports = '👜 Sporttasche',
+            hipbag_small = '👝 Kleine Bauchtasche',
+            hipbag_medium = '👝 Bauchtasche',
+            hipbag_tactical = '👝 Taktische Bauchtasche',
+            bag_messenger = '👜 Umhängetasche'
+        }
+        
+        label = equipmentLabels[itemName] or ('🎒 ' .. itemName)
+        
+        SendNUIMessage({
+            action = 'openDualInventory',
+            mode = 'equipment',
+            title = label,
+            secondaryInventory = equipmentData.inventory,
+            maxSlots = equipmentData.maxSlots,
+            maxWeight = equipmentData.maxWeight,
+            metadata = {
+                equipmentId = equipmentId,
+                itemName = itemName,
+                equipmentType = equipmentData.equipmentType,
+                durability = equipmentData.durability
+            }
+        })
+        
+        isInventoryOpen = true
+        exports['fw_core']:RegisterUIOpen('inventory', true)
+    end, equipmentId)
+end
+
+-- Export für NUI/andere Scripts
+exports('OpenEquipmentStorage', OpenEquipmentStorage)
+
+-- NUI Callback: Equipment Storage speichern
+RegisterNUICallback('saveEquipment', function(data, cb)
+    local equipmentId = data.equipmentId
+    local inventory = data.inventory
+    
+    if equipmentId and inventory then
+        TriggerServerEvent('fw:equipment:saveStorage', equipmentId, inventory)
+    end
+    
+    cb('ok')
+end)
+
+-- NUI Callback: Equipment öffnen (wenn in Equipment-Slot geklickt)
+RegisterNUICallback('openEquipmentStorage', function(data, cb)
+    local equipmentId = data.equipmentId
+    local itemName = data.itemName
+    
+    if equipmentId and itemName then
+        OpenEquipmentStorage(equipmentId, itemName)
+    else
+        TriggerEvent('FW:Notify', 'Equipment hat kein Lager', 'error')
+    end
+    
+    cb('ok')
+end)
+
+-- Server Event: Equipment wurde equipped
+RegisterNetEvent('fw:equipment:equipped', function(itemName, equipmentId, slot)
+    print('[Inventory Client] Equipment equipped:', itemName, 'ID:', equipmentId, 'Slot:', slot)
+    
+    -- Optional: Visual Feedback
+    TriggerEvent('FW:Notify', ('Equipment ausgerüstet: %s'):format(itemName), 'success')
+end)
+
+-- Server Event: Equip wurde abgelehnt (falscher Slot)
+RegisterNetEvent('fw:equipment:equipRejected', function(itemName, targetSlot)
+    print('[Inventory Client] Equip rejected:', itemName, 'to', targetSlot)
+    
+    -- Visual Feedback: Shake Animation, Sound, etc.
+    TriggerEvent('FW:Notify', 'Dieses Item kann nicht hier ausgerüstet werden', 'error')
+end)
+
+-- Server Event: Equip wurde akzeptiert
+RegisterNetEvent('fw:equipment:equipAccepted', function(itemName, targetSlot)
+    print('[Inventory Client] Equip accepted:', itemName, 'to', targetSlot)
 end)

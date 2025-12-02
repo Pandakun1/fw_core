@@ -1,0 +1,285 @@
+{
+  "vehicles": [
+    {
+      "model": "adder",
+      "label": "Adder",
+      "class": "super",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 30,
+        "maxWeight": 50,
+        "accessPosition": "rear",
+        "offsetZ": -0.5,
+        "radius": 2.5
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 10,
+        "maxWeight": 10,
+        "requireInside": true
+      }
+    },
+    {
+      "model": "police",
+      "label": "Police Cruiser",
+      "class": "emergency",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 50,
+        "maxWeight": 100,
+        "accessPosition": "rear",
+        "offsetZ": -0.5,
+        "radius": 2.5
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 15,
+        "maxWeight": 15,
+        "requireInside": true
+      }
+    },
+    {
+      "model": "ambulance",
+      "label": "Ambulance",
+      "class": "emergency",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 60,
+        "maxWeight": 120,
+        "accessPosition": "rear",
+        "offsetZ": 0.0,
+        "radius": 3.0
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 20,
+        "maxWeight": 20,
+        "requireInside": true
+      }
+    },
+    {
+      "model": "burrito",
+      "label": "Burrito",
+      "class": "van",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 80,
+        "maxWeight": 200,
+        "accessPosition": "rear",
+        "offsetZ": 0.2,
+        "radius": 3.5
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 10,
+        "maxWeight": 10,
+        "requireInside": true
+      }
+    },
+    {
+      "model": "bison",
+      "label": "Bison",
+      "class": "van",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 70,
+        "maxWeight": 150,
+        "accessPosition": "rear",
+        "offsetZ": -0.3,
+        "radius": 3.0
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 10,
+        "maxWeight": 10,
+        "requireInside": true
+      }
+    },
+    {
+      "model": "packer",
+      "label": "Packer",
+      "class": "commercial",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 200,
+        "maxWeight": 500,
+        "accessPosition": "rear",
+        "offsetZ": 2.0,
+        "radius": 5.0
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 10,
+        "maxWeight": 10,
+        "requireInside": true
+      }
+    },
+    {
+      "model": "zentorno",
+      "label": "Zentorno",
+      "class": "super",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 20,
+        "maxWeight": 30,
+        "accessPosition": "front",
+        "offsetZ": -0.5,
+        "radius": 2.0,
+        "comment": "Frontmotor - Kofferraum ist vorne"
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 5,
+        "maxWeight": 5,
+        "requireInside": true
+      }
+    },
+    {
+      "model": "t20",
+      "label": "T20",
+      "class": "super",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 25,
+        "maxWeight": 35,
+        "accessPosition": "front",
+        "offsetZ": -0.4,
+        "radius": 2.0
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 5,
+        "maxWeight": 5,
+        "requireInside": true
+      }
+    },
+    {
+      "model": "baller",
+      "label": "Baller",
+      "class": "suv",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 60,
+        "maxWeight": 100,
+        "accessPosition": "rear",
+        "offsetZ": 0.0,
+        "radius": 2.5
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 15,
+        "maxWeight": 15,
+        "requireInside": true
+      }
+    },
+    {
+      "model": "insurgent",
+      "label": "Insurgent",
+      "class": "offroad",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 100,
+        "maxWeight": 250,
+        "accessPosition": "rear",
+        "offsetZ": 0.5,
+        "radius": 3.0
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 20,
+        "maxWeight": 20,
+        "requireInside": true
+      }
+    },
+    {
+      "model": "faggio",
+      "label": "Faggio",
+      "class": "motorcycle",
+      "trunk": {
+        "enabled": false,
+        "comment": "Motorräder haben keinen Kofferraum"
+      },
+      "glovebox": {
+        "enabled": false
+      }
+    },
+    {
+      "model": "sanchez",
+      "label": "Sanchez",
+      "class": "motorcycle",
+      "trunk": {
+        "enabled": false
+      },
+      "glovebox": {
+        "enabled": false
+      }
+    },
+    {
+      "model": "bmx",
+      "label": "BMX",
+      "class": "bicycle",
+      "trunk": {
+        "enabled": false
+      },
+      "glovebox": {
+        "enabled": false
+      }
+    },
+    {
+      "model": "DEFAULT",
+      "label": "Standard Fahrzeug",
+      "comment": "Fallback für alle nicht konfigurierten Fahrzeuge",
+      "trunk": {
+        "enabled": true,
+        "maxSlots": 80,
+        "maxWeight": 160,
+        "accessPosition": "rear",
+        "offsetZ": -0.5,
+        "radius": 2.5
+      },
+      "glovebox": {
+        "enabled": true,
+        "maxSlots": 10,
+        "maxWeight": 10,
+        "requireInside": true
+      }
+    }
+  ],
+  "accessPositions": {
+    "rear": {
+      "description": "Hinten am Fahrzeug (Standard Kofferraum)",
+      "getBoneIndex": "boot"
+    },
+    "front": {
+      "description": "Vorne am Fahrzeug (Frontmotor wie bei Supersportwagen)",
+      "getBoneIndex": "bonnet"
+    },
+    "side": {
+      "description": "Seitlich am Fahrzeug (z.B. Lieferwagen)"
+    }
+  },
+  "vehicleClasses": {
+    "compacts": { "defaultTrunkSlots": 35, "defaultTrunkWeight": 70 },
+    "sedans": { "defaultTrunkSlots": 45, "defaultTrunkWeight": 90 },
+    "suvs": { "defaultTrunkSlots": 60, "defaultTrunkWeight": 120 },
+    "coupes": { "defaultTrunkSlots": 30, "defaultTrunkWeight": 60 },
+    "muscle": { "defaultTrunkSlots": 50, "defaultTrunkWeight": 100 },
+    "sports_classics": { "defaultTrunkSlots": 35, "defaultTrunkWeight": 70 },
+    "sports": { "defaultTrunkSlots": 30, "defaultTrunkWeight": 60 },
+    "super": { "defaultTrunkSlots": 25, "defaultTrunkWeight": 50 },
+    "motorcycles": { "defaultTrunkSlots": 0, "defaultTrunkWeight": 0 },
+    "off_road": { "defaultTrunkSlots": 70, "defaultTrunkWeight": 140 },
+    "industrial": { "defaultTrunkSlots": 150, "defaultTrunkWeight": 300 },
+    "utility": { "defaultTrunkSlots": 100, "defaultTrunkWeight": 200 },
+    "vans": { "defaultTrunkSlots": 80, "defaultTrunkWeight": 160 },
+    "cycles": { "defaultTrunkSlots": 0, "defaultTrunkWeight": 0 },
+    "boats": { "defaultTrunkSlots": 50, "defaultTrunkWeight": 100 },
+    "helicopters": { "defaultTrunkSlots": 40, "defaultTrunkWeight": 80 },
+    "planes": { "defaultTrunkSlots": 60, "defaultTrunkWeight": 120 },
+    "service": { "defaultTrunkSlots": 90, "defaultTrunkWeight": 180 },
+    "emergency": { "defaultTrunkSlots": 60, "defaultTrunkWeight": 120 },
+    "military": { "defaultTrunkSlots": 100, "defaultTrunkWeight": 200 },
+    "commercial": { "defaultTrunkSlots": 200, "defaultTrunkWeight": 400 },
+    "trains": { "defaultTrunkSlots": 0, "defaultTrunkWeight": 0 }
+  }
+}

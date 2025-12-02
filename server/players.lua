@@ -42,7 +42,81 @@ function FW.CreatePlayer(src, data)
 
     self.data = daten
 
-    self.inventory = self.data.inventory or {}
+    -- Slot-based inventory structure (Array von Slots)
+    -- Lade inventory aus DB als Slot-Array
+    self.inventory = {}
+    if data.inventory and data.inventory ~= '' and data.inventory ~= '{}' and data.inventory ~= '[]' then
+        local success, decoded = pcall(json.decode, data.inventory)
+        if success and type(decoded) == 'table' then
+            -- Check if old object format (migrate on the fly)
+            local isOldFormat = false
+            for key, value in pairs(decoded) do
+                if type(key) == 'string' and type(value) == 'table' and value.amount then
+                    isOldFormat = true
+                    break
+                end
+            end
+            
+            if isOldFormat then
+                print('[FW Player] Migrating old inventory format for', data.identifier)
+                -- Convert old object format to slot array
+                local slots = {}
+                for i = 1, 50 do slots[i] = nil end
+                
+                local slotIndex = 1
+                for itemName, itemData in pairs(decoded) do
+                    if itemName ~= 'money' and slotIndex <= 50 then
+                        slots[slotIndex] = {
+                            name = itemName,
+                            label = itemData.label or itemName,
+                            quantity = itemData.amount or 1,
+                            itemweight = itemData.itemweight or 0,
+                            type = itemData.type or 'item',
+                            canUse = itemData.canUse or false,
+                            metadata = itemData.metadata or {}
+                        }
+                        slotIndex = slotIndex + 1
+                    end
+                end
+                self.inventory = slots
+            else
+                -- New slot-array format: Clean up json.null() values
+                local cleanSlots = {}
+                for i = 1, 50 do
+                    if decoded[i] and type(decoded[i]) == 'table' and decoded[i].name then
+                        cleanSlots[i] = decoded[i]
+                    else
+                        cleanSlots[i] = nil
+                    end
+                end
+                self.inventory = cleanSlots
+            end
+            
+            -- Count items
+            local itemCount = 0
+            for i = 1, 50 do
+                if self.inventory[i] and type(self.inventory[i]) == 'table' then
+                    itemCount = itemCount + 1
+                    print('[FW Player] Slot', i, ':', self.inventory[i].name, 'x', self.inventory[i].quantity or 1)
+                end
+            end
+            print('[FW Player] Loaded', itemCount, 'items from DB for', data.identifier)
+        else
+            print('[FW Player] Failed to decode inventory for', data.identifier)
+        end
+    else
+        print('[FW Player] No inventory data for', data.identifier, '- initializing empty')
+    end
+    
+    -- Fallback: Initialize empty if needed
+    if not self.inventory or type(self.inventory) ~= 'table' then
+        print('[FW Player] Creating new empty inventory array')
+        self.inventory = {}
+        for i = 1, 50 do
+            self.inventory[i] = nil
+        end
+    end
+
     self.metadata = self.data.metadata or {}
 
     self.unsaved = false
@@ -98,6 +172,67 @@ function FW.CreatePlayer(src, data)
         self.unsaved = true
     end
 
+    -- Inventory Slot Management
+    function self.getInventory()
+        -- Backwards compatibility: If old inventorySlots exists, use it
+        if self.inventorySlots and not self.inventory then
+            print('[FW Player] WARNING: Using legacy inventorySlots, migrating to inventory')
+            self.inventory = self.inventorySlots
+            self.inventorySlots = nil
+        end
+        return self.inventory or {}
+    end
+    
+    -- Legacy alias for backwards compatibility
+    function self.getInventorySlots()
+        return self.getInventory()
+    end
+
+    function self.setInventory(slots)
+        self.inventory = slots or {}
+        self.inventorySlots = nil -- Clear old reference
+        self.unsaved = true
+    end
+    
+    -- Legacy alias
+    function self.setInventorySlots(slots)
+        self.setInventory(slots)
+    end
+
+    function self.getItemInSlot(slotIndex)
+        return self.inventory[slotIndex]
+    end
+
+    function self.setItemInSlot(slotIndex, itemData)
+        self.inventory[slotIndex] = itemData
+        self.unsaved = true
+    end
+
+    function self.removeItemFromSlot(slotIndex)
+        self.inventory[slotIndex] = nil
+        self.unsaved = true
+    end
+
+    function self.hasItemInSlot(itemName, minQuantity)
+        minQuantity = minQuantity or 1
+        for slot, item in pairs(self.inventory) do
+            if item and item.name == itemName and item.quantity >= minQuantity then
+                return true, slot
+            end
+        end
+        return false, nil
+    end
+
+    function self.countItem(itemName)
+        local total = 0
+        for _, item in pairs(self.inventory) do
+            if item and item.name == itemName then
+                total = total + (item.quantity or 1)
+            end
+        end
+        return total
+    end
+
     function self.saveClean()
         self.unsaved = false
     end
@@ -107,11 +242,24 @@ function FW.CreatePlayer(src, data)
     end
 
     function self.toRow()
+        -- Ensure inventory is saved as clean array with json.null() for empty slots
+        local cleanInventory = {}
+        for i = 1, 50 do
+            if self.inventory[i] and type(self.inventory[i]) == 'table' and self.inventory[i].name then
+                cleanInventory[i] = self.inventory[i]
+            else
+                cleanInventory[i] = json.null()
+            end
+        end
+        
         return {
             identifier = self.identifier,
             license = self.license,
             firstname = self.firstname,
             lastname = self.lastname,
+            dateofbirth = self.dateofbirth,
+            sex = self.sex,
+            height = self.height,
             money_cash = self.money.cash,
             money_bank = self.money.bank,
             job_name = self.job.name,
@@ -119,7 +267,7 @@ function FW.CreatePlayer(src, data)
             position_x = self.position.x,
             position_y = self.position.y,
             position_z = self.position.z,
-            inventory = data.inventory or '{}',
+            inventory = json.encode(cleanInventory),
             daten = json.encode(self.data)
         }
     end

@@ -7,3 +7,12 @@ Config.Firstspawn = vector4(-183.0, -498.0, 35.0, 70.0) -- x, y, z, heading
 Config.Resetspawn = vector4(-183.0, -498.0, 35.0, 70.0) -- x, y, z, heading
 
 Config.MaxCharacters = 5 -- Maximum number of characters per player
+
+-- Inventar Konfiguration
+Config.Inventory = {
+    MaxSlots = 50,           -- Player Haupt-Inventar
+    MaxWeight = 50,          -- kg
+    TrunkMaxSlots = 100,     -- Kofferraum Slots (erhöht von 50)
+    GloveboxMaxSlots = 30,   -- Handschuhfach Slots (erhöht von 50)
+    StashMaxSlots = 100,     -- Lager Standard Slots (erhöht von 50)
+}

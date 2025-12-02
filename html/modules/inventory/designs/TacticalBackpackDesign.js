@@ -65,9 +65,9 @@ export function generateTacticalBackpackTemplate() {
                 
                 <!-- Second Inventory (when dual mode active) OR Stats (top-right) -->
                 <div v-if="dualInventoryOpen" class="order-2 max-h-[47vh] rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(6,78,59,0.85), rgba(4,47,46,0.9)); border-color: rgba(16,185,129,0.5);">
-                    <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(6,78,59,0.9), rgba(4,47,46,0.95)); border-color: rgba(16,185,129,0.4); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
-                        <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-emerald-200" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">📦 {{ dualInventoryTitle }}</div>
-                        <div class="text-[0.6vw] uppercase text-emerald-400/80">{{ secondInventoryItems.filter(isItemDefined).length }}/50</div>
+                    <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95)); border-color: rgba(100,116,139,0.3); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+                        <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-slate-300" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">📦 {{ dualInventoryTitle }}</div>
+                        <div class="text-[0.6vw] uppercase text-emerald-400/80">{{ secondInventoryItems.filter(isItemDefined).length }}/{{ secondInventoryItems.length }}</div>
                     </div>
                     
                     <div class="flex-1 overflow-y-auto min-h-0 p-[0.8vw]" style="scrollbar-width: thin; scrollbar-color: rgba(16,185,129,0.7) rgba(6,78,59,0.8);">
@@ -98,17 +98,11 @@ export function generateTacticalBackpackTemplate() {
                 
                 <!-- Button Column (only visible in dual mode) - Tactical style -->
                 <div v-if="dualInventoryOpen" class="order-3 flex flex-col gap-[1.5vh] justify-center max-h-[47vh]">
-                    <button @click="confirmDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(34,197,94,0.9), rgba(22,163,74,0.95)); color: white; border-color: rgba(134,239,172,0.6); box-shadow: 0 0.5vh 1vh rgba(22,163,74,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        ✅ Bestätigen
-                    </button>
-                    <button @click="saveDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(71,85,105,0.9), rgba(51,65,85,0.95)); color: #e2e8f0; border-color: rgba(148,163,184,0.6); box-shadow: 0 0.5vh 1vh rgba(51,65,85,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        💾 Speichern
-                    </button>
                     <button @click="clearDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(251,146,60,0.9), rgba(249,115,22,0.95)); color: white; border-color: rgba(254,215,170,0.6); box-shadow: 0 0.5vh 1vh rgba(249,115,22,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        🗑️ Leeren
+                        🗑️ Items Entfernen
                     </button>
-                    <button @click="closeDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(51,65,85,0.85), rgba(30,41,59,0.95)); color: #fca5a5; border-color: rgba(185,28,28,0.5); box-shadow: 0 0.5vh 1vh rgba(127,29,29,0.5), inset 0 1px 3px rgba(255,255,255,0.1); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        ❌ Abbrechen
+                    <button @click="closeDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(34,197,94,0.9), rgba(22,163,74,0.95)); color: white; border-color: rgba(134,239,172,0.6); box-shadow: 0 0.5vh 1vh rgba(22,163,74,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
+                        ✅ Schließen & Speichern
                     </button>
                 </div>
                 

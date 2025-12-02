@@ -1,0 +1,284 @@
+{
+  "equipmentSlots": {
+    "vest": {
+      "slotId": 0,
+      "label": "Weste",
+      "description": "Schutzwesten und gepanzerte Kleidung",
+      "allowedTypes": ["vest", "armor"]
+    },
+    "weapon": {
+      "slotId": 1,
+      "label": "Waffe",
+      "description": "Primärwaffe oder Werkzeug",
+      "allowedTypes": ["weapon", "tool"]
+    },
+    "bag1": {
+      "slotId": 2,
+      "label": "Rucksack/Große Tasche",
+      "description": "Rucksäcke und große Taschen mit Stauraum",
+      "allowedTypes": ["backpack", "large_bag"]
+    },
+    "bag2": {
+      "slotId": 3,
+      "label": "Bauchtasche",
+      "description": "Kleine Taschen und Bauchtaschen",
+      "allowedTypes": ["hip_bag", "small_bag"]
+    }
+  },
+  "equipmentItems": {
+    "vest_police": {
+      "name": "vest_police",
+      "label": "Polizei Schutzweste",
+      "emoji": "🦺",
+      "type": "vest",
+      "itemweight": 5.0,
+      "canUse": true,
+      "equipSlot": "vest",
+      "armor": 50,
+      "durability": 100
+    },
+    "vest_kevlar": {
+      "name": "vest_kevlar",
+      "label": "Kevlar Weste",
+      "emoji": "🛡️",
+      "type": "vest",
+      "itemweight": 8.0,
+      "canUse": true,
+      "equipSlot": "vest",
+      "armor": 100,
+      "durability": 100
+    },
+    "vest_tactical": {
+      "name": "vest_tactical",
+      "label": "Taktische Weste",
+      "emoji": "🎖️",
+      "type": "vest",
+      "itemweight": 6.0,
+      "canUse": true,
+      "equipSlot": "vest",
+      "armor": 75,
+      "durability": 100
+    },
+    "weapon_pistol": {
+      "name": "weapon_pistol",
+      "label": "Pistole",
+      "emoji": "🔫",
+      "type": "weapon",
+      "itemweight": 1.5,
+      "canUse": true,
+      "equipSlot": "weapon",
+      "weaponHash": "WEAPON_PISTOL",
+      "ammoType": "pistol_ammo",
+      "durability": 100
+    },
+    "weapon_smg": {
+      "name": "weapon_smg",
+      "label": "SMG",
+      "emoji": "🔫",
+      "type": "weapon",
+      "itemweight": 3.0,
+      "canUse": true,
+      "equipSlot": "weapon",
+      "weaponHash": "WEAPON_SMG",
+      "ammoType": "smg_ammo",
+      "durability": 100
+    },
+    "weapon_rifle": {
+      "name": "weapon_rifle",
+      "label": "Sturmgewehr",
+      "emoji": "🔫",
+      "type": "weapon",
+      "itemweight": 5.0,
+      "canUse": true,
+      "equipSlot": "weapon",
+      "weaponHash": "WEAPON_ASSAULTRIFLE",
+      "ammoType": "rifle_ammo",
+      "durability": 100
+    },
+    "backpack_small": {
+      "name": "backpack_small",
+      "label": "Kleiner Rucksack",
+      "emoji": "🎒",
+      "type": "backpack",
+      "itemweight": 2.0,
+      "canUse": true,
+      "equipSlot": "bag1",
+      "hasStorage": true,
+      "storage": {
+        "maxSlots": 15,
+        "maxWeight": 30,
+        "identifier": "backpack_small"
+      }
+    },
+    "backpack_medium": {
+      "name": "backpack_medium",
+      "label": "Rucksack",
+      "emoji": "🎒",
+      "type": "backpack",
+      "itemweight": 3.0,
+      "canUse": true,
+      "equipSlot": "bag1",
+      "hasStorage": true,
+      "storage": {
+        "maxSlots": 25,
+        "maxWeight": 50,
+        "identifier": "backpack_medium"
+      }
+    },
+    "backpack_large": {
+      "name": "backpack_large",
+      "label": "Großer Rucksack",
+      "emoji": "🎒",
+      "type": "backpack",
+      "itemweight": 4.0,
+      "canUse": true,
+      "equipSlot": "bag1",
+      "hasStorage": true,
+      "storage": {
+        "maxSlots": 35,
+        "maxWeight": 70,
+        "identifier": "backpack_large"
+      }
+    },
+    "backpack_tactical": {
+      "name": "backpack_tactical",
+      "label": "Taktischer Rucksack",
+      "emoji": "🎒",
+      "type": "backpack",
+      "itemweight": 5.0,
+      "canUse": true,
+      "equipSlot": "bag1",
+      "hasStorage": true,
+      "storage": {
+        "maxSlots": 50,
+        "maxWeight": 100,
+        "identifier": "backpack_tactical"
+      }
+    },
+    "bag_duffel": {
+      "name": "bag_duffel",
+      "label": "Seesack",
+      "emoji": "👜",
+      "type": "large_bag",
+      "itemweight": 3.5,
+      "canUse": true,
+      "equipSlot": "bag1",
+      "hasStorage": true,
+      "storage": {
+        "maxSlots": 30,
+        "maxWeight": 60,
+        "identifier": "bag_duffel"
+      }
+    },
+    "bag_sports": {
+      "name": "bag_sports",
+      "label": "Sporttasche",
+      "emoji": "👜",
+      "type": "large_bag",
+      "itemweight": 2.5,
+      "canUse": true,
+      "equipSlot": "bag1",
+      "hasStorage": true,
+      "storage": {
+        "maxSlots": 20,
+        "maxWeight": 40,
+        "identifier": "bag_sports"
+      }
+    },
+    "hipbag_small": {
+      "name": "hipbag_small",
+      "label": "Kleine Bauchtasche",
+      "emoji": "👝",
+      "type": "hip_bag",
+      "itemweight": 0.5,
+      "canUse": true,
+      "equipSlot": "bag2",
+      "hasStorage": true,
+      "storage": {
+        "maxSlots": 5,
+        "maxWeight": 10,
+        "identifier": "hipbag_small"
+      }
+    },
+    "hipbag_medium": {
+      "name": "hipbag_medium",
+      "label": "Bauchtasche",
+      "emoji": "👝",
+      "type": "hip_bag",
+      "itemweight": 1.0,
+      "canUse": true,
+      "equipSlot": "bag2",
+      "hasStorage": true,
+      "storage": {
+        "maxSlots": 10,
+        "maxWeight": 20,
+        "identifier": "hipbag_medium"
+      }
+    },
+    "hipbag_tactical": {
+      "name": "hipbag_tactical",
+      "label": "Taktische Bauchtasche",
+      "emoji": "👝",
+      "type": "hip_bag",
+      "itemweight": 1.5,
+      "canUse": true,
+      "equipSlot": "bag2",
+      "hasStorage": true,
+      "storage": {
+        "maxSlots": 12,
+        "maxWeight": 25,
+        "identifier": "hipbag_tactical"
+      }
+    },
+    "bag_messenger": {
+      "name": "bag_messenger",
+      "label": "Umhängetasche",
+      "emoji": "👜",
+      "type": "small_bag",
+      "itemweight": 1.2,
+      "canUse": true,
+      "equipSlot": "bag2",
+      "hasStorage": true,
+      "storage": {
+        "maxSlots": 8,
+        "maxWeight": 15,
+        "identifier": "bag_messenger"
+      }
+    }
+  },
+  "dragDropRules": {
+    "description": "Definiert welche Item-Typen in welche Equipment-Slots gedroppt werden dürfen",
+    "rules": [
+      {
+        "targetSlot": "vest",
+        "allowedTypes": ["vest", "armor"],
+        "rejectMessage": "Nur Westen und Rüstungen können hier ausgerüstet werden"
+      },
+      {
+        "targetSlot": "weapon",
+        "allowedTypes": ["weapon", "tool"],
+        "rejectMessage": "Nur Waffen und Werkzeuge können hier ausgerüstet werden"
+      },
+      {
+        "targetSlot": "bag1",
+        "allowedTypes": ["backpack", "large_bag"],
+        "rejectMessage": "Nur Rucksäcke und große Taschen können hier ausgerüstet werden"
+      },
+      {
+        "targetSlot": "bag2",
+        "allowedTypes": ["hip_bag", "small_bag"],
+        "rejectMessage": "Nur Bauchtaschen und kleine Taschen können hier ausgerüstet werden"
+      }
+    ]
+  },
+  "storageSystem": {
+    "description": "Equipment mit hasStorage: true hat ein eigenes Inventar",
+    "storageFormat": "equipment_storage:[itemName]:[uniqueId]",
+    "examples": [
+      "equipment_storage:backpack_medium:12345",
+      "equipment_storage:hipbag_small:67890"
+    ],
+    "persistence": "Wird in equipment_storage Tabelle gespeichert (ähnlich wie vehicle_storage)",
+    "uniqueIdGeneration": "UUID oder Timestamp-basiert beim ersten Equip"
+  }
+}

@@ -1,12 +1,12 @@
 // Forest Design Template - Immersive woodland experience with trees, wood, moss, and nature
 export function generateForestTemplate() {
     return `
-    <div class="relative w-full h-full flex justify-center overflow-hidden" :class="dualInventoryOpen ? 'items-start pt-[10vh]' : 'items-center'">
+    <div class="relative w-full h-full flex justify-center items-center overflow-hidden">
         <!-- Mystical Forest Atmosphere with Magic Glow -->
         <div class="absolute inset-0 blur-[3vw] opacity-60 animate-pulse" style="background: radial-gradient(circle at 30% 40%, rgba(52,211,153,0.25), transparent 45%), radial-gradient(circle at 70% 60%, rgba(34,197,94,0.22), transparent 50%), radial-gradient(circle at 50% 80%, rgba(101,163,13,0.28), transparent 55%), radial-gradient(circle at 80% 30%, rgba(74,222,128,0.15), transparent 50%); animation-duration: 4s;"></div>
         
         <!-- Ancient Tree Trunk Frame -->
-        <div class="relative w-full h-full rounded-[2.5vw] shadow-[0_2vw_4vw_rgba(0,0,0,0.95),inset_0_0_2vw_rgba(0,0,0,0.8)] border-4 p-[1.5vw] flex flex-col" :class="dualInventoryOpen ? 'justify-start' : ''" style="background: linear-gradient(165deg, #3d2817 0%, #2d1810 15%, #1a0f08 35%, #0d0604 60%, #1a0f08 85%, #2d1810 100%), repeating-linear-gradient(90deg, rgba(61,40,23,0.3) 0px, rgba(61,40,23,0.3) 2px, transparent 2px, transparent 8vw); border-color: #4a3728;">
+        <div class="relative rounded-[2.5vw] shadow-[0_2vw_4vw_rgba(0,0,0,0.95),inset_0_0_2vw_rgba(0,0,0,0.8)] border-4 p-[1.5vw] flex flex-col" :class="dualInventoryOpen ? 'w-[90vw] h-[64vh]' : 'w-full h-full'" style="background: linear-gradient(165deg, #3d2817 0%, #2d1810 15%, #1a0f08 35%, #0d0604 60%, #1a0f08 85%, #2d1810 100%), repeating-linear-gradient(90deg, rgba(61,40,23,0.3) 0px, rgba(61,40,23,0.3) 2px, transparent 2px, transparent 8vw); border-color: #4a3728;">
             
             <!-- Realistic Wood Bark Texture with rings -->
             <div class="absolute inset-[1.5vw] rounded-[2vw] pointer-events-none" style="background: 
@@ -42,8 +42,8 @@ export function generateForestTemplate() {
             
             <!-- Content Grid (Dynamic based on mode) -->
             <div class="relative z-10 grid h-full" 
-                :class="dualInventoryOpen ? 'grid-cols-3 gap-[1.5vw] items-start justify-center' : 'grid-cols-[20%_1fr_20%_8%] grid-rows-[1fr_1fr] gap-[1vw]'"
-                :style="dualInventoryOpen ? 'grid-template-columns: 38% 38% 10%;' : ''">
+                :class="dualInventoryOpen ? 'gap-[1vw]' : 'grid-cols-[20%_1fr_20%_8%] grid-rows-[1fr_1fr] gap-[1vw]'"
+                :style="dualInventoryOpen ? 'grid-template-columns: 45% 45% 8%; grid-template-rows: 1fr auto;' : ''">
                 
                     <!-- Wallet (top-left) - Birch bark pouch - Hidden in dual mode -->
                 <div v-if="!dualInventoryOpen" class="col-start-1 row-start-1 relative rounded-[1.3vw] shadow-[0_0.8vw_1.7vw_rgba(0,0,0,0.85),inset_0_0.3vh_0.6vh_rgba(255,255,255,0.1)] border-2 p-[0.7vw] flex flex-col overflow-hidden" style="background: linear-gradient(135deg, #d4c5b0 0%, #e8dcc8 20%, #d4c5b0 40%, #c4b5a0 60%, #d4c5b0 80%, #e8dcc8 100%), repeating-linear-gradient(90deg, rgba(61,40,23,0.15) 0, rgba(61,40,23,0.15) 0.1vw, transparent 0.1vw, transparent 0.5vw); border-color: rgba(139,116,91,0.8);">
@@ -72,20 +72,22 @@ export function generateForestTemplate() {
                 </div>
                 
                 <!-- Second Inventory (when dual mode active) OR Stats (top-right) - Moss-covered stone tablet -->
-                <div v-if="dualInventoryOpen" class="order-2 max-h-[47vh] rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.7)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, #14532d 0%, #052e16 25%, #14532d 50%, #052e16 75%, #14532d 100%), repeating-linear-gradient(45deg, rgba(34,197,94,0.2) 0, rgba(34,197,94,0.2) 0.3vw, transparent 0.3vw, transparent 0.8vw); border-color: rgba(34,197,94,0.5);">
+                <div v-if="dualInventoryOpen" class="row-start-1 row-span-2 col-start-2 rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.7)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, #14532d 0%, #052e16 25%, #14532d 50%, #052e16 75%, #14532d 100%), repeating-linear-gradient(45deg, rgba(34,197,94,0.2) 0, rgba(34,197,94,0.2) 0.3vw, transparent 0.3vw, transparent 0.8vw); border-color: rgba(34,197,94,0.5);">
                     <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(20,83,45,0.9), rgba(5,46,22,0.95)); border-color: rgba(34,197,94,0.3); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
                         <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-emerald-300" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">📦 {{ dualInventoryTitle }}</div>
-                        <div class="text-[0.6vw] uppercase text-emerald-400/80">{{ secondInventoryItems.filter(isItemDefined).length }}/50</div>
+                        <div class="text-[0.6vw] uppercase text-emerald-400/80">{{ secondInventoryItems.filter(isItemDefined).length }}/{{ secondInventoryItems.length }}</div>
                     </div>
                     
-                    <div class="flex-1 overflow-y-auto min-h-0 p-[0.8vw] custom-scrollbar-forest" style="scrollbar-width: thin; scrollbar-color: rgba(34,197,94,0.95) rgba(20,83,45,0.9);">
-                        <div class="grid grid-cols-5 gap-[0.5vw]">
+                    <div class="flex-1 overflow-y-auto min-h-0 p-[0.5vw] custom-scrollbar-forest" style="scrollbar-width: thin; scrollbar-color: rgba(34,197,94,0.95) rgba(20,83,45,0.9);">
+                        <div class="grid grid-cols-5 gap-[0.4vw] auto-rows-min">
                             <div v-for="(item, index) in secondInventoryItems" :key="'second-' + index" 
                                 :data-slot-index="'second-' + index"
                                 @mousedown="(e) => handleMouseDown(e, 'second-' + index)"
+                                @contextmenu.prevent="(e) => openContextMenu(e, item, 'second-' + index)"
                                 @mouseenter="hoveredItem = item?.id"
                                 @mouseleave="hoveredItem = null"
-                                class="relative rounded-lg border-2 border-emerald-600/40 flex items-center justify-center p-[0.35vw] cursor-grab transition-all aspect-square hover:-translate-y-[0.25vh] hover:scale-105 hover:border-emerald-400"
+                                class="relative rounded-lg border-2 border-emerald-600/40 flex items-center justify-center p-[0.35vw] cursor-grab transition-all hover:-translate-y-[0.25vh] hover:scale-105 hover:border-emerald-400"
+                                style="aspect-ratio: 1/1; width: 100%;"
                                 :style="isItemDefined(item) ? 'background: linear-gradient(135deg, rgba(20,83,45,0.7), rgba(5,46,22,0.8));' : 'background: linear-gradient(135deg, rgba(20,83,45,0.3), rgba(5,46,22,0.5));'"
                             >
                                 <span v-if="!isItemDefined(item)" class="text-emerald-950/40 text-[0.7vw] font-mono">{{ index + 1 }}</span>
@@ -104,26 +106,79 @@ export function generateForestTemplate() {
                     </div>
                 </div>
                 
+                <!-- Equipment Bar (horizontal strip below player inventory only) -->
+                <div v-if="dualInventoryOpen" class="row-start-2 col-start-1 rounded-[1vw] shadow-[0_0.5vw_1vw_rgba(0,0,0,0.9),inset_0_0.3vh_0.6vh_rgba(0,0,0,0.6)] border-2 p-[0.5vw] flex flex-col overflow-hidden" style="background: linear-gradient(135deg, #6b4423 0%, #8b5a3c 20%, #6b4423 50%, #8b5a3c 80%, #6b4423 100%); border-color: rgba(107,68,35,0.8);">
+                    <div class="flex justify-between items-baseline mb-[0.5vh]">
+                        <div class="font-bold text-[0.7vw] uppercase tracking-[0.16em] text-amber-200" style="text-shadow: 0 2px 3px rgba(0,0,0,0.7);">🎫 Ausrüstung</div>
+                        <div class="text-[0.6vw] uppercase text-amber-300/80">4 Slots</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-4 gap-[0.4vw]">
+                        <div data-equipment-slot="vest" @mousedown="handleEquipmentMouseDown($event, 'vest')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-emerald-400 hover:bg-emerald-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(34,197,94,0.05); border-color: rgba(52,211,153,0.4);">
+                            <template v-if="equipmentSlots.vest">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(107,68,35,0.6);">{{ equipmentSlots.vest.emoji }}</div>
+                                <span v-if="equipmentSlots.vest.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-emerald-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.vest.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🦺</span>
+                                <span class="text-[0.5vw] uppercase text-amber-50/90">Weste</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="weapon" @mousedown="handleEquipmentMouseDown($event, 'weapon')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-emerald-400 hover:bg-emerald-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(34,197,94,0.05); border-color: rgba(52,211,153,0.4);">
+                            <template v-if="equipmentSlots.weapon">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(107,68,35,0.6);">{{ equipmentSlots.weapon.emoji }}</div>
+                                <span v-if="equipmentSlots.weapon.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-emerald-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.weapon.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🔫</span>
+                                <span class="text-[0.5vw] uppercase text-amber-50/90">Waffe</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="bag1" @mousedown="handleEquipmentMouseDown($event, 'bag1')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-emerald-400 hover:bg-emerald-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(52,211,153,0.05); border-color: rgba(52,211,153,0.4);">
+                            <template v-if="equipmentSlots.bag1">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(107,68,35,0.6);">{{ equipmentSlots.bag1.emoji }}</div>
+                                <span v-if="equipmentSlots.bag1.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-emerald-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.bag1.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">👜</span>
+                                <span class="text-[0.5vw] uppercase text-emerald-100/90">Tasche 1</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="bag2" @mousedown="handleEquipmentMouseDown($event, 'bag2')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-emerald-400 hover:bg-emerald-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(52,211,153,0.05); border-color: rgba(52,211,153,0.4);">
+                            <template v-if="equipmentSlots.bag2">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(107,68,35,0.6);">{{ equipmentSlots.bag2.emoji }}</div>
+                                <span v-if="equipmentSlots.bag2.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-emerald-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.bag2.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🎒</span>
+                                <span class="text-[0.5vw] uppercase text-emerald-100/90">Tasche 2</span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Button Column (only visible in dual mode) -->
-                <div v-if="dualInventoryOpen" class="order-3 flex flex-col gap-[1.5vh] justify-center max-h-[47vh]">
-                    <!-- Bestätigen Button -->
-                    <button @click="confirmDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(20,83,45,0.95), rgba(5,46,22,0.98)); color: #d1fae5; border-color: rgba(52,211,153,0.7); box-shadow: 0 0.5vh 1vh rgba(22,163,74,0.6), inset 0 1px 3px rgba(255,255,255,0.15), 0 0 1.5vw rgba(34,197,94,0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        ✅ Bestätigen
+                <div v-if="dualInventoryOpen" class="row-start-1 row-span-2 col-start-3 flex flex-col gap-[1vh] justify-end">
+                    <!-- Bargeld Anzeige -->
+                    <div class="w-full rounded-lg border-2 p-[0.4vw] flex flex-col items-center gap-[0.3vh]" style="background: linear-gradient(135deg, #d4c5b0 0%, #e8dcc8 50%, #d4c5b0 100%); border-color: rgba(139,116,91,0.8); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8);">
+                        <div class="w-[2vw] h-[2vw] rounded-lg flex items-center justify-center text-[1.2vw]" style="background: radial-gradient(circle, rgba(34,197,94,0.85), rgba(22,163,74,0.9)); box-shadow: 0 0.2vw 0.4vw rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.3);">💰</div>
+                        <div class="text-[0.5vw] uppercase tracking-wider text-stone-700">Bargeld</div>
+                        <div class="text-[0.8vw] font-bold text-stone-800" style="text-shadow: 0 1px 2px rgba(255,255,255,0.5);">2.500 $</div>
+                    </div>
+                    
+                    <!-- Kleidung Button -->
+                    <button @click="openClothing" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(139,90,60,0.8)]" style="background: linear-gradient(135deg, rgba(107,68,35,0.95), rgba(139,90,60,0.9)); border-color: rgba(139,116,91,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8);">
+                        <span class="text-[1.8vw]">👔</span>
                     </button>
                     
-                    <!-- Zwischenspeichern Button -->
-                    <button @click="saveDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(61,40,23,0.95), rgba(45,30,17,0.98)); color: #e8dcc8; border-color: rgba(139,116,91,0.7); box-shadow: 0 0.5vh 1vh rgba(92,64,51,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        💾 Speichern
+                    <!-- Items Entfernen Button -->
+                    <button @click="clearDualInventory" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(217,119,6,0.8)]" style="background: linear-gradient(135deg, rgba(74,51,36,0.95), rgba(61,40,23,0.98)); border-color: rgba(217,119,6,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8);">
+                        <span class="text-[1.8vw]">🗑️</span>
                     </button>
                     
-                    <!-- Leeren Button -->
-                    <button @click="clearDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(74,51,36,0.95), rgba(61,40,23,0.98)); color: #fed7aa; border-color: rgba(217,119,6,0.6); box-shadow: 0 0.5vh 1vh rgba(217,119,6,0.5), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        🗑️ Leeren
-                    </button>
-                    
-                    <!-- Abbrechen Button -->
-                    <button @click="closeDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(61,40,23,0.85), rgba(29,16,10,0.95)); color: #fca5a5; border-color: rgba(185,28,28,0.5); box-shadow: 0 0.5vh 1vh rgba(127,29,29,0.5), inset 0 1px 3px rgba(255,255,255,0.1); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        ❌ Abbrechen
+                    <!-- Schließen & Speichern Button (ganz unten) -->
+                    <button @click="closeDualInventory" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(34,197,94,0.8)]" style="background: linear-gradient(135deg, rgba(20,83,45,0.95), rgba(5,46,22,0.98)); border-color: rgba(52,211,153,0.7); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), 0 0 1vw rgba(34,197,94,0.3);">
+                        <span class="text-[1.8vw]">✅</span>
                     </button>
                 </div>
                 
@@ -178,18 +233,19 @@ export function generateForestTemplate() {
                 </div>
                 
                 <!-- Main inventory (center) - Ancient root trunk -->
-                <div :class="dualInventoryOpen ? 'order-1 max-h-[47vh]' : 'col-start-2 row-start-1 row-span-2'" class="rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.7)] border-2 flex flex-col overflow-hidden" :style="dualInventoryOpen ? 'background: linear-gradient(135deg, #3d2817 0%, #2d1810 25%, #1a0f08 50%, #2d1810 75%, #3d2817 100%), repeating-linear-gradient(0deg, rgba(107,68,35,0.3) 0, rgba(107,68,35,0.3) 1px, transparent 1px, transparent 0.8vh), repeating-linear-gradient(90deg, rgba(61,40,23,0.25) 0, rgba(61,40,23,0.25) 2px, transparent 2px, transparent 1.2vw); border-color: rgba(61,40,23,0.9);' : 'background: linear-gradient(135deg, #3d2817 0%, #2d1810 25%, #1a0f08 50%, #2d1810 75%, #3d2817 100%), repeating-linear-gradient(0deg, rgba(107,68,35,0.3) 0, rgba(107,68,35,0.3) 1px, transparent 1px, transparent 0.8vh), repeating-linear-gradient(90deg, rgba(61,40,23,0.25) 0, rgba(61,40,23,0.25) 2px, transparent 2px, transparent 1.2vw); border-color: rgba(61,40,23,0.9);'">
+                <div :class="dualInventoryOpen ? 'row-start-1 col-start-1' : 'col-start-2 row-start-1 row-span-2'" class="rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.7)] border-2 flex flex-col overflow-hidden" :style="dualInventoryOpen ? 'background: linear-gradient(135deg, #3d2817 0%, #2d1810 25%, #1a0f08 50%, #2d1810 75%, #3d2817 100%), repeating-linear-gradient(0deg, rgba(107,68,35,0.3) 0, rgba(107,68,35,0.3) 1px, transparent 1px, transparent 0.8vh), repeating-linear-gradient(90deg, rgba(61,40,23,0.25) 0, rgba(61,40,23,0.25) 2px, transparent 2px, transparent 1.2vw); border-color: rgba(61,40,23,0.9);' : 'background: linear-gradient(135deg, #3d2817 0%, #2d1810 25%, #1a0f08 50%, #2d1810 75%, #3d2817 100%), repeating-linear-gradient(0deg, rgba(107,68,35,0.3) 0, rgba(107,68,35,0.3) 1px, transparent 1px, transparent 0.8vh), repeating-linear-gradient(90deg, rgba(61,40,23,0.25) 0, rgba(61,40,23,0.25) 2px, transparent 2px, transparent 1.2vw); border-color: rgba(61,40,23,0.9);'">
                     <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(45,24,16,0.9), rgba(26,15,8,0.95)); border-color: rgba(34,197,94,0.3); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
                         <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-amber-300" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">🌳 Inventar</div>
                         <div class="text-[0.6vw] uppercase text-emerald-300/80">50 Slots • {{ inventoryItems.filter(isItemDefined).length }} belegt</div>
                     </div>
                     
-                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-forest" :class="dualInventoryOpen ? 'p-[0.8vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(34,197,94,0.95) rgba(45,24,16,0.9);">
-                        <div class="grid" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.5vw]' : 'grid-cols-5 gap-[0.6vw]'">
+                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-forest" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(34,197,94,0.95) rgba(45,24,16,0.9);">
+                        <div class="grid auto-rows-min" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.4vw]' : 'grid-cols-5 gap-[0.6vw]'">
                             <div v-for="(item, index) in inventoryItems" :key="index" 
                                 :data-slot-index="index"
+                                style="aspect-ratio: 1/1; width: 100%;"
                                 :class="[
-                                    'relative rounded-lg border flex items-center justify-center cursor-grab transition-all aspect-square',
+                                    'relative rounded-lg border flex items-center justify-center cursor-grab transition-all',
                                     dualInventoryOpen ? 'p-[0.35vw]' : 'p-[0.4vw]',
                                     index < 5 ? 'border-2 !border-emerald-500 shadow-[0_0_0_0.05vw_rgba(52,211,153,0.6),0_0.4vh_0.7vh_rgba(0,0,0,0.8)]' : 'border-2 border-emerald-950/40',
                                     !isItemDefined(item) ? 'empty' : '',
@@ -198,6 +254,7 @@ export function generateForestTemplate() {
                                 ]"
                                 :style="isItemDefined(item) ? 'background: linear-gradient(135deg, rgba(107,68,35,0.7), rgba(61,40,23,0.8));' : 'background: linear-gradient(135deg, rgba(61,40,23,0.6), rgba(45,24,16,0.7));'"
                                 @mousedown="(e) => handleMouseDown(e, index)"
+                                @contextmenu.prevent="(e) => openContextMenu(e, item, index)"
                                 @click="selectedItem = selectedItem === item?.id ? null : item?.id"
                                 @mouseenter="hoveredItem = item?.id"
                                 @mouseleave="hoveredItem = null"
@@ -310,6 +367,8 @@ export function generateForestTemplate() {
                 
             </div>
         </div>
+        
+
     </div>
     `;
 }

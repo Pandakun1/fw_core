@@ -79,7 +79,7 @@ export function generateSciFiHudTemplate() {
                 <div v-if="dualInventoryOpen" class="order-2 max-h-[47vh] rounded-[0.8vw] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(8,47,73,0.85)); border-color: rgba(16,185,129,0.6); box-shadow: 0 0 1.5vw rgba(16,185,129,0.5), inset 0 0 1vw rgba(16,185,129,0.15);">
                     <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(8,47,73,0.9), rgba(4,24,38,0.95)); border-color: rgba(16,185,129,0.4); box-shadow: 0 0 1vw rgba(16,185,129,0.4);">
                         <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-cyan-200" style="text-shadow: 0 0 0.5vw rgba(16,185,129,0.8);">📦 {{ dualInventoryTitle }}</div>
-                        <div class="text-[0.6vw] uppercase text-cyan-400/80" style="text-shadow: 0 0 0.4vw rgba(6,182,212,0.8);">{{ secondInventoryItems.filter(isItemDefined).length }}/50</div>
+                        <div class="text-[0.6vw] uppercase text-cyan-400/80" style="text-shadow: 0 0 0.4vw rgba(6,182,212,0.8);">{{ secondInventoryItems.filter(isItemDefined).length }}/{{ secondInventoryItems.length }}</div>
                     </div>
                     
                     <div class="flex-1 overflow-y-auto min-h-0 p-[0.8vw] custom-scrollbar-scifi" style="scrollbar-width: thin; scrollbar-color: rgba(6,182,212,0.95) rgba(8,47,73,0.9);">
@@ -110,17 +110,11 @@ export function generateSciFiHudTemplate() {
                 
                 <!-- Button Column (only visible in dual mode) - Holographic style -->
                 <div v-if="dualInventoryOpen" class="order-3 flex flex-col gap-[1.5vh] justify-center max-h-[47vh]">
-                    <button @click="confirmDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(34,197,94,0.9), rgba(5,150,105,0.95)); color: #d1fae5; border-color: rgba(110,231,183,0.8); box-shadow: 0 0.5vh 1vh rgba(5,150,105,0.8), inset 0 0 1vw rgba(110,231,183,0.3), 0 0 1.5vw rgba(34,197,94,0.5); text-shadow: 0 0 0.5vw rgba(110,231,183,0.8);">
-                        ✅ Bestätigen
-                    </button>
-                    <button @click="saveDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(6,182,212,0.9), rgba(8,145,178,0.95)); color: #cffafe; border-color: rgba(103,232,249,0.8); box-shadow: 0 0.5vh 1vh rgba(8,145,178,0.8), inset 0 0 1vw rgba(103,232,249,0.3), 0 0 1.5vw rgba(6,182,212,0.5); text-shadow: 0 0 0.5vw rgba(103,232,249,0.8);">
-                        💾 Speichern
-                    </button>
                     <button @click="clearDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(245,158,11,0.9), rgba(217,119,6,0.95)); color: #fef3c7; border-color: rgba(252,211,77,0.8); box-shadow: 0 0.5vh 1vh rgba(217,119,6,0.8), inset 0 0 1vw rgba(252,211,77,0.3), 0 0 1.5vw rgba(245,158,11,0.5); text-shadow: 0 0 0.5vw rgba(252,211,77,0.8);">
-                        🗑️ Leeren
+                        🗑️ Items Entfernen
                     </button>
-                    <button @click="closeDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(8,47,73,0.85), rgba(7,89,133,0.95)); color: #fca5a5; border-color: rgba(239,68,68,0.6); box-shadow: 0 0.5vh 1vh rgba(127,29,29,0.5), inset 0 0 1vw rgba(239,68,68,0.2), 0 0 1.5vw rgba(239,68,68,0.4); text-shadow: 0 0 0.5vw rgba(239,68,68,0.8);">
-                        ❌ Abbrechen
+                    <button @click="closeDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(34,197,94,0.9), rgba(5,150,105,0.95)); color: #d1fae5; border-color: rgba(110,231,183,0.8); box-shadow: 0 0.5vh 1vh rgba(5,150,105,0.8), inset 0 0 1vw rgba(110,231,183,0.3), 0 0 1.5vw rgba(34,197,94,0.5); text-shadow: 0 0 0.5vw rgba(110,231,183,0.8);">
+                        ✅ Schließen & Speichern
                     </button>
                 </div>
                 

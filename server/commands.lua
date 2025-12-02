@@ -3,9 +3,11 @@ FW.Commands = FW.Commands or {}
 
 RegisterCommand('additem', function(source, args, rawCommand)
     local src = source
-    print(src)
+    print('[FW Command] additem von source:', src)
+    print('[FW Command] args[1]:', args[1], 'args[2]:', args[2])
     local itemName = tostring(args[1])
     local amount = tonumber(args[2])
+    print('[FW Command] Rufe AddItem auf:', itemName, amount)
     FW.Inventory.AddItem(src, itemName, amount)
 end, false)
 

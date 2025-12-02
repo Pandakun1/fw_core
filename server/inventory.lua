@@ -58,6 +58,7 @@ function FW.Inventory.LoadItems()
             FW.Inventory.List[item.name] = {
                 name = item.name,
                 label = item.label,
+                emoji = item.emoji or '📦',
                 itemweight = item.itemweight or 0,
                 type = item.type or 'item',
                 canUse = item.canUse or false
@@ -86,26 +87,16 @@ function FW.Inventory.GetItemData(itemName, cb)
 end
 
 function FW.Inventory.GetInventory(src, cb)
-    local identifier = exports['fw_core']:GetCharacterIdentifier(src)
-    if not identifier then
-        print('[FW] GetInventory: No character identifier for player ' .. src)
+    local Player = FW.GetPlayer(src)
+    if not Player then
+        print('[FW] GetInventory: No player object for ' .. src)
         cb({})
         return
     end
-    MySQL.single(
-        'SELECT inventory FROM players WHERE identifier = ?',
-        { identifier},
-        function(row)
-            local inventory = {}
-            if row and row.inventory and row.inventory ~= '' then
-                local ok, decoded = pcall(json.decode, row.inventory)
-                if ok and type(decoded) == 'table' then
-                    inventory = decoded
-                end
-            end
-            cb(inventory)
-        end
-    )
+    
+    -- Return cached slot-based inventory from Player object
+    local slots = Player.getInventory()
+    cb(slots or {})
 end
 
 function FW.Inventory.HasItem(src, itemName, amount)
@@ -133,122 +124,172 @@ function FW.Inventory.GetItemCount(src, itemName)
     return count
 end
 
-local function SaveInventory(src, inventory, cb)
-    local identifier = exports['fw_core']:GetCharacterIdentifier(src)
-    if not identifier then
-        print('[FW] SaveInventory: No character identifier for player ' .. src)
+local function SaveInventory(src, slotsData, cb)
+    local Player = FW.GetPlayer(src)
+    if not Player then
+        print('[FW] SaveInventory: No player object for ' .. src)
         return
     end
     
-    -- Erstelle Kopie ohne Money (Money wird nicht in DB gespeichert)
-    local invCopy = {}
-    for itemName, itemData in pairs(inventory or {}) do
-        if itemName ~= 'money' then
-            invCopy[itemName] = itemData
+    -- Ensure slotsData is a proper array (1-50) with json.null() for empty slots
+    local cleanSlots = {}
+    for i = 1, 50 do
+        if slotsData[i] and type(slotsData[i]) == 'table' and slotsData[i].name then
+            -- Valid item, keep it (money excluded from inventory)
+            if slotsData[i].name ~= 'money' then
+                cleanSlots[i] = slotsData[i]
+            else
+                cleanSlots[i] = json.null()
+            end
+        else
+            -- Empty slot
+            cleanSlots[i] = json.null()
         end
     end
     
-    local invJSON = json.encode(invCopy)
-    MySQL.query(
-        'UPDATE players SET inventory = ? WHERE identifier = ?',
-        { invJSON, identifier },
-        function(affected)
-            if cb then cb(affected) end
+    -- Update Player's cached inventory
+    Player.setInventory(cleanSlots)
+    
+    -- Save to database using toRow() + SavePlayer
+    local row = Player.toRow()
+    FW.DB.SavePlayer(row, function(affected)
+        if affected then
+            Player.saveClean()
+            print('[FW] ✅ Inventory saved for ' .. Player.identifier)
         end
-    )
+        if cb then cb(affected) end
+    end)
 end
 
 function FW.Inventory.AddItem(src, itemName, amount, metadata, slot)
-    local identifier = exports['fw_core']:GetCharacterIdentifier(src) or 'Unknown'
+    print('[FW AddItem] START - src:', src, 'itemName:', itemName, 'amount:', amount)
+    local Player = FW.GetPlayer(src)
+    if not Player then
+        print('[FW] AddItem: No player object for ' .. src)
+        return
+    end
+    print('[FW AddItem] Player gefunden:', Player.identifier)
+    
     amount = tonumber(amount or 1)
     local itemDef = FW.Inventory.List[itemName]
     if not itemDef then
         print(('[FW] AddItem: Item "%s" existiert nicht in der itemlist.json!'):format(itemName))
         return
     end
+    print('[FW AddItem] Item definition gefunden:', itemDef.label)
 
-    FW.Inventory.GetInventory(src, function(inventory)
-        if not inventory[itemName] then
-            -- Finde freien Slot falls kein Slot angegeben wurde
-            if slot == nil then
-                local usedSlots = {}
-                for _, item in pairs(inventory) do
-                    if item.slot ~= nil then
-                        usedSlots[item.slot] = true
-                    end
-                end
-                
-                -- Finde ersten freien Slot (0-49)
-                for i = 0, 49 do
-                    if not usedSlots[i] then
-                        slot = i
-                        break
-                    end
-                end
-                
-                if slot == nil then slot = 0 end -- Fallback
-            end
-            
-            inventory[itemName] = {
+    local slots = Player.getInventory()
+    
+    -- If slot specified, add to that slot or stack
+    if slot ~= nil then
+        local existingItem = slots[slot]
+        if existingItem and existingItem.name == itemName then
+            -- Stack on existing item
+            existingItem.quantity = (existingItem.quantity or 1) + amount
+        else
+            -- Place new item in specified slot
+            slots[slot] = {
+                name = itemName,
                 label = itemDef.label,
-                itemweight = itemDef.itemweight * amount,
+                emoji = itemDef.emoji or '📦',
+                quantity = amount,
+                itemweight = itemDef.itemweight,
                 type = itemDef.type,
                 canUse = itemDef.canUse,
-                amount = 0,
-                metadata = {},
-                slot = slot -- Speichere Slot-Position
+                metadata = metadata or {}
             }
         end
-        inventory[itemName].amount = inventory[itemName].amount + amount
-        if metadata then inventory[itemName].metadata = metadata end
-        if slot ~= nil and inventory[itemName].slot == nil then 
-            inventory[itemName].slot = slot -- Update Slot falls angegeben und noch nicht gesetzt
+    else
+        -- Find first free slot (1-50)
+        local freeSlot = nil
+        print('[FW AddItem] Searching for free slot in 50 slots')
+        for i = 1, 50 do
+            local slotItem = slots[i]
+            if not slotItem or slotItem == json.null() or (type(slotItem) == 'table' and not slotItem.name) then
+                freeSlot = i
+                print('[FW AddItem] Found free slot:', i)
+                break
+            else
+                if i <= 5 then -- Only log first 5 to avoid spam
+                    print('[FW AddItem] Slot', i, 'occupied:', slotItem.name or 'unknown')
+                end
+            end
         end
+        
+        if freeSlot then
+            slots[freeSlot] = {
+                name = itemName,
+                label = itemDef.label,
+                emoji = itemDef.emoji or '📦',
+                quantity = amount,
+                itemweight = itemDef.itemweight,
+                type = itemDef.type,
+                canUse = itemDef.canUse,
+                metadata = metadata or {}
+            }
+            slot = freeSlot
+        else
+            print('[FW] AddItem: Kein freier Slot gefunden!')
+            return
+        end
+    end
 
-        SaveInventory(src, inventory, function()
-            print(('[FW] %dx %s (%s) zu %s hinzugefügt. Neue Menge: %d (Slot: %s)'):format(
-                amount,
-                itemDef.label,
-                itemName,
-                identifier,
-                inventory[itemName].amount,
-                tostring(inventory[itemName].slot)
-            ))
-        end)
+    print('[FW AddItem] Rufe SaveInventory auf für Slot:', slot)
+    SaveInventory(src, slots, function()
+        print(('[FW] ✅ %dx %s zu Slot %d hinzugefügt'):format(amount, itemDef.label, slot))
     end)
 end
 
-function FW.Inventory.RemoveItem(src, itemName, amount)
-    local identifier = exports['fw_core']:GetCharacterIdentifier(src) or 'Unknown'
-    amount = tonumber(amount) or 0
-    FW.Inventory.GetInventory(src, function(inventory)
+function FW.Inventory.RemoveItem(src, itemName, amount, fromSlot)
+    local Player = FW.GetPlayer(src)
+    if not Player then
+        print('[FW] RemoveItem: No player object for ' .. src)
+        return
+    end
+    
+    amount = tonumber(amount) or 1
+    local slots = Player.getInventory()
+    
+    -- If slot specified, remove from that slot
+    if fromSlot then
+        local item = slots[fromSlot]
+        if not item or item.name ~= itemName then
+            print(('[FW] Item %s nicht in Slot %d gefunden'):format(itemName, fromSlot))
+            return
+        end
+        
+        if item.quantity < amount then
+            print(('[FW] Zu wenig %s in Slot %d (Aktuell: %d)'):format(itemName, fromSlot, item.quantity))
+            return
+        end
+        
+        item.quantity = item.quantity - amount
+        if item.quantity <= 0 then
+            slots[fromSlot] = nil
+        end
+    else
+        -- Find first slot with this item and remove from it
+        local found = false
+        for slotIdx, item in pairs(slots) do
+            if item and item.name == itemName and item.quantity >= amount then
+                item.quantity = item.quantity - amount
+                if item.quantity <= 0 then
+                    slots[slotIdx] = nil
+                end
+                found = true
+                fromSlot = slotIdx
+                break
+            end
+        end
+        
+        if not found then
+            print(('[FW] %s nicht im Inventar gefunden oder zu wenig'):format(itemName))
+            return
+        end
+    end
 
-        if not inventory[itemName] then 
-            print(('[FW] %s nicht im Inventar gefunden.'):format(itemName))
-            return
-        end
-        
-        if amount == 0 then amount = inventory[itemName].amount end
-        
-        if inventory[itemName].amount < amount then
-            print(('[FW] Zu wenig %s im Inventar, Aktuell: %d'):format(
-                itemName,
-                inventory[itemName].amount
-            ))
-            return
-        end
-        
-        if (inventory[itemName].amount - amount) < 0 then
-            print('[FW] Menge darf nicht weniger als 0 sein')
-            return
-        end
-        
-        inventory[itemName].amount = inventory[itemName].amount - amount
-        if inventory[itemName].amount == 0 then inventory[itemName] = nil end
-
-        SaveInventory(src, inventory, function()
-            print(('[FW] %dx %s von %s entfernt.'):format(amount, itemName, identifier))
-        end)
+    SaveInventory(src, slots, function()
+        print(('[FW] ✅ %dx %s aus Slot %d entfernt'):format(amount, itemName, fromSlot))
     end)
 end
 
@@ -269,49 +310,64 @@ RegisterNetEvent('fw:inventory:saveInventory', function()
     local src = source
     print('[FW Server] Manuelles Speichern für Spieler:', src)
     
-    FW.Inventory.GetInventory(src, function(inventory)
-        if inventory then
-            SaveInventory(src, inventory, function(result)
-                -- MySQL.query gibt ein result object zurück, nicht nur affected rows
-                if result then
-                    print('[FW Server] ✅ Inventar erfolgreich gespeichert für Spieler:', src)
-                else
-                    print('[FW Server] ⚠️ Inventar-Speicherung fehlgeschlagen für Spieler:', src)
-                end
-            end)
-        end
-    end)
+    local Player = FW.GetPlayer(src)
+    if Player then
+        local slots = Player.getInventory()
+        SaveInventory(src, slots, function(result)
+            if result then
+                print('[FW Server] ✅ Inventar erfolgreich gespeichert für Spieler:', src)
+            else
+                print('[FW Server] ⚠️ Inventar-Speicherung fehlgeschlagen für Spieler:', src)
+            end
+        end)
+    end
 end)
 
--- Callback: Inventar an Client senden
+-- Callback: Inventar an Client senden (Slot-based Array)
 FW.RegisterServerCallback('fw:inventory:getInventoryData', function(source, cb)
     local src = source
     print('[FW Server] getInventoryData callback called for player:', src)
 
-    FW.Inventory.GetInventory(src, function(inventory)
-        inventory = inventory or {}
-        
-        -- Füge automatisch das money Item mit der aktuellen Bargeld-Menge hinzu
-        local Player = FW.GetPlayer(src)
-        local cash = 0
-        if Player then
-            cash = Player.money.cash or 0
-            local moneyDef = FW.Inventory.List['money']
-            if moneyDef and cash > 0 then
-                inventory['money'] = {
-                    name = 'money',
-                    label = moneyDef.label,
-                    itemweight = moneyDef.itemweight,
-                    type = moneyDef.type,
-                    canUse = moneyDef.canUse,
-                    amount = cash
-                }
-            end
+    local Player = FW.GetPlayer(src)
+    if not Player then
+        print('[FW Server] No player object for:', src)
+        cb({})
+        return
+    end
+
+    local slots = Player.getInventory()
+    
+    -- Debug: Print slots content
+    print('[FW Server] Raw slots from player:', json.encode(slots))
+    
+    -- Build object format: { itemName_slotX: { slot, label, emoji, amount, ... } }
+    -- Use unique keys to support multiple items with same name in different slots
+    local inventoryObject = {}
+    local itemCount = 0
+    
+    for i = 1, 50 do
+        local item = slots[i]
+        if item and type(item) == 'table' and item.name and item.name ~= 'money' then
+            -- Valid item, add to object with unique key: itemName_slot0, itemName_slot5, etc.
+            local uniqueKey = item.name .. '_slot' .. (i - 1)
+            inventoryObject[uniqueKey] = {
+                slot = i - 1, -- Frontend uses 0-indexed
+                name = item.name, -- Original item name
+                label = item.label,
+                emoji = item.emoji or '📦',
+                amount = item.quantity or 1,
+                itemweight = item.itemweight or 0,
+                type = item.type or 'item',
+                canUse = item.canUse or false,
+                metadata = item.metadata or {}
+            }
+            itemCount = itemCount + 1
+            print('[FW Server] Adding item:', item.name, 'to slot', i - 1, 'quantity:', item.quantity)
         end
-        
-        print('[FW Server] Sending inventory to client with', cash, 'cash')
-        cb(inventory)
-    end)
+    end
+    
+    print('[FW Server] Sending', itemCount, 'items as object (money excluded)')
+    cb({ inventory = inventoryObject })
 end)
 
 -- Callback: Ground Items in der Nähe abrufen
@@ -602,91 +658,182 @@ end)
 -- Event: Item zwischen Slots verschieben (Modern Inventory - Name-basiert)
 RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
     local src = source
+    -- Frontend sendet 0-basiert, Lua nutzt 1-basiert
     fromSlot = tonumber(fromSlot)
     toSlot = tonumber(toSlot)
+    
+    if not fromSlot or not toSlot then
+        print('[FW] moveItem: fromSlot oder toSlot ist nil')
+        return
+    end
+    
+    fromSlot = fromSlot + 1
+    toSlot = toSlot + 1
+    
+    print(('[FW Core] Player %d moving item: slot %d (0-based: %d) -> slot %d (0-based: %d)'):format(src, fromSlot, fromSlot-1, toSlot, toSlot-1))
 
     if not fromSlot or not toSlot or fromSlot == toSlot then
         print('[FW] moveItem: ungültige Slots')
         return
     end
 
-    FW.Inventory.GetInventory(src, function(inventory)
-        if not inventory then
-            print('[FW] moveItem: Kein Inventar gefunden für Spieler ' .. src)
-            return
-        end
+    if fromSlot < 1 or fromSlot > 50 or toSlot < 1 or toSlot > 50 then
+        print('[FW] moveItem: Slots außerhalb des Bereichs (1-50)')
+        return
+    end
 
-        local fromItemData = nil
-        local toItemData = nil
-        local fromItemName = nil
-        local toItemName = nil
-        
-        for name, data in pairs(inventory) do
-            if data.slot == fromSlot then
-                fromItemData = data
-                fromItemName = name
-            end
-            if data.slot == toSlot then
-                toItemData = data
-                toItemName = name
-            end
-        end
+    local Player = FW.GetPlayer(src)
+    if not Player then
+        print('[FW] moveItem: Kein Player object für ' .. src)
+        return
+    end
 
-        if not fromItemName then
-            print(('[FW] moveItem: Kein Item in Slot %d gefunden'):format(fromSlot))
-            return
-        end
-
-        -- Money darf nicht verschoben werden
-        if fromItemName == 'money' or toItemName == 'money' then
-            print('[FW] moveItem: Money kann nicht verschoben werden')
-            return
-        end
-
-        print(('[FW] moveItem: Verschiebe %s von Slot %d zu Slot %d'):format(fromItemName, fromSlot, toSlot))
-
-        -- Items tauschen oder verschieben
-        if toItemName then
-            -- Swap: Tausche die Slot-Positionen
-            fromItemData.slot = toSlot
-            toItemData.slot = fromSlot
-            print(('[FW] Swap: %s ↔ %s'):format(fromItemName, toItemName))
+    -- Get current inventory - this returns a reference to the internal table
+    local slots = Player.getInventory()
+    
+    -- Create a deep copy to avoid corrupting state during async save
+    -- Filter out json.null() values which are functions/userdata
+    local slotsCopy = {}
+    for i = 1, 50 do
+        local slot = slots[i]
+        if slot and type(slot) == 'table' and slot.name then
+            slotsCopy[i] = slot
         else
-            -- Move: Verschiebe zu leerem Slot
-            fromItemData.slot = toSlot
-            print(('[FW] Move: %s → Slot %d'):format(fromItemName, toSlot))
+            slotsCopy[i] = nil
         end
+    end
+    
+    local fromItem = slotsCopy[fromSlot]
+    local toItem = slotsCopy[toSlot]
 
-        -- In DB speichern (SaveInventory filtert Money automatisch raus)
-        SaveInventory(src, inventory, function()
-            print(('[FW] Slots aktualisiert für Spieler %s'):format(src))
-            
-            -- Hole aktuelles Inventar mit Money für Refresh
-            FW.Inventory.GetInventory(src, function(refreshInventory)
-                -- Füge Money dynamisch hinzu
-                local Player = FW.GetPlayer(src)
-                if Player then
-                    local cash = Player.money.cash or 0
-                    local moneyDef = FW.Inventory.List['money']
-                    if moneyDef and cash > 0 then
-                        refreshInventory['money'] = {
-                            name = 'money',
-                            label = moneyDef.label,
-                            itemweight = moneyDef.itemweight,
-                            type = moneyDef.type,
-                            canUse = moneyDef.canUse,
-                            amount = cash
-                        }
-                    end
-                end
-                
-                TriggerClientEvent('fw:inventory:refresh', src, refreshInventory)
-            end)
-        end)
+    if not fromItem then
+        print(('[FW Core] No item in source slot: %d'):format(fromSlot))
+        return
+    end
+
+    -- Money darf nicht verschoben werden
+    if fromItem.name == 'money' or (toItem and type(toItem) == 'table' and toItem.name == 'money') then
+        print('[FW] moveItem: Money kann nicht verschoben werden')
+        return
+    end
+
+    print(('[FW] moveItem: Verschiebe %s von Slot %d zu Slot %d'):format(fromItem.name, fromSlot, toSlot))
+
+    -- Items stacken, tauschen oder verschieben
+    if toItem and type(toItem) == 'table' then
+        -- Prüfe ob gleicher Item-Typ → Stack
+        if fromItem.name == toItem.name then
+            -- Stack: Addiere Mengen zusammen
+            local totalQuantity = (fromItem.quantity or 1) + (toItem.quantity or 1)
+            toItem.quantity = totalQuantity
+            slotsCopy[toSlot] = toItem
+            slotsCopy[fromSlot] = nil
+            print(('[FW] Stack: %s (%d + %d = %d) → Slot %d'):format(
+                fromItem.name, 
+                fromItem.quantity or 1, 
+                (toItem.quantity or 1) - (fromItem.quantity or 1), 
+                totalQuantity, 
+                toSlot
+            ))
+        else
+            -- Swap: Unterschiedliche Items tauschen
+            slotsCopy[fromSlot] = toItem
+            slotsCopy[toSlot] = fromItem
+            print(('[FW] Swap: %s ↔ %s'):format(fromItem.name, toItem.name))
+        end
+    else
+        -- Move: Verschiebe zu leerem Slot
+        slotsCopy[toSlot] = fromItem
+        slotsCopy[fromSlot] = nil
+        print(('[FW] Move: %s → Slot %d'):format(fromItem.name, toSlot))
+    end
+
+    -- Update Player Cache with modified copy
+    Player.setInventory(slotsCopy)
+
+    -- In DB speichern
+    SaveInventory(src, slotsCopy, function()
+        print(('[FW] Slots aktualisiert für Spieler %s'):format(src))
+        
+        -- Sende aktualisiertes Inventar an Client
+        -- Frontend erwartet: { inventory: { itemname_slot0: {slot, label, emoji, amount} } }
+        local inventoryObject = {}
+        for i = 1, 50 do
+            local item = slotsCopy[i]
+            if item and type(item) == 'table' and item.name and item.name ~= 'money' then
+                -- Unique key: itemname_slot0, itemname_slot1, etc.
+                local uniqueKey = item.name .. '_slot' .. (i - 1)
+                inventoryObject[uniqueKey] = {
+                    slot = i - 1, -- Frontend nutzt 0-basiert
+                    name = item.name,
+                    label = item.label,
+                    emoji = item.emoji or '📦',
+                    amount = item.quantity or 1,
+                    itemweight = item.itemweight,
+                    type = item.type,
+                    canUse = item.canUse,
+                    metadata = item.metadata or {}
+                }
+            end
+        end
+        
+        -- Count object keys properly
+        local itemCount = 0
+        for _ in pairs(inventoryObject) do itemCount = itemCount + 1 end
+        print(('[FW] Sending %d items in refresh'):format(itemCount))
+        TriggerClientEvent('fw:inventory:refresh', src, inventoryObject)
     end)
 end)
 
--- Event: Inventar-Reihenfolge aktualisieren (Vuedraggable)
+-- Event: Inventar-Reihenfolge aktualisieren (nach Mouse-Wheel Splitting)
+RegisterNetEvent('fw:inventory:updateInventoryOrder', function(data)
+    local src = source
+    
+    if not data or not data.inventory or type(data.inventory) ~= 'table' then
+        print('[FW] updateInventoryOrder: ungültige Daten')
+        return
+    end
+
+    local Player = FW.GetPlayer(src)
+    if not Player then
+        print('[FW] updateInventoryOrder: Kein Player object für ' .. src)
+        return
+    end
+
+    -- Konvertiere Frontend-Array (mit slot property) zu Server-Slot-Array
+    local newSlots = {}
+    for i = 1, 50 do
+        newSlots[i] = nil
+    end
+    
+    for _, item in pairs(data.inventory) do
+        if item and item.slot and item.name then
+            local slotIndex = tonumber(item.slot) + 1 -- Frontend: 0-based, Server: 1-based
+            if slotIndex >= 1 and slotIndex <= 50 then
+                newSlots[slotIndex] = {
+                    name = item.name,
+                    label = item.label or item.name,
+                    quantity = item.quantity or item.amount or 1,
+                    emoji = item.emoji or '📦',
+                    itemweight = item.itemweight or 0,
+                    type = item.type or 'item',
+                    canUse = item.canUse or false,
+                    metadata = item.metadata or {}
+                }
+            end
+        end
+    end
+    
+    print(('[FW] updateInventoryOrder: Aktualisiere Inventar für Spieler %d'):format(src))
+    Player.setInventory(newSlots)
+    
+    -- Speichere in DB
+    SaveInventory(src, newSlots, function()
+        print('[FW] ✅ Inventar nach Mouse-Wheel-Split gespeichert')
+    end)
+end)
+
+-- Event: Inventar-Reihenfolge aktualisieren (LEGACY - für Vuedraggable)
 RegisterNetEvent('fw:inventory:updateOrder', function(slots)
     local src = source
     

@@ -24,9 +24,21 @@ const InventoryModule = {
     const selectedItem = ref(null);
     const hoveredItem = ref(null);
     const draggedItemIndex = ref(null);
+    
+    // Quantity Modal State (für Menge beim Ablegen)
+    const quantityModalOpen = ref(false);
+    const quantityModalPosition = ref({ x: 0, y: 0 });
+    const quantityModalValue = ref(1);
+    const quantityModalMax = ref(1);
+    const quantityModalTarget = ref(null);
+    
+    // Mouse Wheel Stacking State
+    const dragOriginalQuantity = ref(0);
+    const dragCurrentQuantity = ref(0);
+    const dragStackedSlots = ref(new Map()); // Map<slotIndex, quantity>
 
     // Inventar Items (50 Slots)
-    const inventoryItems = ref(Array(50).fill(null));
+    const inventoryItems = ref([]); // Dynamic size
     
     // Equipment Slots (4 Slots: Weste, Waffe, Tasche1, Tasche2)
     const equipmentSlots = ref({
@@ -36,13 +48,31 @@ const InventoryModule = {
         bag2: null     // Slot 3
     });
     
+    // Equipment Config (aus equipment.json)
+    const equipmentConfig = ref({
+        vest: { allowedTypes: ['vest', 'armor'], rejectMessage: 'Nur Westen und Rüstungen' },
+        weapon: { allowedTypes: ['weapon', 'tool'], rejectMessage: 'Nur Waffen und Werkzeuge' },
+        bag1: { allowedTypes: ['backpack', 'large_bag'], rejectMessage: 'Nur Rucksäcke und große Taschen' },
+        bag2: { allowedTypes: ['hip_bag', 'small_bag'], rejectMessage: 'Nur Bauchtaschen und kleine Taschen' }
+    });
+    
     // Dual Inventory Modal State
     const dualInventoryOpen = ref(false);
-    const dualInventoryMode = ref(''); // 'give', 'ground', 'trunk', 'glovebox', 'bag', 'storage'
+    const dualInventoryMode = ref(''); // 'give', 'ground', 'trunk', 'glovebox', 'bag', 'storage', 'stash'
     const dualInventoryTitle = ref('');
-    const secondInventoryItems = ref(Array(50).fill(null)); // Secondary inventory slots
+    const dualInventoryMetadata = ref({}); // Metadata für Trunk (plate), Stash (stashId), etc.
+    const secondInventoryItems = ref([]); // Secondary inventory slots (dynamic size)
     const secondInventoryCache = {}; // Cache für gespeicherte Inventare nach Mode
     const movedFromMainInventory = new Set(); // Tracking welche Slots vom Hauptinventar ins Sonderinventar verschoben wurden
+    
+    // Equipment Modal State (for dual inventory mode)
+    const equipmentModalOpen = ref(false);
+    
+    // Context Menu State (Right-Click)
+    const contextMenuOpen = ref(false);
+    const contextMenuPosition = ref({ x: 0, y: 0 });
+    const contextMenuItem = ref(null);
+    const contextMenuSlotIndex = ref(null);
     
     // Computed
     const hotbarSlots = computed(() => inventoryItems.value.slice(0, 5));
@@ -97,8 +127,11 @@ const InventoryModule = {
 
     // Load inventory data from props (KORRIGIERT - unterstützt Objekt-Format vom Server)
     const loadInventoryData = () => {
-        const items = Array(50).fill(null);
+        // Dynamische Slot-Anzahl (Standard: 50)
+        const maxSlots = props.data?.maxSlots || 50;
+        const items = Array(maxSlots).fill(null);
         
+        console.log('[Inventar] 📊 Lade Inventar mit', maxSlots, 'Slots');
         console.log('[Inventar] Props data type:', typeof props.data);
         console.log('[Inventar] Props data:', JSON.stringify(props.data));
         
@@ -106,10 +139,20 @@ const InventoryModule = {
         let inventoryData = null;
         let isObjectFormat = false;
         
-        // Direkt als Array (neues Format von Client)
-        if (Array.isArray(props.data?.inventory)) {
+        // Direkt als Array vom Server (Slot-based neues Format)
+        if (Array.isArray(props.data)) {
+            inventoryData = props.data;
+            console.log('[Inventar] ✅ Found inventory as direct array:', inventoryData.length, 'items');
+        }
+        // Als inventory Property (Array)
+        else if (Array.isArray(props.data?.inventory)) {
             inventoryData = props.data.inventory;
             console.log('[Inventar] ✅ Found inventory array:', inventoryData.length, 'items');
+        }
+        // Doppelt verschachtelt: { inventory: { inventory: [...] } } (Backend unwrap)
+        else if (props.data?.inventory?.inventory && Array.isArray(props.data.inventory.inventory)) {
+            inventoryData = props.data.inventory.inventory;
+            console.log('[Inventar] ✅ Found nested inventory array (unwrapped):', inventoryData.length, 'items');
         }
         // Als Objekt (Server-Format: { itemName: { label, amount, slot, ... } })
         else if (props.data?.inventory && typeof props.data.inventory === 'object' && !Array.isArray(props.data.inventory)) {
@@ -135,56 +178,73 @@ const InventoryModule = {
         // Wenn Daten vorhanden, verarbeiten
         if (inventoryData) {
             if (isObjectFormat) {
-                // Objekt-Format: Konvertiere { itemName: { slot, label, amount, ... } } zu Array
+                // Objekt-Format: Konvertiere { itemName_slotX: { slot, name, label, amount, ... } } zu Array
                 let loadedCount = 0;
-                for (const [itemName, itemData] of Object.entries(inventoryData)) {
-                    if (itemData && typeof itemData.slot === 'number' && itemData.slot >= 0 && itemData.slot < 50) {
+                for (const [uniqueKey, itemData] of Object.entries(inventoryData)) {
+                    if (itemData && typeof itemData.slot === 'number' && itemData.slot >= 0 && itemData.slot < maxSlots) {
+                        // Extract actual itemName from itemData.name (not from the key which is itemName_slotX)
+                        const actualItemName = itemData.name || uniqueKey.split('_slot')[0] || uniqueKey;
+                        
                         items[itemData.slot] = {
                             id: itemData.slot,
-                            itemName: itemName, // Behalte den internen itemName für Server-Kommunikation
-                            name: itemData.label || itemName || 'Unbekannt',
-                            emoji: itemData.emoji || getEmojiForItem(itemName), // Nutze Emoji aus itemlist.json
-                            quantity: itemData.amount || 1
+                            itemName: actualItemName, // Use actual item name for server communication
+                            name: itemData.label || actualItemName || 'Unbekannt',
+                            emoji: itemData.emoji || getEmojiForItem(actualItemName), // Nutze Emoji aus itemlist.json
+                            quantity: itemData.amount || 1,
+                            // Equipment Metadata (von Server)
+                            type: itemData.type || 'item',
+                            equipSlot: itemData.equipSlot || null,
+                            hasStorage: itemData.hasStorage || false,
+                            equipmentId: itemData.equipmentId || null,
+                            itemweight: itemData.itemweight || 0,
+                            canUse: itemData.canUse || false
                         };
                         loadedCount++;
-                        console.log('[Inventar] Loaded', itemName, 'in slot', itemData.slot, ':', itemData.label || itemName, 'x', itemData.amount);
+                        console.log('[Inventar] Loaded', actualItemName, 'in slot', itemData.slot, ':', itemData.label || actualItemName, 'x', itemData.amount);
                     } else if (itemData) {
-                        console.warn('[Inventar] ⚠️ Item', itemName, 'hat keinen gültigen Slot:', itemData.slot);
+                        console.warn('[Inventar] ⚠️ Item', uniqueKey, 'hat keinen gültigen Slot:', itemData.slot);
                     }
                 }
                 console.log('[Inventar] ✅', loadedCount, 'Items aus Objekt-Format geladen');
             } else if (Array.isArray(inventoryData) && inventoryData.length > 0) {
-                // Array-Format
-                inventoryData.forEach(item => {
-                    if (item && typeof item.slot === 'number' && item.slot >= 0 && item.slot < 50) {
-                        items[item.slot] = {
-                            id: item.slot,
+                // Array-Format (Slot-based from server)
+                let loadedCount = 0;
+                inventoryData.forEach((item, index) => {
+                    // Skip null/empty slots
+                    if (!item || item === null || typeof item !== 'object') {
+                        return;
+                    }
+                    
+                    // Use slot from item or fallback to array index
+                    const slotIndex = typeof item.slot === 'number' ? item.slot : index;
+                    
+                    if (slotIndex >= 0 && slotIndex < 50) {
+                        items[slotIndex] = {
+                            id: slotIndex,
                             itemName: item.name || item.itemName,
                             name: item.label || item.name || 'Unbekannt',
                             emoji: item.emoji || '📦',
-                            quantity: item.amount || item.quantity || 1
+                            quantity: item.amount || item.quantity || 1,
+                            // Equipment Metadata (von Server)
+                            type: item.type || 'item',
+                            equipSlot: item.equipSlot || null,
+                            hasStorage: item.hasStorage || false,
+                            equipmentId: item.equipmentId || null,
+                            itemweight: item.itemweight || 0,
+                            canUse: item.canUse || false
                         };
-                        console.log('[Inventar] Loaded item in slot', item.slot, ':', item.label || item.name);
+                        loadedCount++;
+                        console.log('[Inventar] Loaded item in slot', slotIndex, ':', item.label || item.name, 'x', (item.amount || item.quantity || 1));
                     }
                 });
-                console.log('[Inventar] ✅ Items erfolgreich geladen:', inventoryData.length);
+                console.log('[Inventar] ✅', loadedCount, 'Items aus Array-Format geladen');
             }
         }
         
-        // Fallback auf Dummy-Daten wenn nichts geladen wurde
-        const loadedCount = items.filter(item => item !== null).length;
-        if (loadedCount === 0) {
-            console.log('[Inventar] ⚠️ Keine Items geladen, zeige Dummy-Daten');
-            // Dummy-Daten für Testing
-            items[0] = { id: 0, itemName: 'sandwich', name: 'Sandwich', emoji: '🥪', quantity: 2 };
-            items[1] = { id: 1, itemName: 'water', name: 'Wasser', emoji: '💧', quantity: 3 };
-            items[2] = { id: 2, itemName: 'medkit', name: 'Verbandskasten', emoji: '🏥', quantity: 1 };
-            items[5] = { id: 5, itemName: 'phone', name: 'Handy', emoji: '📱', quantity: 1 };
-            items[10] = { id: 10, itemName: 'keys', name: 'Schlüssel', emoji: '🔑', quantity: 1 };
-        }
-        
+        // Setze Inventar (auch wenn leer)
         inventoryItems.value = items;
-        console.log('[Inventar] Geladene Items:', inventoryItems.value.filter(item => item !== null).length, 'von 50');
+        const loadedCount = items.filter(item => item !== null).length;
+        console.log('[Inventar] ✅ Geladene Items:', loadedCount, 'von', maxSlots);
     };
     
     // Helper: Hole Emoji aus itemlist.json basierend auf itemName
@@ -210,6 +270,22 @@ const InventoryModule = {
 
     // Helpers
     const isItemDefined = (item) => item !== null && item?.emoji !== undefined && item?.emoji !== '';
+    
+    // Equipment Validation: Prüft ob Item in Equipment-Slot gedroppt werden darf
+    const canEquipToSlot = (item, targetSlot) => {
+        if (!item || !item.type) return { allowed: false, message: 'Ungültiges Item' };
+        
+        const slotConfig = equipmentConfig.value[targetSlot];
+        if (!slotConfig) return { allowed: false, message: 'Ungültiger Slot' };
+        
+        // Prüfe ob Item-Typ erlaubt ist
+        const isAllowed = slotConfig.allowedTypes.includes(item.type);
+        
+        return {
+            allowed: isAllowed,
+            message: isAllowed ? null : slotConfig.rejectMessage
+        };
+    };
 
     // Actions
     const moveItem = (fromIndex, toIndex) => {
@@ -350,7 +426,9 @@ const InventoryModule = {
             
             console.log('[Inventar] ✅ Gecachte Items aus Hauptinventar entfernt, Tracking aktiviert');
         } else {
-            secondInventoryItems.value = Array(50).fill(null);
+            // Immer 50 Slots für symmetrisches Layout (gleiche Größe wie Hauptinventar)
+            const slots = 50;
+            secondInventoryItems.value = Array(slots).fill(null);
         }
         
         dualInventoryOpen.value = true;
@@ -378,107 +456,421 @@ const InventoryModule = {
     };
 
     const clearDualInventory = () => {
-        console.log('[Inventar] Dual-Inventar leeren - Items zurück ins Spielerinventar');
-        console.log('[Inventar] Tracked slots from main inventory:', Array.from(movedFromMainInventory));
+        console.log('[Inventar] Dual-Inventar Items entfernen - Items zurück ins Spieler-Inventar');
         
-        // Gehe durch alle Slots im Sonderinventar
-        secondInventoryItems.value.forEach((item, secondIndex) => {
+        // Finde alle Items im Dual-Inventar
+        const itemsToReturn = [];
+        secondInventoryItems.value.forEach((item, index) => {
             if (item && item.name) {
-                // Suche nach dem ursprünglichen Hauptinventar-Slot
-                // Wir wissen nicht mehr, welcher Sonder-Slot zu welchem Haupt-Slot gehört
-                // Also: Finde den ersten leeren Slot im Hauptinventar der in movedFromMainInventory war
-                let targetSlot = null;
-                
-                for (const mainSlot of movedFromMainInventory) {
-                    if (!inventoryItems.value[mainSlot] || !inventoryItems.value[mainSlot].name) {
-                        targetSlot = mainSlot;
-                        break;
-                    }
-                }
-                
-                // Falls kein getrackerter Slot frei ist, suche irgendeinen freien Slot
-                if (targetSlot === null) {
-                    targetSlot = inventoryItems.value.findIndex(slot => !slot || !slot.name);
-                }
-                
-                if (targetSlot !== null && targetSlot !== -1) {
-                    inventoryItems.value[targetSlot] = item;
-                    console.log('[Inventar] ✅ Item zurückgelegt:', item.name, 'in Slot', targetSlot);
-                } else {
-                    console.warn('[Inventar] ⚠️ Kein freier Slot für:', item.name);
-                }
+                itemsToReturn.push({ ...item, fromSlot: index });
             }
         });
         
-        // Leere das Sonderinventar und reset tracking
-        secondInventoryItems.value = Array(50).fill(null);
-        movedFromMainInventory.clear();
+        console.log('[Inventar] 📦 Items zum Zurückgeben:', itemsToReturn.length);
         
-        console.log('[Inventar] ✅ Sonderinventar geleert, Items zurückgelegt');
+        // Schiebe Items zurück ins Spieler-Inventar
+        itemsToReturn.forEach(item => {
+            // Finde ersten leeren Slot im Hauptinventar
+            const emptySlot = inventoryItems.value.findIndex(slot => !slot);
+            if (emptySlot !== -1) {
+                inventoryItems.value[emptySlot] = {
+                    id: emptySlot,
+                    itemName: item.itemName || item.name,
+                    name: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    itemweight: item.itemweight,
+                    type: item.type,
+                    canUse: item.canUse
+                };
+                console.log('[Inventar] ✅ Item zurückgelegt:', item.name, 'in Slot', emptySlot);
+            } else {
+                console.warn('[Inventar] ⚠️ Kein Platz für Item:', item.name);
+            }
+        });
+        
+        // Leere das Dual-Inventar
+        const emptySlots = secondInventoryItems.value.length;
+        secondInventoryItems.value = Array(emptySlots).fill(null);
+        
+        // Speichere beide Inventare sofort
+        console.log('[Inventar] 💾 Auto-Save nach Items Entfernen...');
+        
+        const mainInvArray = inventoryItems.value.map((item, index) => {
+            if (!item) return null;
+            return {
+                slot: index,
+                name: item.itemName || item.name,
+                label: item.name,
+                emoji: item.emoji,
+                quantity: item.quantity || 1,
+                itemweight: item.itemweight || 0,
+                type: item.type || 'item',
+                canUse: item.canUse || false
+            };
+        }).filter(item => item !== null);
+        
+        const secondInvArray = []; // Leer nach clear
+        
+        if (dualInventoryMode.value === 'trunk') {
+            NUIBridge.send('saveTrunk', {
+                plate: dualInventoryMetadata.value.plate,
+                inventory: secondInvArray,
+                mainInventory: mainInvArray
+            });
+        } else if (dualInventoryMode.value === 'glovebox') {
+            NUIBridge.send('saveGlovebox', {
+                plate: dualInventoryMetadata.value.plate,
+                inventory: secondInvArray,
+                mainInventory: mainInvArray
+            });
+        } else if (dualInventoryMode.value === 'stash') {
+            NUIBridge.send('saveStash', {
+                stashId: dualInventoryMetadata.value.stashId,
+                inventory: secondInvArray,
+                mainInventory: mainInvArray
+            });
+        }
+        
+        console.log('[Inventar] ✅ Alle Items zurückgelegt und gespeichert');
     };
 
     const confirmDualInventory = () => {
-        console.log('[Inventar] Dual-Inventar bestätigen - Geben-Funktion aufrufen');
+        console.log('[Inventar] Dual-Inventar bestätigen - Mode:', dualInventoryMode.value);
         
-        // Sammle alle Items die gegeben werden sollen
-        const itemsToGive = secondInventoryItems.value
-            .map((item, index) => item && item.name ? { ...item, slot: index } : null)
+        const mode = dualInventoryMode.value;
+        const metadata = dualInventoryMetadata.value || {};
+        
+        // Sammle alle Items die übergeben/gespeichert werden sollen
+        const itemsToTransfer = secondInventoryItems.value
+            .map((item, index) => item && item.name ? { 
+                name: item.itemName || item.name,
+                itemName: item.itemName || item.name,
+                quantity: item.quantity || item.amount || 1,
+                slot: index 
+            } : null)
             .filter(item => item !== null);
         
-        if (itemsToGive.length === 0) {
-            console.log('[Inventar] Keine Items zum Geben vorhanden');
+        if (itemsToTransfer.length === 0 && mode !== 'trunk' && mode !== 'glovebox' && mode !== 'stash') {
+            console.log('[Inventar] Keine Items zum Übertragen');
             closeDualInventory();
             return;
         }
         
-        console.log('[Inventar] Items zum Geben:', itemsToGive);
+        console.log('[Inventar] Items zum Übertragen:', itemsToTransfer);
         
-        // Rufe clientseitige Geben-Funktion auf
-        send('giveItems', { 
-            mode: dualInventoryMode.value, 
-            items: itemsToGive 
-        });
+        // Mode-spezifische Aktionen
+        if (mode === 'give' || mode === 'ground') {
+            // Geben oder Boden: Nutze giveItems Event
+            send('giveItems', { 
+                mode: mode, 
+                items: itemsToTransfer 
+            });
+            
+            // Cache bleibt für Session erhalten
+            secondInventoryCache[mode] = secondInventoryItems.value
+                .map(item => item && item.name ? { ...item } : null);
+            
+            movedFromMainInventory.clear();
+        } 
+        else if (mode === 'trunk') {
+            // Kofferraum: Speichere Inventar in DB (ARRAY format)
+            const trunkInventory = secondInventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            // Haupt-Inventar auch speichern (Anti-Duping)
+            const mainInventory = inventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            send('saveTrunk', {
+                plate: metadata.plate,
+                inventory: trunkInventory,
+                mainInventory: mainInventory
+            });
+            
+            console.log('[Inventar] ✅ Kofferraum + Hauptinventar gespeichert für Plate:', metadata.plate);
+        }
+        else if (mode === 'glovebox') {
+            // Handschuhfach: Speichere in DB (ARRAY format)
+            const gloveboxInventory = secondInventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            // Haupt-Inventar auch speichern (Anti-Duping)
+            const mainInventory = inventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            send('saveGlovebox', {
+                plate: metadata.plate,
+                inventory: gloveboxInventory,
+                mainInventory: mainInventory
+            });
+            
+            console.log('[Inventar] ✅ Handschuhfach + Hauptinventar gespeichert für Plate:', metadata.plate);
+        }
+        else if (mode === 'stash') {
+            // Lager: Speichere in DB (ARRAY format)
+            const stashInventory = secondInventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            // Haupt-Inventar auch speichern (Anti-Duping)
+            const mainInventory = inventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            send('saveStash', {
+                stashId: metadata.stashId,
+                inventory: stashInventory,
+                mainInventory: mainInventory
+            });
+            
+            console.log('[Inventar] ✅ Lager + Hauptinventar gespeichert für ID:', metadata.stashId);
+        }
+        else if (mode === 'equipment') {
+            // Equipment Storage (Rucksack/Tasche): Speichere in DB
+            const equipmentInventory = {};
+            secondInventoryItems.value.forEach((item, index) => {
+                if (item && item.name) {
+                    equipmentInventory[item.itemName || item.name] = {
+                        label: item.name,
+                        amount: item.quantity || 1,
+                        slot: index,
+                        itemweight: item.itemweight || 0,
+                        type: item.type || 'item',
+                        canUse: item.canUse || false
+                    };
+                }
+            });
+            
+            send('saveEquipment', {
+                equipmentId: metadata.equipmentId,
+                inventory: equipmentInventory
+            });
+            
+            console.log('[Inventar] ✅ Equipment-Storage gespeichert für ID:', metadata.equipmentId);
+        }
         
-        // WICHTIG: Cache NICHT löschen - Items bleiben in der Session gespeichert
-        // Der Cache wird nur bei clearDualInventory() (Leeren-Button) gelöscht
-        console.log('[Inventar] ✅ Items bestätigt - Cache bleibt für erneutes Öffnen erhalten');
-        
-        // Speichere den aktuellen Stand im Cache für späteren Abruf
-        secondInventoryCache[dualInventoryMode.value] = secondInventoryItems.value
-            .map(item => item && item.name ? { ...item } : null);
-        
-        // Reset Tracking - Items wurden erfolgreich übergeben
-        movedFromMainInventory.clear();
-        
-        // Schließe Modal (aber behalte secondInventoryItems im Cache)
+        // Schließe Modal
         dualInventoryOpen.value = false;
         dualInventoryMode.value = '';
         
-        console.log('[Inventar] 💾 Dual-Inventar bleibt in Session gespeichert bis zum Leeren');
+        console.log('[Inventar] 💾 Dual-Inventar abgeschlossen');
     };
 
     const closeDualInventory = () => {
-        console.log('[Inventar] Dual-Inventar schließen - Normales Layout wiederherstellen');
-        console.log('[Inventar] Tracked slots:', Array.from(movedFromMainInventory));
+        console.log('[Inventar] Dual-Inventar schließen & speichern');
         
-        // WICHTIG: Wenn Items vom Hauptinventar ins Sonderinventar verschoben wurden
-        // und dann abgebrochen wird, müssen diese Items zurück ins Hauptinventar
-        if (movedFromMainInventory.size > 0) {
-            console.log('[Inventar] ⚠️ Abbruch mit verschobenen Items - Automatisches Zurücklegen');
-            clearDualInventory();
-        } else {
-            // Normaler Abbruch ohne verschobene Items
-            secondInventoryItems.value = Array(50).fill(null);
-            movedFromMainInventory.clear();
+        // Auto-Save beim Schließen (wie bestätigen)
+        const mode = dualInventoryMode.value;
+        const metadata = dualInventoryMetadata.value || {};
+        
+        if (mode === 'trunk') {
+            // Build ARRAY format for server (not Object!)
+            const trunkInventory = secondInventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            const mainInventory = inventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            send('saveTrunk', {
+                plate: metadata.plate,
+                inventory: trunkInventory,
+                mainInventory: mainInventory
+            });
+            console.log('[Inventar] 💾 Auto-Save: Kofferraum');
+        }
+        else if (mode === 'glovebox') {
+            // Build ARRAY format for server
+            const gloveboxInventory = secondInventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            const mainInventory = inventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            send('saveGlovebox', {
+                plate: metadata.plate,
+                inventory: gloveboxInventory,
+                mainInventory: mainInventory
+            });
+            console.log('[Inventar] 💾 Auto-Save: Handschuhfach');
+        }
+        else if (mode === 'stash') {
+            // Build ARRAY format for server
+            const stashInventory = secondInventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            const mainInventory = inventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            });
+            
+            send('saveStash', {
+                stashId: metadata.stashId,
+                inventory: stashInventory,
+                mainInventory: mainInventory
+            });
+            console.log('[Inventar] 💾 Auto-Save: Lager');
         }
         
+        // Schließe Modal
+        secondInventoryItems.value = [];
+        movedFromMainInventory.clear();
         dualInventoryOpen.value = false;
         dualInventoryMode.value = '';
         
-        // Force Vue reactivity update
-        Vue.nextTick(() => {
-            console.log('[Inventar] Vue nextTick - Layout aktualisiert');
-        });
+        console.log('[Inventar] ✅ Dual-Inventar geschlossen & gespeichert');
     };
 
     const handleClose = () => {
@@ -503,6 +895,68 @@ const InventoryModule = {
     const toggleGiveMode = () => {
         console.log('[Inventar] Geben-Modus umschalten');
         openDualInventory('give', '🤝 Geben');
+    };
+    
+    const toggleEquipmentModal = () => {
+        equipmentModalOpen.value = !equipmentModalOpen.value;
+        console.log('[Inventar] Equipment Modal:', equipmentModalOpen.value ? 'geöffnet' : 'geschlossen');
+    };
+    
+    // Context Menu Functions (Right-Click)
+    const openContextMenu = (event, item, slotIndex) => {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        if (!item || !isItemDefined(item)) {
+            return; // No context menu for empty slots
+        }
+        
+        contextMenuItem.value = item;
+        contextMenuSlotIndex.value = slotIndex;
+        contextMenuPosition.value = {
+            x: event.clientX,
+            y: event.clientY
+        };
+        contextMenuOpen.value = true;
+        
+        console.log('[Context Menu] Opened for item:', item.name, 'at slot:', slotIndex);
+    };
+    
+    const closeContextMenu = () => {
+        contextMenuOpen.value = false;
+        contextMenuItem.value = null;
+        contextMenuSlotIndex.value = null;
+    };
+    
+    const useItemFromContext = () => {
+        if (contextMenuItem.value) {
+            console.log('[Context Menu] Use item:', contextMenuItem.value.name);
+            send('useItem', {
+                itemName: contextMenuItem.value.name,
+                slot: contextMenuSlotIndex.value
+            });
+        }
+        closeContextMenu();
+    };
+    
+    const showItemDescription = () => {
+        if (contextMenuItem.value) {
+            console.log('[Context Menu] Show description for:', contextMenuItem.value.name);
+            // TODO: Show modal with item description
+            alert(`${contextMenuItem.value.emoji} ${contextMenuItem.value.label || contextMenuItem.value.name}\n\nBeschreibung: Ein nützliches Item.`);
+        }
+        closeContextMenu();
+    };
+    
+    const showItemInfo = () => {
+        if (contextMenuItem.value) {
+            console.log('[Context Menu] Show info for:', contextMenuItem.value.name);
+            // TODO: Show modal with metadata
+            const metadata = contextMenuItem.value.metadata || [];
+            const metaStr = metadata.length > 0 ? JSON.stringify(metadata, null, 2) : 'Keine Metadaten';
+            alert(`${contextMenuItem.value.emoji} ${contextMenuItem.value.label || contextMenuItem.value.name}\n\nMetadaten:\n${metaStr}`);
+        }
+        closeContextMenu();
     };
 
     // Mouse-Based Drag & Drop System
@@ -540,8 +994,8 @@ const InventoryModule = {
             <div style="position: relative; display: flex; align-items: center; justify-content: center; background: transparent;">
                 <div style="font-size: 3vw; filter: drop-shadow(0 0 0.5vw rgba(59, 130, 246, 0.8));">${item.emoji}</div>
                 ${item.quantity > 1 ? `
-                    <div style="position: absolute; bottom: -0.5vw; right: -0.5vw; background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(34, 197, 94, 0.9)); color: white; padding: 0.2vw 0.5vw; border-radius: 0.5vw; font-size: 0.8vw; font-weight: bold; border: 0.1vw solid rgba(255, 255, 255, 0.3); box-shadow: 0 0 1vw rgba(59, 130, 246, 0.6);">
-                        ${item.quantity}
+                    <div class="quantity-badge" style="position: absolute; bottom: -0.5vw; right: -0.5vw; background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(34, 197, 94, 0.9)); color: white; padding: 0.2vw 0.5vw; border-radius: 0.5vw; font-size: 0.8vw; font-weight: bold; border: 0.1vw solid rgba(255, 255, 255, 0.3); box-shadow: 0 0 1vw rgba(59, 130, 246, 0.6);">
+                        x${item.quantity}
                     </div>
                 ` : ''}
             </div>
@@ -620,6 +1074,11 @@ const InventoryModule = {
         draggedItemIndex.value = index; // Keep original index with prefix
         dragStartPos.value = { x: e.clientX, y: e.clientY };
         currentMousePos.value = { x: e.clientX, y: e.clientY };
+        
+        // Initialize mouse wheel stacking
+        dragOriginalQuantity.value = item.quantity || 1;
+        dragCurrentQuantity.value = item.quantity || 1;
+        dragStackedSlots.value.clear();
 
         // Create ghost element
         createDragGhost(item);
@@ -631,7 +1090,7 @@ const InventoryModule = {
         // Change cursor
         document.body.style.cursor = 'grabbing';
         
-        console.log('[Inventar] Mouse drag started:', item.name, 'from slot', index, isFromSecond ? '(Second Inventory)' : '(Main Inventory)');
+        console.log('[Inventar] Mouse drag started:', item.name, 'from slot', index, isFromSecond ? '(Second Inventory)' : '(Main Inventory)', 'Quantity:', dragOriginalQuantity.value);
     };
 
     const handleEquipmentMouseDown = (e, slotType) => {
@@ -682,6 +1141,132 @@ const InventoryModule = {
         }
     };
 
+    const handleMouseWheel = (e) => {
+        if (!isDragging.value || dragCurrentQuantity.value <= 0 && e.deltaY < 0) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const targetSlot = getSlotAtPosition(e.clientX, e.clientY);
+        if (!targetSlot) return;
+        
+        const slotIndexAttr = targetSlot.getAttribute('data-slot-index');
+        const equipmentSlot = targetSlot.getAttribute('data-equipment-slot');
+        
+        // Equipment slots not supported for mouse-wheel stacking
+        if (equipmentSlot) return;
+        
+        if (!slotIndexAttr) return;
+        const slotIndex = slotIndexAttr; // Keep as string for Map key
+        
+        // Detect scroll direction (SWAPPED: UP = take back, DOWN = place)
+        const scrollDown = e.deltaY > 0; // Scroll DOWN = place item
+        
+        if (scrollDown) {
+            // Place 1 item into hovered slot
+            if (dragCurrentQuantity.value > 0) {
+                dragCurrentQuantity.value--;
+                const current = dragStackedSlots.value.get(slotIndex) || 0;
+                dragStackedSlots.value.set(slotIndex, current + 1);
+                
+                // Visual feedback on slot
+                targetSlot.classList.add('stacking-active');
+                setTimeout(() => targetSlot.classList.remove('stacking-active'), 150);
+                
+                // Add/update visual stacking badge
+                updateSlotStackBadge(targetSlot, current + 1);
+                
+                updateGhostQuantity();
+                console.log('[Inventar] Scroll DOWN: Placed 1 item in slot', slotIndex, '| Remaining:', dragCurrentQuantity.value);
+            }
+        } else {
+            // Scroll UP = take 1 item back from this slot
+            const stacked = dragStackedSlots.value.get(slotIndex) || 0;
+            if (stacked > 0) {
+                dragCurrentQuantity.value++;
+                dragStackedSlots.value.set(slotIndex, stacked - 1);
+                if (stacked === 1) {
+                    dragStackedSlots.value.delete(slotIndex);
+                    // Remove badge when empty
+                    removeSlotStackBadge(targetSlot);
+                } else {
+                    // Update badge
+                    updateSlotStackBadge(targetSlot, stacked - 1);
+                }
+                
+                // Visual feedback
+                targetSlot.classList.add('stacking-remove');
+                setTimeout(() => targetSlot.classList.remove('stacking-remove'), 150);
+                
+                updateGhostQuantity();
+                console.log('[Inventar] Scroll UP: Took 1 item back from slot', slotIndex, '| Remaining:', dragCurrentQuantity.value);
+            }
+        }
+    };
+
+    const updateGhostQuantity = () => {
+        const ghostElement = document.querySelector('.inventory-drag-ghost');
+        if (!ghostElement) return;
+        
+        // Update quantity badge
+        const quantityBadge = ghostElement.querySelector('.quantity-badge');
+        if (quantityBadge) {
+            quantityBadge.textContent = `x${dragCurrentQuantity.value}`;
+            
+            // Visual indicator when quantity is 0
+            if (dragCurrentQuantity.value === 0) {
+                ghostElement.style.opacity = '0.3';
+                ghostElement.style.border = '2px solid red';
+            } else {
+                ghostElement.style.opacity = '0.8';
+                ghostElement.style.border = 'none';
+            }
+        }
+    };
+
+    const updateSlotStackBadge = (slotElement, quantity) => {
+        if (!slotElement) return;
+        
+        // Remove existing badge
+        const existingBadge = slotElement.querySelector('.slot-stack-badge');
+        if (existingBadge) {
+            existingBadge.remove();
+        }
+        
+        // Create new badge
+        const badge = document.createElement('div');
+        badge.className = 'slot-stack-badge';
+        badge.textContent = `+${quantity}`;
+        badge.style.cssText = `
+            position: absolute;
+            top: 0.3vw;
+            right: 0.3vw;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.9));
+            color: white;
+            padding: 0.2vw 0.5vw;
+            border-radius: 0.5vw;
+            font-size: 0.7vw;
+            font-weight: bold;
+            border: 0.1vw solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 0.8vw rgba(34, 197, 94, 0.8), inset 0 0 0.3vw rgba(255, 255, 255, 0.3);
+            z-index: 100;
+            pointer-events: none;
+            animation: badgePulse 0.3s ease-out;
+        `;
+        
+        slotElement.style.position = 'relative';
+        slotElement.appendChild(badge);
+    };
+
+    const removeSlotStackBadge = (slotElement) => {
+        if (!slotElement) return;
+        const badge = slotElement.querySelector('.slot-stack-badge');
+        if (badge) {
+            badge.style.animation = 'badgeFadeOut 0.2s ease-out';
+            setTimeout(() => badge.remove(), 200);
+        }
+    };
+
     const handleMouseUp = (e) => {
         if (!isDragging.value || draggedItemIndex.value === null) return;
 
@@ -701,6 +1286,146 @@ const InventoryModule = {
 
         document.body.style.cursor = '';
 
+        // APPLY MOUSE-WHEEL STACKING: Commit dragStackedSlots to inventories
+        if (dragStackedSlots.value.size > 0) {
+            console.log('[Inventar] Applying mouse-wheel stacked items:', dragStackedSlots.value);
+            
+            // Get source item
+            const isFromEquipment = typeof fromIndex === 'string' && fromIndex.startsWith('equipment_');
+            const isFromSecond = typeof fromIndex === 'string' && fromIndex.startsWith('second-');
+            const fromActualIndex = isFromSecond ? parseInt(fromIndex.replace('second-', '')) : (isFromEquipment ? null : fromIndex);
+            
+            let sourceItem = null;
+            let sourceArray = null;
+            
+            if (isFromEquipment) {
+                const fromEquipmentType = fromIndex.replace('equipment_', '');
+                sourceItem = equipmentSlots.value[fromEquipmentType];
+            } else if (isFromSecond) {
+                sourceArray = secondInventoryItems.value;
+                sourceItem = sourceArray[fromActualIndex];
+            } else {
+                sourceArray = inventoryItems.value;
+                sourceItem = sourceArray[fromIndex];
+            }
+            
+            if (sourceItem && dragOriginalQuantity.value > 0) {
+                // Apply stacked quantities to target slots
+                dragStackedSlots.value.forEach((quantity, slotIndexStr) => {
+                    const isTargetSecond = slotIndexStr.startsWith('second-');
+                    const targetIndex = isTargetSecond ? parseInt(slotIndexStr.replace('second-', '')) : parseInt(slotIndexStr);
+                    const targetArray = isTargetSecond ? secondInventoryItems.value : inventoryItems.value;
+                    
+                    if (targetArray[targetIndex] && targetArray[targetIndex].name === sourceItem.name) {
+                        // Stack on existing item
+                        targetArray[targetIndex].quantity = (targetArray[targetIndex].quantity || 1) + quantity;
+                        console.log('[Inventar] Stacked', quantity, 'x', sourceItem.name, 'into slot', slotIndexStr);
+                    } else if (!targetArray[targetIndex]) {
+                        // Place new item in empty slot
+                        targetArray[targetIndex] = {
+                            ...sourceItem,
+                            quantity: quantity
+                        };
+                        console.log('[Inventar] Placed', quantity, 'x', sourceItem.name, 'into empty slot', slotIndexStr);
+                    }
+                });
+                
+                // Update source item quantity
+                if (!isFromEquipment && sourceArray) {
+                    if (dragCurrentQuantity.value === 0) {
+                        // All items distributed - remove source
+                        if (isFromSecond) {
+                            secondInventoryItems.value[fromActualIndex] = null;
+                        } else {
+                            inventoryItems.value[fromIndex] = null;
+                        }
+                        console.log('[Inventar] Source item fully distributed - removed');
+                    } else {
+                        // Update remaining quantity
+                        sourceItem.quantity = dragCurrentQuantity.value;
+                        console.log('[Inventar] Source item reduced to', dragCurrentQuantity.value);
+                    }
+                }
+            }
+            
+            // Send updated inventory to server after mouse-wheel stacking
+            console.log('[Inventar] 🔄 Syncing mouse-wheel stacked items to server...');
+            
+            // Sync main inventory
+            NUIBridge.send('updateInventoryOrder', {
+                inventory: inventoryItems.value.map((item, index) => item ? { ...item, slot: index } : null).filter(item => item !== null)
+            });
+            
+            // Sync dual inventory if changed (check if any second- slots were stacked)
+            const hasSecondInventoryChanges = Array.from(dragStackedSlots.value.keys()).some(key => key.startsWith('second-'));
+            if (hasSecondInventoryChanges && dualInventoryOpen.value) {
+                console.log('[Inventar] 🔄 Syncing dual inventory to server...');
+                
+                // Build inventory array for server
+                const inventoryArray = secondInventoryItems.value.map((item, index) => {
+                    if (!item) return null;
+                    return {
+                        slot: index,
+                        name: item.itemName || item.name,
+                        label: item.name,
+                        emoji: item.emoji,
+                        quantity: item.quantity || 1,
+                        itemweight: item.itemweight || 0,
+                        type: item.type || 'item',
+                        canUse: item.canUse || false
+                    };
+                }).filter(item => item !== null);
+                
+                // Get main inventory for anti-duping
+                const mainInventoryArray = inventoryItems.value.map((item, index) => {
+                    if (!item) return null;
+                    return {
+                        slot: index,
+                        name: item.itemName || item.name,
+                        label: item.name,
+                        emoji: item.emoji,
+                        quantity: item.quantity || 1,
+                        itemweight: item.itemweight || 0,
+                        type: item.type || 'item',
+                        canUse: item.canUse || false
+                    };
+                }).filter(item => item !== null);
+                
+                // Determine correct callback based on mode
+                if (dualInventoryMode.value === 'trunk') {
+                    NUIBridge.send('saveTrunk', {
+                        plate: dualInventoryMetadata.value.plate,
+                        inventory: inventoryArray,
+                        mainInventory: mainInventoryArray
+                    });
+                } else if (dualInventoryMode.value === 'glovebox') {
+                    NUIBridge.send('saveGlovebox', {
+                        plate: dualInventoryMetadata.value.plate,
+                        inventory: inventoryArray,
+                        mainInventory: mainInventoryArray
+                    });
+                } else if (dualInventoryMode.value === 'stash') {
+                    NUIBridge.send('saveStash', {
+                        stashId: dualInventoryMetadata.value.stashId,
+                        inventory: inventoryArray,
+                        mainInventory: mainInventoryArray
+                    });
+                }
+                
+                console.log('[Inventar] ✅ Dual inventory saved:', dualInventoryMode.value);
+            }
+            
+            // Reset drag state and clean up badges
+            document.querySelectorAll('.slot-stack-badge').forEach(badge => badge.remove());
+            dragStackedSlots.value.clear();
+            dragOriginalQuantity.value = 0;
+            dragCurrentQuantity.value = 0;
+            removeDragGhost();
+            isDragging.value = false;
+            draggedItemIndex.value = null;
+            return; // Exit early - stacking was applied
+        }
+
         if (targetSlot) {
             // Check source type
             const isFromEquipment = typeof fromIndex === 'string' && fromIndex.startsWith('equipment_');
@@ -717,10 +1442,71 @@ const InventoryModule = {
                 // Dropped on equipment slot
                 console.log('[Inventar] Dropped on equipment slot:', equipmentSlotType);
                 
+                // Hole das Item das gedroppt wurde
+                let droppedItem = null;
+                if (isFromEquipment) {
+                    droppedItem = equipmentSlots.value[fromEquipmentType];
+                } else if (isFromSecond) {
+                    droppedItem = secondInventoryItems.value[fromActualIndex];
+                } else {
+                    droppedItem = inventoryItems.value[fromIndex];
+                }
+                
+                // VALIDIERUNG: Prüfe ob Item in diesen Slot darf
+                const validation = canEquipToSlot(droppedItem, equipmentSlotType);
+                
+                if (!validation.allowed) {
+                    console.log('[Inventar] ❌ Equip rejected:', validation.message);
+                    
+                    // Visual Feedback: Rot blinken
+                    targetSlot.style.animation = 'shake 0.3s ease';
+                    targetSlot.style.background = 'rgba(220, 38, 38, 0.3)';
+                    setTimeout(() => {
+                        targetSlot.style.animation = '';
+                        targetSlot.style.background = '';
+                    }, 300);
+                    
+                    // Zeige Fehlermeldung
+                    // Temporäres Div über dem Slot
+                    const errorDiv = document.createElement('div');
+                    errorDiv.textContent = validation.message;
+                    errorDiv.style.cssText = `
+                        position: fixed;
+                        left: ${e.clientX}px;
+                        top: ${e.clientY - 30}px;
+                        background: rgba(220, 38, 38, 0.95);
+                        color: white;
+                        padding: 8px 12px;
+                        border-radius: 8px;
+                        font-size: 12px;
+                        font-weight: bold;
+                        z-index: 10001;
+                        pointer-events: none;
+                        animation: fadeOut 2s ease forwards;
+                    `;
+                    document.body.appendChild(errorDiv);
+                    setTimeout(() => {
+                        if (errorDiv.parentNode) {
+                            document.body.removeChild(errorDiv);
+                        }
+                    }, 2000);
+                    
+                    // Breche ab - kein Equip
+                    removeDragGhost();
+                    isDragging.value = false;
+                    draggedItemIndex.value = null;
+                    return;
+                }
+                
+                // VALIDIERUNG OK: Equipment darf equipped werden
+                console.log('[Inventar] ✅ Equipment validation passed');
+                
                 // Visual feedback
                 targetSlot.style.animation = 'pulse 0.3s ease';
+                targetSlot.style.background = 'rgba(34, 197, 94, 0.3)';
                 setTimeout(() => {
                     targetSlot.style.animation = '';
+                    targetSlot.style.background = '';
                 }, 300);
                 
                 if (isFromEquipment) {
@@ -751,6 +1537,11 @@ const InventoryModule = {
                         inventoryItems.value[fromIndex] = oldEquipment;
                         
                         console.log('[Inventar] ✅ Item equipped:', item.name, 'in slot', equipmentSlotType);
+                        
+                        // Wenn Item ein Equipment mit Storage ist: Merke equipmentId
+                        if (item.equipmentId) {
+                            console.log('[Inventar] 🗃️ Equipment hat Storage-ID:', item.equipmentId);
+                        }
                     }
                 }
             } else {
@@ -781,10 +1572,74 @@ const InventoryModule = {
                     } else if (isFromSecond && isToSecond) {
                         // Moving within second inventory
                         if (fromActualIndex !== toIndex) {
-                            const temp = secondInventoryItems.value[fromActualIndex];
-                            secondInventoryItems.value[fromActualIndex] = secondInventoryItems.value[toIndex];
-                            secondInventoryItems.value[toIndex] = temp;
-                            console.log('[Inventar] ✅ Items swapped within second inventory:', fromActualIndex, '↔', toIndex);
+                            const sourceItem = secondInventoryItems.value[fromActualIndex];
+                            const targetItem = secondInventoryItems.value[toIndex];
+                            
+                            // Check if same item type → stack
+                            if (sourceItem && targetItem && sourceItem.itemName === targetItem.itemName) {
+                                // Stack items
+                                targetItem.quantity = (targetItem.quantity || 1) + (sourceItem.quantity || 1);
+                                secondInventoryItems.value[fromActualIndex] = null;
+                                console.log('[Inventar] ✅ Items stacked in second inventory:', sourceItem.name, 'x', targetItem.quantity);
+                            } else {
+                                // Different items → swap
+                                secondInventoryItems.value[fromActualIndex] = targetItem;
+                                secondInventoryItems.value[toIndex] = sourceItem;
+                                console.log('[Inventar] ✅ Items swapped within second inventory:', fromActualIndex, '↔', toIndex);
+                            }
+                            
+                            // WICHTIG: Sofort an Server senden
+                            console.log('[Inventar] 💾 Auto-Save nach Dual-Inventory-Move (innerhalb)...');
+                            
+                            const mainInvArray = inventoryItems.value.map((item, index) => {
+                                if (!item) return null;
+                                return {
+                                    slot: index,
+                                    name: item.itemName || item.name,
+                                    label: item.name,
+                                    emoji: item.emoji,
+                                    quantity: item.quantity || 1,
+                                    itemweight: item.itemweight || 0,
+                                    type: item.type || 'item',
+                                    canUse: item.canUse || false
+                                };
+                            }).filter(item => item !== null);
+                            
+                            const secondInvArray = secondInventoryItems.value.map((item, index) => {
+                                if (!item) return null;
+                                return {
+                                    slot: index,
+                                    name: item.itemName || item.name,
+                                    label: item.name,
+                                    emoji: item.emoji,
+                                    quantity: item.quantity || 1,
+                                    itemweight: item.itemweight || 0,
+                                    type: item.type || 'item',
+                                    canUse: item.canUse || false
+                                };
+                            }).filter(item => item !== null);
+                            
+                            if (dualInventoryMode.value === 'trunk') {
+                                NUIBridge.send('saveTrunk', {
+                                    plate: dualInventoryMetadata.value.plate,
+                                    inventory: secondInvArray,
+                                    mainInventory: mainInvArray
+                                });
+                            } else if (dualInventoryMode.value === 'glovebox') {
+                                NUIBridge.send('saveGlovebox', {
+                                    plate: dualInventoryMetadata.value.plate,
+                                    inventory: secondInvArray,
+                                    mainInventory: mainInvArray
+                                });
+                            } else if (dualInventoryMode.value === 'stash') {
+                                NUIBridge.send('saveStash', {
+                                    stashId: dualInventoryMetadata.value.stashId,
+                                    inventory: secondInvArray,
+                                    mainInventory: mainInvArray
+                                });
+                            }
+                            
+                            console.log('[Inventar] ✅ Dual-Inventar gespeichert nach innerem Move');
                         }
                     } else if (!isFromSecond && !isToSecond) {
                         // Moving within main inventory
@@ -800,22 +1655,88 @@ const InventoryModule = {
                         const toArray = isToSecond ? secondInventoryItems.value : inventoryItems.value;
                         const fromIdx = isFromSecond ? fromActualIndex : fromIndex;
                         
-                        const temp = fromArray[fromIdx];
-                        fromArray[fromIdx] = toArray[toIndex];
-                        toArray[toIndex] = temp;
+                        const sourceItem = fromArray[fromIdx];
+                        const targetItem = toArray[toIndex];
                         
-                        // Tracking: Wenn vom Hauptinventar ins Sonderinventar
-                        if (!isFromSecond && isToSecond && temp && temp.name) {
-                            movedFromMainInventory.add(fromIdx); // Merke: Dieser Slot im Hauptinventar war die Quelle
-                            console.log('[Inventar] 📝 Tracked: Slot', fromIdx, 'aus Hauptinventar verschoben');
-                        }
-                        // Wenn zurück vom Sonderinventar ins Hauptinventar
-                        if (isFromSecond && !isToSecond) {
-                            movedFromMainInventory.delete(toIndex); // Entferne Tracking
-                            console.log('[Inventar] 📝 Untracked: Slot', toIndex, 'zurück ins Hauptinventar');
+                        // Check if same item type → stack
+                        if (sourceItem && targetItem && sourceItem.itemName === targetItem.itemName) {
+                            // Stack items
+                            targetItem.quantity = (targetItem.quantity || 1) + (sourceItem.quantity || 1);
+                            fromArray[fromIdx] = null;
+                            console.log('[Inventar] ✅ Items stacked between inventories:', sourceItem.name, 'x', targetItem.quantity);
+                        } else {
+                            // Different items → swap
+                            fromArray[fromIdx] = targetItem;
+                            toArray[toIndex] = sourceItem;
+                            
+                            // Tracking: Wenn vom Hauptinventar ins Sonderinventar
+                            if (!isFromSecond && isToSecond && sourceItem && sourceItem.name) {
+                                movedFromMainInventory.add(fromIdx); // Merke: Dieser Slot im Hauptinventar war die Quelle
+                                console.log('[Inventar] 📝 Tracked: Slot', fromIdx, 'aus Hauptinventar verschoben');
+                            }
+                            // Wenn zurück vom Sonderinventar ins Hauptinventar
+                            if (isFromSecond && !isToSecond) {
+                                movedFromMainInventory.delete(toIndex); // Entferne Tracking
+                                console.log('[Inventar] 📝 Untracked: Slot', toIndex, 'zurück ins Hauptinventar');
+                            }
+                            
+                            console.log('[Inventar] ✅ Items swapped between inventories:', fromIdx, '→', toIndex);
                         }
                         
-                        console.log('[Inventar] ✅ Items swapped between inventories:', fromIdx, '→', toIndex);
+                        // WICHTIG: Sofort an Server senden (beide Inventare)
+                        console.log('[Inventar] 💾 Auto-Save nach Dual-Inventory-Move...');
+                        
+                        // Build arrays for server
+                        const mainInvArray = inventoryItems.value.map((item, index) => {
+                            if (!item) return null;
+                            return {
+                                slot: index,
+                                name: item.itemName || item.name,
+                                label: item.name,
+                                emoji: item.emoji,
+                                quantity: item.quantity || 1,
+                                itemweight: item.itemweight || 0,
+                                type: item.type || 'item',
+                                canUse: item.canUse || false
+                            };
+                        }).filter(item => item !== null);
+                        
+                        const secondInvArray = secondInventoryItems.value.map((item, index) => {
+                            if (!item) return null;
+                            return {
+                                slot: index,
+                                name: item.itemName || item.name,
+                                label: item.name,
+                                emoji: item.emoji,
+                                quantity: item.quantity || 1,
+                                itemweight: item.itemweight || 0,
+                                type: item.type || 'item',
+                                canUse: item.canUse || false
+                            };
+                        }).filter(item => item !== null);
+                        
+                        // Send both inventories to server
+                        if (dualInventoryMode.value === 'trunk') {
+                            NUIBridge.send('saveTrunk', {
+                                plate: dualInventoryMetadata.value.plate,
+                                inventory: secondInvArray,
+                                mainInventory: mainInvArray
+                            });
+                        } else if (dualInventoryMode.value === 'glovebox') {
+                            NUIBridge.send('saveGlovebox', {
+                                plate: dualInventoryMetadata.value.plate,
+                                inventory: secondInvArray,
+                                mainInventory: mainInvArray
+                            });
+                        } else if (dualInventoryMode.value === 'stash') {
+                            NUIBridge.send('saveStash', {
+                                stashId: dualInventoryMetadata.value.stashId,
+                                inventory: secondInvArray,
+                                mainInventory: mainInvArray
+                            });
+                        }
+                        
+                        console.log('[Inventar] ✅ Beide Inventare gespeichert nach Move');
                     }
                 } else {
                     console.log('[Inventar] ❌ Invalid toIndex - NaN');
@@ -862,17 +1783,20 @@ const InventoryModule = {
     const handleInventoryUpdate = (data) => {
         console.log('[Inventar] 🔄 Server sent inventory update:', data);
         if (data && data.inventory) {
-            // Konvertiere Objekt-Format zu Props-Format und lade neu
+            // Konvertiere Objekt-Format zu Array und lade neu
             const items = Array(50).fill(null);
             let loadedCount = 0;
             
-            for (const [itemName, itemData] of Object.entries(data.inventory)) {
+            for (const [uniqueKey, itemData] of Object.entries(data.inventory)) {
                 if (itemData && typeof itemData.slot === 'number' && itemData.slot >= 0 && itemData.slot < 50) {
+                    // Extract actual itemName from itemData.name field
+                    const actualItemName = itemData.name || uniqueKey.split('_slot')[0] || uniqueKey;
+                    
                     items[itemData.slot] = {
                         id: itemData.slot,
-                        itemName: itemName,
-                        name: itemData.label || itemName || 'Unbekannt',
-                        emoji: itemData.emoji || getEmojiForItem(itemName),
+                        itemName: actualItemName,
+                        name: itemData.label || actualItemName || 'Unbekannt',
+                        emoji: itemData.emoji || getEmojiForItem(actualItemName),
                         quantity: itemData.amount || 1
                     };
                     loadedCount++;
@@ -884,7 +1808,52 @@ const InventoryModule = {
         }
     };
 
+    // NUI Listener: Dual Inventory von Client öffnen (Trunk, Glovebox, Stash, Ground)
+    const handleOpenDualInventory = (data) => {
+        console.log('[Inventar] 🔄 Client öffnet Dual-Inventar:', data.mode, data);
+        
+        dualInventoryMode.value = data.mode;
+        dualInventoryTitle.value = data.title || '📦 Sekundär-Inventar';
+        dualInventoryMetadata.value = data.metadata || {};
+        
+        // Lade Secondary Inventory aus Server-Daten
+        const secondaryInv = data.secondaryInventory || {};
+        const maxSlots = data.maxSlots || 50; // Dynamische Slot-Anzahl vom Server
+        const newItems = Array(maxSlots).fill(null);
+        
+        console.log('[Inventar] 📊 Dual-Inventory mit', maxSlots, 'Slots erstellt');
+        
+        // Konvertiere Object-Format zu Array
+        for (const [itemName, itemData] of Object.entries(secondaryInv)) {
+            if (itemData && typeof itemData.slot === 'number' && itemData.slot >= 0 && itemData.slot < maxSlots) {
+                newItems[itemData.slot] = {
+                    id: itemData.slot,
+                    itemName: itemName,
+                    name: itemData.label || itemName || 'Unbekannt',
+                    emoji: itemData.emoji || getEmojiForItem(itemName),
+                    quantity: itemData.amount || 1,
+                    itemweight: itemData.itemweight,
+                    type: itemData.type,
+                    canUse: itemData.canUse
+                };
+            }
+        }
+        
+        secondInventoryItems.value = newItems;
+        dualInventoryOpen.value = true;
+        
+        console.log('[Inventar] ✅ Dual-Inventar geöffnet:', dualInventoryMode.value, 'Items:', newItems.filter(i => i).length);
+    };
+    
     // Lifecycle
+    // ESC key handler for dual-inventory auto-save
+    const handleKeyDown = (e) => {
+        if (e.key === 'Escape' && dualInventoryOpen.value) {
+            e.preventDefault();
+            closeDualInventory();
+        }
+    };
+    
     onMounted(() => {
         console.log('[Inventar] Component mounted');
         console.log('[Inventar] Props data:', props.data);
@@ -893,15 +1862,31 @@ const InventoryModule = {
         // Add global mouse event listeners for drag system
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
+        document.addEventListener('wheel', handleMouseWheel, { passive: false });
+        
+        // Add ESC key listener for dual-inventory auto-save
+        document.addEventListener('keydown', handleKeyDown);
+        
+        // Add click listener to close context menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (contextMenuOpen.value && !e.target.closest('.context-menu')) {
+                closeContextMenu();
+            }
+        });
         
         // Listen for server inventory updates
         window.NUIBridge.on('updateInventory', handleInventoryUpdate);
+        
+        // Listen for dual inventory open events from client
+        window.NUIBridge.on('openDualInventory', handleOpenDualInventory);
     });
 
     onUnmounted(() => {
         // Cleanup mouse event listeners
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('wheel', handleMouseWheel);
+        document.removeEventListener('keydown', handleKeyDown);
         
         // Note: NUIBridge doesn't have .off() method, listeners are automatically cleaned up
         
@@ -935,21 +1920,27 @@ const InventoryModule = {
                     dualInventoryOpen,
                     dualInventoryMode,
                     dualInventoryTitle,
+                    equipmentModalOpen,
                     selectedItem,
                     hoveredItem,
+                    currentMousePos,
+                    contextMenuOpen,
+                    contextMenuPosition,
+                    contextMenuItem,
                     keys,
                     licenses,
                     stats,
                     isItemDefined,
                     handleMouseDown,
                     handleEquipmentMouseDown,
+                    openContextMenu,
+                    closeContextMenu,
+                    useItemFromContext,
+                    showItemDescription,
+                    showItemInfo,
                     openClothing,
-                    openGlovebox,
-                    openTrunk,
-                    openGround,
-                    openStorage,
-                    openBag,
                     toggleGiveMode,
+                    toggleEquipmentModal,
                     toggleSettings,
                     handleClose,
                     confirmDualInventory,
@@ -976,7 +1967,12 @@ const InventoryModule = {
         dualInventoryOpen,
         dualInventoryMode,
         dualInventoryTitle,
+        equipmentModalOpen,
         secondInventoryItems,
+        currentMousePos,
+        contextMenuOpen,
+        contextMenuPosition,
+        contextMenuItem,
         keys,
         licenses,
         stats,
@@ -994,6 +1990,11 @@ const InventoryModule = {
         
         // Methods
         isItemDefined,
+        openContextMenu,
+        closeContextMenu,
+        useItemFromContext,
+        showItemDescription,
+        showItemInfo,
         moveItem,
         handleSlotClick,
         handleKeyClick,
@@ -1012,6 +2013,7 @@ const InventoryModule = {
         closeDualInventory,
         handleClose,
         toggleSettings,
+        toggleEquipmentModal,
         handleMouseDown,
         handleEquipmentMouseDown,
         handleMouseMove,

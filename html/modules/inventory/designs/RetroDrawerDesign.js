@@ -86,21 +86,15 @@ export function generateRetroDrawerTemplate() {
                 </div>
                 
                 <!-- Second Inventory (when dual mode active) OR Stats (top-right) -->
-                <div v-if="dualInventoryOpen" class="row-start-1 row-span-2 col-start-2 rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(107,68,35,0.85), rgba(90,61,37,0.9)); border-color: rgba(217,119,6,0.5);">
-                    <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(120,53,15,0.9), rgba(69,26,3,0.95)); border-color: rgba(217,119,6,0.3); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
-                        <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-orange-200" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">📦 {{ dualInventoryTitle }}</div>
-                        <div class="text-[0.6vw] uppercase text-orange-300/80">{{ secondInventoryItems.filter(isItemDefined).length }}/{{ secondInventoryItems.length }}</div>
+                <div v-if="dualInventoryOpen" class="row-start-1 row-span-2 col-start-2 rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.7),0_0_1vw_rgba(217,119,6,0.3)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(107,68,35,0.9), rgba(90,61,37,0.95), rgba(69,50,37,0.98)), repeating-linear-gradient(90deg, rgba(217,119,6,0.08) 0, rgba(217,119,6,0.08) 0.1vw, transparent 0.1vw, transparent 1vw); border-color: rgba(217,119,6,0.6);">
+                    <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(107,68,35,0.95), rgba(90,61,37,0.98)); border-color: rgba(217,119,6,0.4); box-shadow: 0 2px 5px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.1);">
+                        <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-orange-200" style="text-shadow: 0 2px 4px rgba(0,0,0,0.9);">📦 {{ dualInventoryTitle }}</div>
+                        <div class="text-[0.6vw] uppercase text-orange-300/90">{{ secondInventoryItems.filter(isItemDefined).length }}/{{ secondInventoryItems.length }}</div>
                     </div>
                     
-                    <div class="flex-1 overflow-y-auto min-h-0 p-[0.8vw] custom-scrollbar-retro" style="scrollbar-width: thin; scrollbar-color: rgba(234,88,12,0.95) rgba(101,49,12,0.9);">
-                        <div class="grid grid-cols-5 gap-[0.5vw]">
-                            <div v-for="(item, index) in secondInventoryItems" :key="'second-' + index" 
-                                :data-slot-index="'second-' + index"
-                                @mousedown="(e) => handleMouseDown(e, 'second-' + index)"
-                                @mouseenter="hoveredItem = item?.id"
-                                @mouseleave="hoveredItem = null"
-                                class="relative rounded-lg border-2 border-orange-600/40 flex items-center justify-center p-[0.35vw] cursor-grab transition-all aspect-square hover:-translate-y-[0.25vh] hover:scale-105 hover:border-orange-400"
-                                :style="isItemDefined(item) ? 'background: linear-gradient(135deg, rgba(101,49,12,0.7), rgba(69,26,3,0.8));' : 'background: linear-gradient(135deg, rgba(101,49,12,0.3), rgba(69,26,3,0.5));'"
+                    <div class="flex-1 overflow-y-auto min-h-0 p-[0.5vw] custom-scrollbar-retro-second" style="scrollbar-width: thin; scrollbar-color: rgba(217,119,6,0.95) rgba(90,61,37,0.9);">
+                        <div class="grid grid-cols-5 gap-[0.4vw] auto-rows-min">
+                            <div v-for="(item, index) in secondInventoryItems" :key="'second-' + index" :data-slot-index="'second-' + index" @mousedown="(e) => handleMouseDown(e, 'second-' + index)" @contextmenu.prevent="(e) => openContextMenu(e, item, 'second-' + index)" @mouseenter="hoveredItem = item?.id" @mouseleave="hoveredItem = null" class="relative rounded-lg border-2 flex items-center justify-center p-[0.35vw] cursor-grab transition-all hover:-translate-y-[0.25vh] hover:scale-105 hover:border-orange-400" style="aspect-ratio: 1/1; width: 100%;" :style="isItemDefined(item) ? 'background: linear-gradient(135deg, rgba(107,68,35,0.8), rgba(90,61,37,0.9)); border-color: rgba(217,119,6,0.4);' : 'background: linear-gradient(135deg, rgba(107,68,35,0.4), rgba(90,61,37,0.6)); border-color: rgba(217,119,6,0.25);'"
                             >
                                 <span v-if="!isItemDefined(item)" class="text-orange-950/40 text-[0.7vw] font-mono">{{ index + 1 }}</span>
                                 

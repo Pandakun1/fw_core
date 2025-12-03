@@ -1044,6 +1044,9 @@ const InventoryModule = {
     const autoScrollActive = ref(false);
     const autoScrollAnimationFrame = ref(null);
     const autoScrollSpeed = ref(0); // Positive = down, Negative = up
+    const autoScrollTimer = ref(null); // Intent-Delay Timer (200ms)
+    const autoScrollPendingContainer = ref(null); // Container waiting for delay
+    const autoScrollPendingSpeed = ref(0); // Speed waiting for delay
 
     const createDragGhost = (item) => {
         if (dragGhostElement.value) {
@@ -1105,14 +1108,57 @@ const InventoryModule = {
         }
     };
 
-    // Auto-Scroll Logic (Edge Scrolling) - EXTENDED ZONES
+    // Auto-Scroll Logic (Edge Scrolling) - HYBRID: Target-Awareness + Intent-Delay
     const checkAutoScroll = (clientX, clientY) => {
         if (!isDragging.value) {
             stopAutoScroll();
             return;
         }
 
-        // Find ALL scrollable inventory containers (not just under cursor)
+        // ===============================================
+        // STEP 1: Target-Awareness Check (Equipment-Sperre)
+        // ===============================================
+        // Prüfe ob der Cursor über einem geschützten Bereich schwebt
+        const elementUnderCursor = document.elementFromPoint(clientX, clientY);
+        
+        if (elementUnderCursor) {
+            // Suche nach Equipment-Slot oder geschütztem Container in Parent-Hierarchie
+            let currentElement = elementUnderCursor;
+            let isOverProtectedArea = false;
+            
+            // Traversiere bis zu 5 Ebenen nach oben
+            for (let i = 0; i < 5 && currentElement; i++) {
+                // Prüfe auf data-equipment-slot Attribut (Equipment Slots)
+                if (currentElement.hasAttribute && currentElement.hasAttribute('data-equipment-slot')) {
+                    isOverProtectedArea = true;
+                    console.log('[Auto-Scroll] 🛡️ Equipment-Slot erkannt - Auto-Scroll blockiert');
+                    break;
+                }
+                
+                // Prüfe auf spezifische Container-Klassen (z.B. Equipment-Container)
+                if (currentElement.classList) {
+                    if (currentElement.classList.contains('equipment-container') ||
+                        currentElement.classList.contains('equipment-modal') ||
+                        currentElement.classList.contains('equipment-slots')) {
+                        isOverProtectedArea = true;
+                        console.log('[Auto-Scroll] 🛡️ Equipment-Container erkannt - Auto-Scroll blockiert');
+                        break;
+                    }
+                }
+                
+                currentElement = currentElement.parentElement;
+            }
+            
+            // Wenn über geschütztem Bereich: SOFORT abbrechen
+            if (isOverProtectedArea) {
+                stopAutoScroll();
+                return;
+            }
+        }
+
+        // ===============================================
+        // STEP 2: Find Scroll Target (wie zuvor)
+        // ===============================================
         const allInventoryContainers = document.querySelectorAll('.overflow-y-auto, .custom-scrollbar-forest');
         let targetContainer = null;
         let scrollSpeed = 0;
@@ -1162,9 +1208,43 @@ const InventoryModule = {
             }
         }
 
+        // ===============================================
+        // STEP 3: Intent-Delay (200ms Verzögerung)
+        // ===============================================
         if (targetContainer && scrollSpeed !== 0) {
-            startAutoScroll(targetContainer, scrollSpeed);
+            // Prüfe ob bereits ein Timer läuft
+            if (autoScrollTimer.value) {
+                // Timer läuft bereits - prüfe ob gleicher Container/Speed
+                if (autoScrollPendingContainer.value === targetContainer && 
+                    Math.abs(autoScrollPendingSpeed.value - scrollSpeed) < 2) {
+                    // Gleicher Container und ähnliche Speed - warte weiter
+                    return;
+                } else {
+                    // Anderer Container oder deutlich andere Speed - reset Timer
+                    clearTimeout(autoScrollTimer.value);
+                    autoScrollTimer.value = null;
+                    console.log('[Auto-Scroll] 🔄 Timer reset - andere Scroll-Zone erkannt');
+                }
+            }
+            
+            // Starte neuen Intent-Delay Timer (200ms)
+            autoScrollPendingContainer.value = targetContainer;
+            autoScrollPendingSpeed.value = scrollSpeed;
+            
+            autoScrollTimer.value = setTimeout(() => {
+                // Nach 200ms: Starte Auto-Scroll (wenn immer noch über Zone)
+                if (isDragging.value && autoScrollPendingContainer.value) {
+                    console.log('[Auto-Scroll] ✅ Intent-Delay abgelaufen - starte Scrollen');
+                    startAutoScroll(autoScrollPendingContainer.value, autoScrollPendingSpeed.value);
+                }
+                autoScrollTimer.value = null;
+                autoScrollPendingContainer.value = null;
+                autoScrollPendingSpeed.value = 0;
+            }, 200); // 200ms Verzögerung
+            
+            console.log('[Auto-Scroll] ⏳ Intent-Delay gestartet (200ms)...');
         } else {
+            // Keine Scroll-Zone mehr - stoppe alles
             stopAutoScroll();
         }
     };
@@ -1196,10 +1276,22 @@ const InventoryModule = {
         autoScrollActive.value = false;
         autoScrollSpeed.value = 0;
         
+        // Clear animation frame
         if (autoScrollAnimationFrame.value) {
             cancelAnimationFrame(autoScrollAnimationFrame.value);
             autoScrollAnimationFrame.value = null;
         }
+        
+        // Clear intent-delay timer (verhindert verzögertes Scrollen nach Drop)
+        if (autoScrollTimer.value) {
+            clearTimeout(autoScrollTimer.value);
+            autoScrollTimer.value = null;
+            console.log('[Auto-Scroll] 🛑 Timer cleared - kein verzögertes Scrollen');
+        }
+        
+        // Reset pending state
+        autoScrollPendingContainer.value = null;
+        autoScrollPendingSpeed.value = 0;
     };
 
     const getSlotAtPosition = (x, y) => {

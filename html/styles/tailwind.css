@@ -320,3 +320,96 @@
     box-shadow: 0 0 1.5vw rgba(244,114,182,1), inset 0 0.5vw 0.8vw rgba(255,255,255,0.4);
     animation: rainbow 2s linear infinite;
 }
+
+/* Tactical Backpack Second Inventory - Emerald Tech Scrollbar */
+.custom-scrollbar-tactical-second::-webkit-scrollbar {
+    width: 0.8vw;
+}
+
+.custom-scrollbar-tactical-second::-webkit-scrollbar-track {
+    background: linear-gradient(180deg, rgba(6,78,59,0.95), rgba(4,47,46,0.9));
+    border-radius: 0.5vw;
+    box-shadow: inset 0 0 0.5vw rgba(0,0,0,0.8);
+}
+
+.custom-scrollbar-tactical-second::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(16,185,129,0.95), rgba(5,150,105,0.9));
+    border-radius: 0.5vw;
+    border: 0.1vw solid rgba(16,185,129,0.5);
+    box-shadow: 0 0 0.6vw rgba(16,185,129,0.8), inset 0 0.2vw 0.3vw rgba(255,255,255,0.15);
+}
+
+.custom-scrollbar-tactical-second::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(34,197,94,1), rgba(16,185,129,1));
+    box-shadow: 0 0 1vw rgba(34,197,94,0.9), inset 0 0.3vw 0.5vw rgba(255,255,255,0.25);
+}
+
+/* Briefcase Second Inventory - Gold Luxury Scrollbar */
+.custom-scrollbar-briefcase-second::-webkit-scrollbar {
+    width: 0.8vw;
+}
+
+.custom-scrollbar-briefcase-second::-webkit-scrollbar-track {
+    background: linear-gradient(180deg, rgba(74,47,26,0.95), rgba(58,37,21,0.9));
+    border-radius: 0.5vw;
+    box-shadow: inset 0 0 0.5vw rgba(0,0,0,0.8);
+}
+
+.custom-scrollbar-briefcase-second::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(212,175,55,0.95), rgba(180,120,60,0.9));
+    border-radius: 0.5vw;
+    border: 0.1vw solid rgba(212,175,55,0.5);
+    box-shadow: 0 0 0.6vw rgba(212,175,55,0.7), inset 0 0.2vw 0.3vw rgba(255,255,255,0.15);
+}
+
+.custom-scrollbar-briefcase-second::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(245,158,11,1), rgba(212,175,55,1));
+    box-shadow: 0 0 1vw rgba(245,158,11,0.9), inset 0 0.3vw 0.5vw rgba(255,255,255,0.25);
+}
+
+/* Sci-Fi HUD Second Inventory - Holographic Cyan Scrollbar */
+.custom-scrollbar-scifi-second::-webkit-scrollbar {
+    width: 0.8vw;
+}
+
+.custom-scrollbar-scifi-second::-webkit-scrollbar-track {
+    background: linear-gradient(180deg, rgba(8,47,73,0.95), rgba(4,24,38,0.9));
+    border-radius: 0.5vw;
+    box-shadow: inset 0 0 0.5vw rgba(0,0,0,0.9), 0 0 0.8vw rgba(16,185,129,0.2);
+}
+
+.custom-scrollbar-scifi-second::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(16,185,129,0.95), rgba(5,150,105,0.9));
+    border-radius: 0.5vw;
+    border: 0.1vw solid rgba(16,185,129,0.6);
+    box-shadow: 0 0 0.8vw rgba(16,185,129,0.9), inset 0 0.3vw 0.5vw rgba(16,185,129,0.2);
+}
+
+.custom-scrollbar-scifi-second::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(34,197,94,1), rgba(16,185,129,1));
+    box-shadow: 0 0 1.2vw rgba(34,197,94,1), inset 0 0.5vw 0.8vw rgba(255,255,255,0.3);
+}
+
+/* Retro Drawer Second Inventory - Vintage Orange Scrollbar */
+.custom-scrollbar-retro-second::-webkit-scrollbar {
+    width: 0.8vw;
+}
+
+.custom-scrollbar-retro-second::-webkit-scrollbar-track {
+    background: linear-gradient(180deg, rgba(90,61,37,0.95), rgba(69,50,37,0.9));
+    border-radius: 0.5vw;
+    box-shadow: inset 0 0 0.5vw rgba(0,0,0,0.8);
+}
+
+.custom-scrollbar-retro-second::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(217,119,6,0.95), rgba(180,83,9,0.9));
+    border-radius: 0.5vw;
+    border: 0.1vw solid rgba(217,119,6,0.5);
+    box-shadow: 0 0 0.6vw rgba(217,119,6,0.7), inset 0 0.2vw 0.3vw rgba(255,255,255,0.1);
+}
+
+.custom-scrollbar-retro-second::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(234,88,12,1), rgba(217,119,6,1));
+    box-shadow: 0 0 1vw rgba(234,88,12,0.9), inset 0 0.3vw 0.5vw rgba(255,255,255,0.2);
+}
+

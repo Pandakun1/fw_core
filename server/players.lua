@@ -118,6 +118,7 @@ function FW.CreatePlayer(src, data)
     end
 
     self.metadata = self.data.metadata or {}
+    self.ui_settings = data.ui_settings or '{}'
 
     self.unsaved = false
 
@@ -268,6 +269,7 @@ function FW.CreatePlayer(src, data)
             position_y = self.position.y,
             position_z = self.position.z,
             inventory = json.encode(cleanInventory),
+            ui_settings = self.ui_settings,
             daten = json.encode(self.data)
         }
     end

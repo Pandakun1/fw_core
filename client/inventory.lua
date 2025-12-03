@@ -470,18 +470,9 @@ RegisterCommand('ground', function()
     FW.TriggerCallback('fw:inventory:getGroundInventory', function(groundData)
         print('[Inventory Client] Opening Ground Inventory')
         
-        -- ERST Haupt-Inventar laden und öffnen
-        FW.TriggerCallback('fw:inventory:getInventoryData', function(mainInventory)
-            local mainInv = (mainInventory and mainInventory.inventory) or {}
-            SendNUIMessage({
-                action = 'openInventory',
-                inventory = mainInv,
-                maxSlots = Config.Inventory.MaxSlots
-            })
-            
-            Citizen.Wait(100)
-            
-            -- DANN Dual-Inventory
+        -- Wenn Inventar bereits offen, öffne nur Dual-Inventory
+        if isInventoryOpen then
+            print('[Inventory Client] Inventory already open, opening dual only')
             SendNUIMessage({
                 action = 'openDualInventory',
                 mode = 'ground',
@@ -491,14 +482,72 @@ RegisterCommand('ground', function()
                 maxWeight = 999,
                 metadata = {}
             })
-            
-            isInventoryOpen = true
-            exports['fw_core']:RegisterUIOpen('inventory', true)
-        end)
+        else
+            -- ERST Haupt-Inventar laden und öffnen
+            FW.TriggerCallback('fw:inventory:getInventoryData', function(mainInventory)
+                local mainInv = (mainInventory and mainInventory.inventory) or {}
+                SendNUIMessage({
+                    action = 'openInventory',
+                    inventory = mainInv,
+                    maxSlots = Config.Inventory.MaxSlots
+                })
+                
+                Citizen.Wait(150) -- Warte länger für fade-in (100ms load + 200ms fade = 300ms gesamt)
+                
+                -- DANN Dual-Inventory
+                SendNUIMessage({
+                    action = 'openDualInventory',
+                    mode = 'ground',
+                    title = '🌍 Boden',
+                    secondaryInventory = groundData or {},
+                    maxSlots = Config.Inventory.MaxSlots,
+                    maxWeight = 999,
+                    metadata = {}
+                })
+                
+                isInventoryOpen = true
+                exports['fw_core']:RegisterUIOpen('inventory', true)
+            end)
+        end
     end)
 end)
 
 RegisterKeyMapping('ground', 'Boden-Inventar öffnen', 'keyboard', 'G')
+
+-- NUI Callback: Ground öffnen (von Button im UI)
+RegisterNUICallback('requestGroundInventory', function(data, cb)
+    FW.TriggerCallback('fw:inventory:getGroundInventory', function(groundData)
+        print('[Inventory Client] Opening Ground Inventory via Button')
+        
+        -- Dual-Inventory öffnen (Hauptinventar ist bereits offen)
+        SendNUIMessage({
+            action = 'openDualInventory',
+            mode = 'ground',
+            title = '🌍 Boden',
+            secondaryInventory = groundData or {},
+            maxSlots = Config.Inventory.MaxSlots,
+            maxWeight = 999,
+            metadata = {}
+        })
+    end)
+    
+    cb('ok')
+end)
+
+-- NUI Callback: Ground speichern
+RegisterNUICallback('saveGround', function(data, cb)
+    local groundInventory = data.inventory or {}
+    local mainInventory = data.mainInventory or {}
+    
+    print('[Inventory Client] 💾 Saving Ground Inventory:', #groundInventory, 'items')
+    print('[Inventory Client] 💾 Saving Main Inventory:', #mainInventory, 'items')
+    
+    -- Sende BEIDE Inventare zum Server (mit Anti-Duping wie beim Kofferraum)
+    TriggerServerEvent('fw:inventory:saveGroundInventory', groundInventory, mainInventory)
+    
+    skipNextSave = true -- Verhindere doppeltes Speichern
+    cb('ok')
+end)
 
 -- ============================================
 -- EQUIPMENT STORAGE SYSTEM

@@ -816,4 +816,81 @@ RegisterCommand('createstash', function(source, args)
     )
 end, true)
 
+-- ============================================
+-- GROUND INVENTORY SAVE (mit Anti-Duping)
+-- ============================================
+
+RegisterNetEvent('fw:inventory:saveGroundInventory', function(groundInventory, mainInventory)
+    local src = source
+    
+    print('[FW Ground] 💾 Saving Ground Inventory for player', src)
+    print('[FW Ground DEBUG] Ground items:', #groundInventory)
+    
+    -- 1. Speichere Haupt-Inventar (wichtig: Items wurden aus Spieler-Inventar entfernt)
+    if mainInventory and type(mainInventory) == 'table' then
+        local player = FW.GetPlayer(src)
+        if player then
+            -- Convert main inventory array to slot-based array
+            local mainSlots = {}
+            for _, item in pairs(mainInventory) do
+                if type(item) == 'table' and item.slot ~= nil then
+                    mainSlots[item.slot + 1] = { -- Lua is 1-indexed
+                        name = item.name,
+                        label = item.label,
+                        emoji = item.emoji,
+                        quantity = item.quantity or item.amount or 1,
+                        itemweight = item.itemweight or 0,
+                        type = item.type or 'item',
+                        canUse = item.canUse or false,
+                        metadata = item.metadata or {}
+                    }
+                    print('[FW Ground] 📦 Main inventory slot', item.slot, ':', item.name, 'x', item.quantity or item.amount or 1)
+                end
+            end
+            
+            local mainJSON = json.encode(mainSlots)
+            MySQL.update('UPDATE players SET inventory = ? WHERE identifier = ?', { mainJSON, player.identifier }, function(affected)
+                if affected > 0 then
+                    print('[FW Ground] ✅ Spieler-Inventar gespeichert (Anti-Duping) für:', player.identifier)
+                    
+                    -- Update player object in cache
+                    if player and player.setInventory then
+                        player.setInventory(mainSlots)
+                    end
+                end
+            end)
+        end
+    end
+    
+    -- 2. Lege Ground-Items auf den Boden (via dropItem Event)
+    for _, item in ipairs(groundInventory) do
+        if type(item) == 'table' and item.name and (item.quantity or item.amount) then
+            local quantity = item.quantity or item.amount or 1
+            print('[FW Ground] 🌍 Dropping', quantity, 'x', item.name, 'on ground')
+            
+            -- Triggere dropItem Event für jedes Item
+            local playerPed = GetPlayerPed(src)
+            local playerCoords = GetEntityCoords(playerPed)
+            
+            -- Füge Item zu FW.GroundItems hinzu
+            local groundItemId = #FW.GroundItems + 1
+            FW.GroundItems[groundItemId] = {
+                id = groundItemId,
+                itemName = item.name,
+                label = item.label or item.name,
+                emoji = item.emoji or '📦',
+                amount = quantity,
+                coords = playerCoords,
+                itemweight = item.itemweight or 0,
+                type = item.type or 'item',
+                canUse = item.canUse or false
+            }
+            
+            print('[FW Ground] ✅ Item', item.name, 'dropped at', playerCoords, '(ID:', groundItemId, ')')
+        end
+    end
+    
+    print('[FW Ground] ✅ Ground inventory saved -', #groundInventory, 'items dropped')
+end)
+
 print('[FW] 📦 Secondary Inventory Server Script loaded')

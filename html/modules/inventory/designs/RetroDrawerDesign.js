@@ -1,12 +1,12 @@
 // Retro Drawer Design Template - Vintage wooden drawer with metal handles and patina
 export function generateRetroDrawerTemplate() {
     return `
-    <div class="relative w-full h-full flex justify-center overflow-hidden" :class="dualInventoryOpen ? 'items-start pt-[10vh]' : 'items-center'">
+    <div class="relative w-full h-full flex justify-center items-center overflow-hidden">
         <!-- Ambient Glow with Warm Pulse -->
         <div class="absolute inset-0 blur-[4vw] opacity-45 animate-pulse" style="background: radial-gradient(circle at 35% 40%, rgba(139,90,60,0.3), transparent 50%), radial-gradient(circle at 65% 60%, rgba(217,119,6,0.25), transparent 55%); animation-duration: 5s;"></div>
         
         <!-- Drawer Shell with Wood Grain Texture -->
-        <div class="relative w-full h-full rounded-[2.5vw] shadow-[0_2vw_4vw_rgba(0,0,0,0.95),inset_0_0_2vw_rgba(0,0,0,0.5)] border-4 p-[1.5vw] flex flex-col transition-all duration-700 hover:shadow-[0_3vw_6vw_rgba(217,119,6,0.4),inset_0_0_3vw_rgba(217,119,6,0.2)]" :class="dualInventoryOpen ? 'justify-start' : ''" style="background: linear-gradient(165deg, #8b5a3c 0%, #6b4423 20%, #5a3d25 45%, #4a2f1a 70%, #5a3d25 85%, #8b5a3c 100%); border-color: #6b4423; animation: subtleShake 10s ease-in-out infinite;">
+        <div class="relative rounded-[2.5vw] shadow-[0_2vw_4vw_rgba(0,0,0,0.95),inset_0_0_2vw_rgba(0,0,0,0.5)] border-4 p-[1.5vw] flex flex-col transition-all duration-700 hover:shadow-[0_3vw_6vw_rgba(217,119,6,0.4),inset_0_0_3vw_rgba(217,119,6,0.2)]" :class="dualInventoryOpen ? 'w-[90vw] h-[64vh] justify-start' : 'w-full h-full'" style="background: linear-gradient(165deg, #8b5a3c 0%, #6b4423 20%, #5a3d25 45%, #4a2f1a 70%, #5a3d25 85%, #8b5a3c 100%); border-color: #6b4423; animation: subtleShake 10s ease-in-out infinite;">
             
             <!-- Vintage Light Reflection -->
             <div class="absolute inset-0 pointer-events-none opacity-20" style="background: linear-gradient(135deg, transparent 0%, transparent 45%, rgba(217,119,6,0.3) 50%, transparent 55%, transparent 100%); animation: shine 12s ease-in-out infinite;"></div>
@@ -55,7 +55,9 @@ export function generateRetroDrawerTemplate() {
             <div class="absolute top-[50%] -translate-y-1/2 -right-[0.3vw] w-[0.8vw] h-[90%] rounded-l-md" style="background: linear-gradient(270deg, rgba(60,40,25,0.95), rgba(90,60,40,0.8)); box-shadow: inset 2px 0 4px rgba(0,0,0,0.7), -2px 0 6px rgba(0,0,0,0.5);"></div>
             
             <!-- Content Grid -->
-            <div class="relative z-10 grid gap-[1vw] h-full" :class="dualInventoryOpen ? 'grid-cols-3 gap-[1.5vw] items-start justify-center' : 'grid-cols-[20%_1fr_20%_8%] grid-rows-[1fr_1fr]'" :style="dualInventoryOpen ? 'grid-template-columns: 38% 38% 10%;' : ''">
+            <div class="relative z-10 grid h-full" 
+                :class="dualInventoryOpen ? 'gap-[1vw]' : 'grid-cols-[20%_1fr_20%_8%] grid-rows-[1fr_1fr] gap-[1vw]'"
+                :style="dualInventoryOpen ? 'grid-template-columns: 45% 45% 8%; grid-template-rows: 1fr auto;' : ''">
                 
                 <!-- Wallet (top-left) - Vintage paper label style -->
                 <div v-if="!dualInventoryOpen" class="col-start-1 row-start-1 relative rounded-[1.3vw] shadow-[0_0.8vw_1.7vw_rgba(0,0,0,0.85),inset_0_0.3vh_0.6vh_rgba(255,255,255,0.05)] border-2 p-[0.7vw] flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(139,90,60,0.9), rgba(107,68,35,0.95)), repeating-linear-gradient(90deg, rgba(167,128,80,0.15) 0, rgba(167,128,80,0.15) 0.1vw, transparent 0.1vw, transparent 1.5vw); border-color: rgba(217,119,6,0.6);">
@@ -84,7 +86,7 @@ export function generateRetroDrawerTemplate() {
                 </div>
                 
                 <!-- Second Inventory (when dual mode active) OR Stats (top-right) -->
-                <div v-if="dualInventoryOpen" class="order-2 max-h-[47vh] rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(101,49,12,0.85), rgba(69,26,3,0.9)); border-color: rgba(234,88,12,0.5);">
+                <div v-if="dualInventoryOpen" class="row-start-1 row-span-2 col-start-2 rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(107,68,35,0.85), rgba(90,61,37,0.9)); border-color: rgba(217,119,6,0.5);">
                     <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(120,53,15,0.9), rgba(69,26,3,0.95)); border-color: rgba(217,119,6,0.3); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
                         <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-orange-200" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">📦 {{ dualInventoryTitle }}</div>
                         <div class="text-[0.6vw] uppercase text-orange-300/80">{{ secondInventoryItems.filter(isItemDefined).length }}/{{ secondInventoryItems.length }}</div>
@@ -116,13 +118,79 @@ export function generateRetroDrawerTemplate() {
                     </div>
                 </div>
                 
+                <!-- Equipment Bar (horizontal strip below player inventory only) -->
+                <div v-if="dualInventoryOpen" class="row-start-2 col-start-1 rounded-[0.8vw] border-2 p-[0.5vw] flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(69,26,3,0.85), rgba(51,19,2,0.9)); border-color: rgba(217,119,6,0.5); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), inset 0 1px 3px rgba(255,255,255,0.1);">
+                    <div class="flex justify-between items-baseline mb-[0.5vh]">
+                        <div class="font-bold text-[0.7vw] uppercase tracking-[0.16em] text-orange-300" style="text-shadow: 0 2px 4px rgba(0,0,0,0.9);">🎫 Ausrüstung</div>
+                        <div class="text-[0.6vw] uppercase text-orange-400/80">4 Slots</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-4 gap-[0.4vw]">
+                        <div data-equipment-slot="vest" @mousedown="handleEquipmentMouseDown($event, 'vest')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-orange-400 hover:bg-orange-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(217,119,6,0.05); border-color: rgba(217,119,6,0.3);">
+                            <template v-if="equipmentSlots.vest">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(69,26,3,0.6);">{{ equipmentSlots.vest.emoji }}</div>
+                                <span v-if="equipmentSlots.vest.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-orange-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.vest.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🦺</span>
+                                <span class="text-[0.5vw] uppercase text-orange-200/90">Weste</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="weapon" @mousedown="handleEquipmentMouseDown($event, 'weapon')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-orange-400 hover:bg-orange-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(217,119,6,0.05); border-color: rgba(217,119,6,0.3);">
+                            <template v-if="equipmentSlots.weapon">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(69,26,3,0.6);">{{ equipmentSlots.weapon.emoji }}</div>
+                                <span v-if="equipmentSlots.weapon.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-orange-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.weapon.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🔫</span>
+                                <span class="text-[0.5vw] uppercase text-orange-200/90">Waffe</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="bag1" @mousedown="handleEquipmentMouseDown($event, 'bag1')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-orange-400 hover:bg-orange-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(217,119,6,0.05); border-color: rgba(217,119,6,0.3);">
+                            <template v-if="equipmentSlots.bag1">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(69,26,3,0.6);">{{ equipmentSlots.bag1.emoji }}</div>
+                                <span v-if="equipmentSlots.bag1.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-orange-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.bag1.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">👜</span>
+                                <span class="text-[0.5vw] uppercase text-orange-200/90">Tasche 1</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="bag2" @mousedown="handleEquipmentMouseDown($event, 'bag2')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-orange-400 hover:bg-orange-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(217,119,6,0.05); border-color: rgba(217,119,6,0.3);">
+                            <template v-if="equipmentSlots.bag2">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(69,26,3,0.6);">{{ equipmentSlots.bag2.emoji }}</div>
+                                <span v-if="equipmentSlots.bag2.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-orange-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.bag2.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.8vw]">🎒</span>
+                                <span class="text-[0.5vw] uppercase text-orange-200/90">Tasche 2</span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Button Column (only visible in dual mode) - Vintage style -->
-                <div v-if="dualInventoryOpen" class="order-3 flex flex-col gap-[1.5vh] justify-center max-h-[47vh]">
-                    <button @click="clearDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(234,88,12,0.95), rgba(194,65,12,0.98)); color: #fed7aa; border-color: rgba(251,146,60,0.6); box-shadow: 0 0.5vh 1vh rgba(194,65,12,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        🗑️ Items Entfernen
+                <div v-if="dualInventoryOpen" class="row-start-1 row-span-2 col-start-3 flex flex-col gap-[1vh] justify-end">
+                    <!-- Bargeld Anzeige -->
+                    <div class="w-full rounded-lg border-2 p-[0.4vw] flex flex-col items-center gap-[0.3vh]" style="background: linear-gradient(135deg, rgba(69,26,3,0.9), rgba(51,19,2,0.95)); border-color: rgba(217,119,6,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), inset 0 1px 3px rgba(255,255,255,0.1);">
+                        <div class="w-[2vw] h-[2vw] rounded-lg flex items-center justify-center text-[1.2vw]" style="background: radial-gradient(circle, rgba(101,163,13,0.85), rgba(77,124,15,0.9)); box-shadow: 0 0.2vw 0.4vw rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.1);">💰</div>
+                        <div class="text-[0.5vw] uppercase tracking-wider text-orange-300">Bargeld</div>
+                        <div class="text-[0.8vw] font-bold text-orange-100" style="text-shadow: 0 2px 4px rgba(0,0,0,0.9);">2.500 $</div>
+                    </div>
+                    
+                    <!-- Kleidung Button -->
+                    <button @click="openClothing" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(217,119,6,0.6)]" style="background: linear-gradient(135deg, rgba(69,26,3,0.95), rgba(51,19,2,0.98)); border-color: rgba(217,119,6,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), inset 0 1px 3px rgba(255,255,255,0.1);">
+                        <span class="text-[1.8vw]">👔</span>
                     </button>
-                    <button @click="closeDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(101,163,13,0.95), rgba(77,124,15,0.98)); color: #f7fee7; border-color: rgba(190,242,100,0.6); box-shadow: 0 0.5vh 1vh rgba(77,124,15,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        ✅ Schließen & Speichern
+                    
+                    <!-- Items Entfernen Button -->
+                    <button @click="clearDualInventory" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(234,88,12,0.6)]" style="background: linear-gradient(135deg, rgba(234,88,12,0.95), rgba(194,65,12,0.98)); border-color: rgba(251,146,60,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), inset 0 1px 3px rgba(255,255,255,0.15);">
+                        <span class="text-[1.8vw]">🗑️</span>
+                    </button>
+                    
+                    <!-- Schließen & Speichern Button (ganz unten) -->
+                    <button @click="closeDualInventory" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(101,163,13,0.6)]" style="background: linear-gradient(135deg, rgba(101,163,13,0.95), rgba(77,124,15,0.98)); border-color: rgba(190,242,100,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), inset 0 1px 3px rgba(255,255,255,0.15);">
+                        <span class="text-[1.8vw]">✅</span>
                     </button>
                 </div>
                 
@@ -171,16 +239,16 @@ export function generateRetroDrawerTemplate() {
                 </div>
                 
                 <!-- Main inventory (center) -->
-                <div :class="dualInventoryOpen ? 'order-1 max-h-[47vh]' : 'col-start-2 row-start-1 row-span-2'" class="rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(107,68,35,0.95), rgba(90,61,37,0.98), rgba(74,47,26,0.98)); border-color: rgba(217,119,6,0.6);">
+                <div :class="dualInventoryOpen ? 'row-start-1 col-start-1' : 'col-start-2 row-start-1 row-span-2'" class="rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(107,68,35,0.95), rgba(90,61,37,0.98), rgba(74,47,26,0.98)); border-color: rgba(217,119,6,0.6);">
                     <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(90,61,37,0.95), rgba(74,47,26,0.98)); border-color: rgba(217,119,6,0.4); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
                         <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-amber-200" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">🎒 Inventar</div>
                         <div class="text-[0.6vw] uppercase text-amber-300/80">50 Slots • {{ inventoryItems.filter(isItemDefined).length }} belegt</div>
                     </div>
                     
                     <!-- Custom Scrollbar: Retro Wood-Bronze theme -->
-                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-retro" :class="dualInventoryOpen ? 'p-[0.8vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(234,88,12,0.95) rgba(45,24,16,0.9);">
-                        <div class="grid" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.5vw]' : 'grid-cols-5 gap-[0.6vw]'">
-                            <div v-for="(item, index) in inventoryItems" :key="index" 
+                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-retro" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(217,119,6,0.95) rgba(51,19,2,0.9);">
+                        <div class="grid auto-rows-min" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.4vw]' : 'grid-cols-5 gap-[0.6vw]'">
+                            <div v-for="(item, index) in inventoryItems" :key="index"
                                 :data-slot-index="index"
                                 :class="[
                                     'relative rounded-lg border flex items-center justify-center cursor-grab transition-all aspect-square',
@@ -274,7 +342,11 @@ export function generateRetroDrawerTemplate() {
                         <div class="font-bold text-[0.7vw] uppercase tracking-[0.16em] text-orange-200" style="text-shadow: 0 2px 4px rgba(0,0,0,0.7);">⚡ Quick Actions</div>
                     </div>
                     <button @click="openClothing" class="w-full aspect-square rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105" style="background: linear-gradient(135deg, rgba(139,90,60,0.85), rgba(90,61,37,0.9)); border-color: rgba(217,119,6,0.6); box-shadow: 0 0.4vw 0.8vw rgba(0,0,0,0.7);">
-                        <span class="text-[2vw]">👔</span>
+                        <span class="text-[1.8vw]">👔</span>
+                    </button>
+                    
+                    <button @click="openGround" class="w-full aspect-square rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105" style="background: linear-gradient(135deg, rgba(139,90,60,0.85), rgba(90,61,37,0.9)); border-color: rgba(217,119,6,0.6); box-shadow: 0 0.4vw 0.8vw rgba(0,0,0,0.7);">
+                        <span class="text-[1.8vw]">🌍</span>
                     </button>
                     <button @click="openGlovebox" class="w-full aspect-square rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105" style="background: linear-gradient(135deg, rgba(139,90,60,0.85), rgba(90,61,37,0.9)); border-color: rgba(217,119,6,0.6); box-shadow: 0 0.4vw 0.8vw rgba(0,0,0,0.7);">
                         <span class="text-[2vw]">🧤</span>

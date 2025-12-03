@@ -5,6 +5,9 @@ import { generateRetroDrawerTemplate } from './designs/RetroDrawerDesign.js';
 import { generateSciFiHudTemplate } from './designs/SciFiHudDesign.js';
 import { generateForestTemplate } from './designs/ForestDesign.js';
 
+// Import Settings Store
+import { useSettingsStore } from '../settings/SettingsStore.js';
+
 const { computed, ref, onMounted, onUnmounted, watch } = Vue;
 const useNUI = window.useNUI;
 
@@ -15,10 +18,16 @@ const InventoryModule = {
     setup(props) {
     const { send, onClose } = useNUI();
     
-    // State
-    const layoutKey = ref('forest');
+    // Settings Store Integration
+    const settingsStore = useSettingsStore();
+    
+    // State - WICHTIG: Lade Design erst nach Settings-Load, sonst immer forest!
+    const layoutKey = ref('forest'); // Aktives Design (wird angewendet)
+    const tempLayoutKey = ref('forest'); // Temporäres Design im Settings-Modal
+    const isDesignLoading = ref(true); // Controls opacity during design load (500ms)
     const themeKey = ref('classicLeather');
     const animationKey = ref('none');
+    const inventoryScale = ref(1.0);
     const settingsOpen = ref(false);
     const settingsPosition = ref({ x: 100, y: 100 });
     const selectedItem = ref(null);
@@ -863,6 +872,46 @@ const InventoryModule = {
             });
             console.log('[Inventar] 💾 Auto-Save: Lager');
         }
+        else if (mode === 'ground') {
+            // Build ARRAY format for ground items
+            const groundInventory = secondInventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            }).filter(item => item !== null);
+            
+            const mainInventory = inventoryItems.value.map((item, index) => {
+                if (!item || !item.name) return null;
+                return {
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    amount: item.quantity || 1,
+                    slot: index,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {}
+                };
+            }).filter(item => item !== null);
+            
+            send('saveGround', {
+                inventory: groundInventory,
+                mainInventory: mainInventory
+            });
+            console.log('[Inventar] 💾 Auto-Save: Boden -', groundInventory.length, 'Items');
+        }
         
         // Schließe Modal
         secondInventoryItems.value = [];
@@ -879,7 +928,32 @@ const InventoryModule = {
     };
 
     const toggleSettings = () => {
+        if (!settingsOpen.value) {
+            // Beim Öffnen: Kopiere aktuelle Einstellungen in temp
+            tempLayoutKey.value = layoutKey.value;
+            console.log('[Inventar] ⚙️ Settings opened, current design:', layoutKey.value);
+        }
         settingsOpen.value = !settingsOpen.value;
+    };
+
+    const selectDesign = (designKey) => {
+        console.log(`[Inventar] 🎨 Design selected in modal: ${designKey}`);
+        tempLayoutKey.value = designKey;
+    };
+
+    const saveSettings = () => {
+        console.log(`[Inventar] 💾 Saving settings - Design: ${tempLayoutKey.value}`);
+        
+        // Apply changes
+        layoutKey.value = tempLayoutKey.value;
+        
+        // Save to server
+        settingsStore.setSetting('inventory_design', tempLayoutKey.value);
+        
+        // Close modal
+        settingsOpen.value = false;
+        
+        console.log('[Inventar] ✅ Settings saved and applied!');
     };
 
     const openClothing = () => {
@@ -888,8 +962,9 @@ const InventoryModule = {
     };
 
     const openGround = () => {
-        console.log('[Inventar] Boden öffnen');
-        openDualInventory('ground', '🌍 Boden');
+        console.log('[Inventar] 🌍 Boden öffnen - fordere Daten vom Server an');
+        // Sende Request an Lua Client -> Server -> handleOpenDualInventory
+        send('requestGroundInventory');
     };
 
     const toggleGiveMode = () => {
@@ -964,6 +1039,11 @@ const InventoryModule = {
     const dragGhostElement = ref(null);
     const dragStartPos = ref({ x: 0, y: 0 });
     const currentMousePos = ref({ x: 0, y: 0 });
+    
+    // Auto-Scroll State (Edge Scrolling)
+    const autoScrollActive = ref(false);
+    const autoScrollAnimationFrame = ref(null);
+    const autoScrollSpeed = ref(0); // Positive = down, Negative = up
 
     const createDragGhost = (item) => {
         if (dragGhostElement.value) {
@@ -1022,6 +1102,103 @@ const InventoryModule = {
                 }
                 dragGhostElement.value = null;
             }, 200);
+        }
+    };
+
+    // Auto-Scroll Logic (Edge Scrolling) - EXTENDED ZONES
+    const checkAutoScroll = (clientX, clientY) => {
+        if (!isDragging.value) {
+            stopAutoScroll();
+            return;
+        }
+
+        // Find ALL scrollable inventory containers (not just under cursor)
+        const allInventoryContainers = document.querySelectorAll('.overflow-y-auto, .custom-scrollbar-forest');
+        let targetContainer = null;
+        let scrollSpeed = 0;
+
+        // Check each container if cursor is within EXTENDED zone (container + 80px outside)
+        for (const container of allInventoryContainers) {
+            if (container.scrollHeight <= container.clientHeight) continue; // Not scrollable
+            
+            const rect = container.getBoundingClientRect();
+            const extendedZone = 80; // Pixels outside container bounds
+            
+            // Check if cursor is within extended bounds (horizontally AND vertically)
+            const inHorizontalBounds = clientX >= rect.left - extendedZone && 
+                                      clientX <= rect.right + extendedZone;
+            const inVerticalBounds = clientY >= rect.top - extendedZone && 
+                                    clientY <= rect.bottom + extendedZone;
+            
+            if (!inHorizontalBounds || !inVerticalBounds) continue;
+            
+            // Calculate relative position (can be negative or > height)
+            const relativeY = clientY - rect.top;
+            const containerHeight = rect.height;
+            
+            // Edge zones (15% of container height for smoother activation)
+            const edgeZoneSize = containerHeight * 0.15;
+            const topEdge = edgeZoneSize;
+            const bottomEdge = containerHeight - edgeZoneSize;
+
+            let speed = 0;
+
+            if (relativeY < topEdge) {
+                // Near top or ABOVE container - scroll up
+                const distance = topEdge - relativeY; // Can be > edgeZoneSize if outside
+                const intensity = Math.min(1, distance / edgeZoneSize); // Clamp to 1
+                speed = -Math.max(2, intensity * 18); // Higher max speed
+            } else if (relativeY > bottomEdge) {
+                // Near bottom or BELOW container - scroll down
+                const distance = relativeY - bottomEdge; // Can be > edgeZoneSize if outside
+                const intensity = Math.min(1, distance / edgeZoneSize); // Clamp to 1
+                speed = Math.max(2, intensity * 18); // Higher max speed
+            }
+
+            // Use container with highest scroll speed (closest to edge)
+            if (Math.abs(speed) > Math.abs(scrollSpeed)) {
+                scrollSpeed = speed;
+                targetContainer = container;
+            }
+        }
+
+        if (targetContainer && scrollSpeed !== 0) {
+            startAutoScroll(targetContainer, scrollSpeed);
+        } else {
+            stopAutoScroll();
+        }
+    };
+
+    const startAutoScroll = (container, speed) => {
+        autoScrollSpeed.value = speed;
+        
+        if (autoScrollActive.value) return; // Already running
+        
+        autoScrollActive.value = true;
+        
+        const scroll = () => {
+            if (!autoScrollActive.value || !isDragging.value) {
+                stopAutoScroll();
+                return;
+            }
+            
+            // Apply smooth scroll
+            container.scrollTop += autoScrollSpeed.value;
+            
+            // Continue animation
+            autoScrollAnimationFrame.value = requestAnimationFrame(scroll);
+        };
+        
+        scroll();
+    };
+
+    const stopAutoScroll = () => {
+        autoScrollActive.value = false;
+        autoScrollSpeed.value = 0;
+        
+        if (autoScrollAnimationFrame.value) {
+            cancelAnimationFrame(autoScrollAnimationFrame.value);
+            autoScrollAnimationFrame.value = null;
         }
     };
 
@@ -1123,6 +1300,9 @@ const InventoryModule = {
 
         currentMousePos.value = { x: e.clientX, y: e.clientY };
         updateGhostPosition(e.clientX, e.clientY);
+
+        // Check for auto-scroll zones
+        checkAutoScroll(e.clientX, e.clientY);
 
         // Highlight slot under cursor
         const targetSlot = getSlotAtPosition(e.clientX, e.clientY);
@@ -1285,79 +1465,119 @@ const InventoryModule = {
         });
 
         document.body.style.cursor = '';
+        
+        // Stop auto-scrolling
+        stopAutoScroll();
 
-        // APPLY MOUSE-WHEEL STACKING: Commit dragStackedSlots to inventories
-        if (dragStackedSlots.value.size > 0) {
-            console.log('[Inventar] Applying mouse-wheel stacked items:', dragStackedSlots.value);
+        // WHEEL STACKING MODE: Process distributed items + final drop
+        if (dragStackedSlots.value.size > 0 || dragCurrentQuantity.value < dragOriginalQuantity.value) {
+            console.log('[Inventar] 🎯 Processing wheel-stacked items + final drop...');
+            console.log('[Inventar] Original qty:', dragOriginalQuantity.value, '| Current qty:', dragCurrentQuantity.value, '| Stacked slots:', dragStackedSlots.value.size);
             
-            // Get source item
+            // Get source info
             const isFromEquipment = typeof fromIndex === 'string' && fromIndex.startsWith('equipment_');
             const isFromSecond = typeof fromIndex === 'string' && fromIndex.startsWith('second-');
             const fromActualIndex = isFromSecond ? parseInt(fromIndex.replace('second-', '')) : (isFromEquipment ? null : fromIndex);
             
             let sourceItem = null;
-            let sourceArray = null;
-            
             if (isFromEquipment) {
                 const fromEquipmentType = fromIndex.replace('equipment_', '');
                 sourceItem = equipmentSlots.value[fromEquipmentType];
             } else if (isFromSecond) {
-                sourceArray = secondInventoryItems.value;
-                sourceItem = sourceArray[fromActualIndex];
+                sourceItem = secondInventoryItems.value[fromActualIndex];
             } else {
-                sourceArray = inventoryItems.value;
-                sourceItem = sourceArray[fromIndex];
+                sourceItem = inventoryItems.value[fromIndex];
             }
             
-            if (sourceItem && dragOriginalQuantity.value > 0) {
-                // Apply stacked quantities to target slots
-                dragStackedSlots.value.forEach((quantity, slotIndexStr) => {
-                    const isTargetSecond = slotIndexStr.startsWith('second-');
-                    const targetIndex = isTargetSecond ? parseInt(slotIndexStr.replace('second-', '')) : parseInt(slotIndexStr);
-                    const targetArray = isTargetSecond ? secondInventoryItems.value : inventoryItems.value;
-                    
-                    if (targetArray[targetIndex] && targetArray[targetIndex].name === sourceItem.name) {
-                        // Stack on existing item
-                        targetArray[targetIndex].quantity = (targetArray[targetIndex].quantity || 1) + quantity;
-                        console.log('[Inventar] Stacked', quantity, 'x', sourceItem.name, 'into slot', slotIndexStr);
-                    } else if (!targetArray[targetIndex]) {
-                        // Place new item in empty slot
-                        targetArray[targetIndex] = {
-                            ...sourceItem,
-                            quantity: quantity
-                        };
-                        console.log('[Inventar] Placed', quantity, 'x', sourceItem.name, 'into empty slot', slotIndexStr);
-                    }
-                });
+            if (!sourceItem) {
+                console.error('[Inventar] ❌ Source item not found!');
+                removeDragGhost();
+                isDragging.value = false;
+                draggedItemIndex.value = null;
+                dragStackedSlots.value.clear();
+                return;
+            }
+            
+            // Step 1: Apply wheel-stacked items to their slots
+            dragStackedSlots.value.forEach((quantity, slotIndexStr) => {
+                const isTargetSecond = slotIndexStr.startsWith('second-');
+                const targetIndex = isTargetSecond ? parseInt(slotIndexStr.replace('second-', '')) : parseInt(slotIndexStr);
+                const targetArray = isTargetSecond ? secondInventoryItems.value : inventoryItems.value;
                 
-                // Update source item quantity
-                if (!isFromEquipment && sourceArray) {
-                    if (dragCurrentQuantity.value === 0) {
-                        // All items distributed - remove source
-                        if (isFromSecond) {
-                            secondInventoryItems.value[fromActualIndex] = null;
+                if (targetArray[targetIndex] && targetArray[targetIndex].name === sourceItem.name) {
+                    targetArray[targetIndex].quantity = (targetArray[targetIndex].quantity || 1) + quantity;
+                    console.log('[Inventar] ✅ Stacked', quantity, 'x', sourceItem.name, 'into slot', slotIndexStr);
+                } else if (!targetArray[targetIndex]) {
+                    targetArray[targetIndex] = {
+                        ...sourceItem,
+                        quantity: quantity
+                    };
+                    console.log('[Inventar] ✅ Placed', quantity, 'x', sourceItem.name, 'into slot', slotIndexStr);
+                }
+            });
+            
+            // Step 2: Check for final drop target (if remaining quantity > 0)
+            if (targetSlot && dragCurrentQuantity.value > 0) {
+                const targetSlotIndex = targetSlot.getAttribute('data-slot-index');
+                
+                if (targetSlotIndex) {
+                    // Check if NOT already stacked via wheel
+                    const alreadyStacked = dragStackedSlots.value.has(targetSlotIndex);
+                    
+                    if (!alreadyStacked) {
+                        const isTargetSecond = targetSlotIndex.startsWith('second-');
+                        const targetIndex = isTargetSecond ? parseInt(targetSlotIndex.replace('second-', '')) : parseInt(targetSlotIndex);
+                        const targetArray = isTargetSecond ? secondInventoryItems.value : inventoryItems.value;
+                        
+                        if (targetArray[targetIndex] && targetArray[targetIndex].name === sourceItem.name) {
+                            targetArray[targetIndex].quantity = (targetArray[targetIndex].quantity || 1) + dragCurrentQuantity.value;
+                            console.log('[Inventar] 🎯 Final drop: Stacked REST', dragCurrentQuantity.value, 'x', sourceItem.name);
+                            dragCurrentQuantity.value = 0;
+                        } else if (!targetArray[targetIndex]) {
+                            targetArray[targetIndex] = {
+                                ...sourceItem,
+                                quantity: dragCurrentQuantity.value
+                            };
+                            console.log('[Inventar] 🎯 Final drop: Placed REST', dragCurrentQuantity.value, 'x', sourceItem.name);
+                            dragCurrentQuantity.value = 0;
                         } else {
-                            inventoryItems.value[fromIndex] = null;
+                            console.log('[Inventar] ⚠️ Target slot occupied - keeping', dragCurrentQuantity.value, 'in source');
                         }
-                        console.log('[Inventar] Source item fully distributed - removed');
                     } else {
-                        // Update remaining quantity
-                        sourceItem.quantity = dragCurrentQuantity.value;
-                        console.log('[Inventar] Source item reduced to', dragCurrentQuantity.value);
+                        console.log('[Inventar] ℹ️ Target was already wheel-stacked - keeping', dragCurrentQuantity.value, 'in source');
                     }
                 }
             }
             
-            // Send updated inventory to server after mouse-wheel stacking
-            console.log('[Inventar] 🔄 Syncing mouse-wheel stacked items to server...');
+            // Step 3: Update or remove source item
+            if (dragCurrentQuantity.value === 0) {
+                // ALL items distributed
+                if (isFromEquipment) {
+                    const fromEquipmentType = fromIndex.replace('equipment_', '');
+                    equipmentSlots.value[fromEquipmentType] = null;
+                } else if (isFromSecond) {
+                    secondInventoryItems.value[fromActualIndex] = null;
+                } else {
+                    inventoryItems.value[fromIndex] = null;
+                }
+                console.log('[Inventar] ✅ Source fully distributed - removed');
+            } else {
+                // Update remaining quantity in source
+                sourceItem.quantity = dragCurrentQuantity.value;
+                console.log('[Inventar] ℹ️ Source updated to', dragCurrentQuantity.value);
+            }
             
-            // Sync main inventory
+            // Step 4: Sync to server (SINGLE sync after all changes)
+            console.log('[Inventar] 🔄 Syncing to server...');
+            
             NUIBridge.send('updateInventoryOrder', {
                 inventory: inventoryItems.value.map((item, index) => item ? { ...item, slot: index } : null).filter(item => item !== null)
             });
             
-            // Sync dual inventory if changed (check if any second- slots were stacked)
-            const hasSecondInventoryChanges = Array.from(dragStackedSlots.value.keys()).some(key => key.startsWith('second-'));
+            // Check if dual inventory was modified
+            const hasSecondInventoryChanges = Array.from(dragStackedSlots.value.keys()).some(key => key.startsWith('second-')) ||
+                                             (targetSlot && targetSlot.getAttribute('data-slot-index')?.startsWith('second-'));
+            
             if (hasSecondInventoryChanges && dualInventoryOpen.value) {
                 console.log('[Inventar] 🔄 Syncing dual inventory to server...');
                 
@@ -1750,6 +1970,9 @@ const InventoryModule = {
         removeDragGhost();
         isDragging.value = false;
         draggedItemIndex.value = null;
+        dragStackedSlots.value.clear();
+        dragCurrentQuantity.value = 0;
+        dragOriginalQuantity.value = 0;
     };
 
     // Legacy handlers for compatibility (now just trigger mouse handlers)
@@ -1854,10 +2077,44 @@ const InventoryModule = {
         }
     };
     
-    onMounted(() => {
+    onMounted(async () => {
         console.log('[Inventar] Component mounted');
         console.log('[Inventar] Props data:', props.data);
+        
+        // Start mit opacity 0 während Design lädt
+        isDesignLoading.value = true;
+        
+        // KRITISCH: Wenn Store leer ist, fordere Settings vom Client an
+        if (!settingsStore.isLoaded) {
+            console.log('[Inventar] 🔄 Settings not loaded yet, requesting from client...');
+            await settingsStore.requestSettings();
+            // Warte länger bis Store reaktiv aktualisiert ist (200ms statt 50ms)
+            await new Promise(resolve => setTimeout(resolve, 200));
+        } else {
+            // Auch wenn geladen, warte einen Tick für Reaktivität
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        
+        // DEFAULT-HANDLING wie in Lua: const Design = userChoice || "forest"
+        // Lese direkt aus Store state (nicht computed getter)
+        const storeSettings = settingsStore.settings;
+        const savedDesign = storeSettings?.inventory_design || storeSettings?.['inventory_design'] || null;
+        const finalDesign = savedDesign || 'forest'; // Fallback to default
+        
+        console.log('[Inventar] 🎨 Design Loading - settingsStore.settings:', JSON.stringify(storeSettings));
+        console.log('[Inventar] 🎨 Design Loading - isLoaded:', settingsStore.isLoaded);
+        console.log('[Inventar] 🎨 Design Loading - Saved:', savedDesign, '| Final:', finalDesign);
+        layoutKey.value = finalDesign;
+        tempLayoutKey.value = finalDesign; // Sync temp for modal
+        
         loadInventoryData();
+        
+        // Warte 100ms damit Design vollständig laden kann (unsichtbar)
+        await new Promise(resolve => setTimeout(resolve, 100));
+        isDesignLoading.value = false; // Jetzt Fade-In
+        console.log('[Inventar] 🎨 Design loaded, fading in...');
+        
+        // KEIN Auto-Save mehr! Nur explizites Speichern via Button
         
         // Add global mouse event listeners for drag system
         document.addEventListener('mousemove', handleMouseMove);
@@ -1942,11 +2199,19 @@ const InventoryModule = {
                     toggleGiveMode,
                     toggleEquipmentModal,
                     toggleSettings,
+                    selectDesign,
+                    saveSettings,
                     handleClose,
                     confirmDualInventory,
                     saveDualInventory,
                     clearDualInventory,
-                    closeDualInventory
+                    closeDualInventory,
+                    // Add missing dual-inventory functions
+                    openGlovebox,
+                    openTrunk,
+                    openGround,
+                    openStorage,
+                    openBag
                 };
             }
         };
@@ -1955,8 +2220,11 @@ const InventoryModule = {
     return {
         // State
         layoutKey,
+        tempLayoutKey,
+        isDesignLoading,
         themeKey,
         animationKey,
+        inventoryScale,
         settingsOpen,
         settingsPosition,
         selectedItem,
@@ -2004,8 +2272,11 @@ const InventoryModule = {
         handleGive,
         openTrunk,
         openGlovebox,
+        openGround,
         openStorage,
         openBag,
+        selectDesign,
+        saveSettings,
         openDualInventory,
         saveDualInventory,
         clearDualInventory,
@@ -2029,8 +2300,11 @@ const InventoryModule = {
     <div :class="[
         'fixed inset-0 flex items-center justify-center p-8',
         'theme-' + themeKey,
+    ]"
+         :style="{ opacity: isDesignLoading ? 0 : 1, transition: 'opacity 0.2s ease-in' }">
+        <div :class="[
         'layout-' + layoutKey
-    ]">
+    ]" :style="{ transform: 'scale(' + inventoryScale + ')', transformOrigin: 'center' }">
         <!-- Settings Menu -->
         <Transition name="settings-fade">
             <div v-if="settingsOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center" @click.self="toggleSettings()">
@@ -2053,7 +2327,7 @@ const InventoryModule = {
                                 Layout
                             </div>
                             <div class="grid grid-cols-2 gap-2">
-                                <button v-for="(layout, key) in LAYOUTS" :key="key" @click="layoutKey = key" :class="['px-3 py-2.5 rounded-lg border text-slate-300 text-xs font-medium text-left transition-all', layoutKey === key ? 'bg-gradient-to-r from-sky-500/30 to-emerald-500/30 border-sky-500/80 text-slate-50 font-bold shadow-[0_0_16px_rgba(56,189,248,0.4)]' : 'bg-slate-800/60 border-slate-600/30 hover:bg-slate-700/80 hover:border-sky-500/50 hover:-translate-y-0.5']">
+                                <button v-for="(layout, key) in LAYOUTS" :key="key" @click="selectDesign(key)" :class="['px-3 py-2.5 rounded-lg border text-slate-300 text-xs font-medium text-left transition-all', tempLayoutKey === key ? 'bg-gradient-to-r from-sky-500/30 to-emerald-500/30 border-sky-500/80 text-slate-50 font-bold shadow-[0_0_16px_rgba(56,189,248,0.4)]' : 'bg-slate-800/60 border-slate-600/30 hover:bg-slate-700/80 hover:border-sky-500/50 hover:-translate-y-0.5']">
                                     {{ layout.name }}
                                 </button>
                             </div>
@@ -2084,6 +2358,13 @@ const InventoryModule = {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- Save Button -->
+                    <div class="px-4 pb-4 pt-2">
+                        <button @click="saveSettings()" class="w-full py-3 px-4 rounded-xl font-bold text-base uppercase tracking-wider bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-white shadow-[0_4px_20px_rgba(34,197,94,0.4)] hover:shadow-[0_6px_30px_rgba(34,197,94,0.6)] transition-all hover:scale-[1.02] active:scale-[0.98]">
+                            💾 Einstellungen Speichern
+                        </button>
                     </div>
                 </div>
             </div>

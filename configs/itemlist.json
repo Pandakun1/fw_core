@@ -17,7 +17,7 @@
     {"name": "duct_tape",       "label": "Klebeband",       "emoji": "📦", "itemweight": 150,      "type": "tool",      "canUse": false},
     {"name": "flashlight",      "label": "Taschenlampe",    "emoji": "🔦", "itemweight": 250,      "type": "tool",      "canUse": true},
     {"name": "binoculars",      "label": "Fernglas",        "emoji": "🔭", "itemweight": 350,      "type": "tool",      "canUse": true},
-    {"name": "backpack",        "label": "Rucksack",        "emoji": "🎒", "itemweight": 800,      "type": "bag",       "canUse": false},
+    {"name": "backpack",        "label": "Rucksack",        "emoji": "🎒", "itemweight": 800,      "type": "backpack",  "canUse": false},
     {"name": "duffle_bag",      "label": "Reisetasche",     "emoji": "💼", "itemweight": 1000,     "type": "bag",       "canUse": false},
     {"name": "money",           "label": "Bargeld",         "emoji": "💵", "itemweight": 0,        "type": "item",      "canUse": false},
     {"name": "id_card",         "label": "Personalausweis", "emoji": "🪪", "itemweight": 10,       "type": "item",      "canUse": false},

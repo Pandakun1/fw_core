@@ -26,6 +26,7 @@ server_scripts {
     'server/inventory_items.lua',
     'server/commands.lua',
     'server/licenses.lua',
+    'server/ui_settings.lua',          -- UI Settings System (spielerabhängig)
     'server/shutdown.lua',
     'server/spawnlogik.lua',
     'server/Abfragepunkte.lua'

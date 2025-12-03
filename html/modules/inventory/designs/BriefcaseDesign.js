@@ -1,12 +1,12 @@
 // Briefcase Design Template - Premium leather with stitching and metal hardware
 export function generateBriefcaseTemplate() {
     return `
-    <div class="relative w-full h-full flex justify-center overflow-hidden" :class="dualInventoryOpen ? 'items-start pt-[10vh]' : 'items-center'">
+    <div class="relative w-full h-full flex justify-center items-center overflow-hidden">
         <!-- Ambient Glow with Animation -->
         <div class="absolute inset-0 blur-[4vw] opacity-40 animate-pulse" style="background: radial-gradient(circle at 30% 40%, rgba(180,120,60,0.25), transparent 50%), radial-gradient(circle at 70% 60%, rgba(212,175,55,0.22), transparent 55%); animation-duration: 4s;"></div>
         
         <!-- Briefcase Shell with Leather Texture -->
-        <div class="relative w-full h-full rounded-[2.5vw] shadow-[0_2vw_4vw_rgba(0,0,0,0.95),inset_0_0_2vw_rgba(0,0,0,0.6)] border-4 p-[1.5vw] flex flex-col transition-all duration-500 hover:shadow-[0_2.5vw_5vw_rgba(212,175,55,0.3),inset_0_0_2vw_rgba(212,175,55,0.2)]" :class="dualInventoryOpen ? 'justify-start' : ''" style="background: linear-gradient(165deg, #5a3d25 0%, #4a2f1a 20%, #3d2415 45%, #2d1810 70%, #3d2415 85%, #4a2f1a 100%), repeating-linear-gradient(90deg, rgba(90,61,37,0.3) 0px, rgba(90,61,37,0.3) 1px, transparent 1px, transparent 10vw); border-color: #2d1810; animation: float 6s ease-in-out infinite;">
+        <div class="relative rounded-[2.5vw] shadow-[0_2vw_4vw_rgba(0,0,0,0.95),inset_0_0_2vw_rgba(0,0,0,0.6)] border-4 p-[1.5vw] flex flex-col transition-all duration-500 hover:shadow-[0_2.5vw_5vw_rgba(212,175,55,0.3),inset_0_0_2vw_rgba(212,175,55,0.2)]" :class="dualInventoryOpen ? 'w-[90vw] h-[64vh] justify-start' : 'w-full h-full'" style="background: linear-gradient(165deg, #5a3d25 0%, #4a2f1a 20%, #3d2415 45%, #2d1810 70%, #3d2415 85%, #4a2f1a 100%), repeating-linear-gradient(90deg, rgba(90,61,37,0.3) 0px, rgba(90,61,37,0.3) 1px, transparent 1px, transparent 10vw); border-color: #2d1810; animation: float 6s ease-in-out infinite;">
             
             <!-- Animated Shine Effect -->
             <div class="absolute inset-0 pointer-events-none opacity-30" style="background: linear-gradient(110deg, transparent 0%, transparent 40%, rgba(212,175,55,0.4) 50%, transparent 60%, transparent 100%); animation: shine 8s ease-in-out infinite;"></div>
@@ -35,7 +35,9 @@ export function generateBriefcaseTemplate() {
             <div class="absolute top-[50%] -translate-y-1/2 -left-[0.5vw] w-[1vw] h-[1vw] rounded-full" style="background: radial-gradient(circle, rgba(212,175,55,0.95), rgba(139,90,43,0.9)); box-shadow: inset 0 1px 2px rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.8);"></div>
             
             <!-- Content Grid -->
-            <div class="relative z-10 grid gap-[1vw] h-full" :class="dualInventoryOpen ? 'grid-cols-3 gap-[1.5vw] items-start justify-center' : 'grid-cols-[20%_1fr_20%_8%] grid-rows-[1fr_1fr]'" :style="dualInventoryOpen ? 'grid-template-columns: 38% 38% 10%;' : ''">
+            <div class="relative z-10 grid h-full" 
+                :class="dualInventoryOpen ? 'gap-[1vw]' : 'grid-cols-[20%_1fr_20%_8%] grid-rows-[1fr_1fr] gap-[1vw]'"
+                :style="dualInventoryOpen ? 'grid-template-columns: 45% 45% 8%; grid-template-rows: 1fr auto;' : ''">
                 
                 <!-- Wallet (top-left) - Quilted leather pocket -->
                 <div v-if="!dualInventoryOpen" class="col-start-1 row-start-1 relative rounded-[1.3vw] shadow-[0_0.8vw_1.7vw_rgba(0,0,0,0.85),inset_0_0.3vh_0.6vh_rgba(255,255,255,0.08)] border-2 p-[0.7vw] flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(90,61,37,0.85), rgba(74,47,26,0.9)), repeating-linear-gradient(45deg, rgba(139,90,60,0.1) 0, rgba(139,90,60,0.1) 0.8vw, transparent 0.8vw, transparent 1.6vw); border-color: rgba(212,175,55,0.6);">
@@ -64,7 +66,7 @@ export function generateBriefcaseTemplate() {
                 </div>
                 
                 <!-- Second Inventory (when dual mode active) OR Stats (top-right) -->
-                <div v-if="dualInventoryOpen" class="order-2 max-h-[47vh] rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(180,120,60,0.3), rgba(212,175,55,0.2)); border-color: rgba(212,175,55,0.5);">
+                <div v-if="dualInventoryOpen" class="row-start-1 row-span-2 col-start-2 rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(90,61,37,0.85), rgba(74,47,26,0.9)); border-color: rgba(212,175,55,0.5);">
                     <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(92,67,50,0.9), rgba(69,50,37,0.95)); border-color: rgba(217,119,6,0.3); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
                         <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-amber-200" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">📦 {{ dualInventoryTitle }}</div>
                         <div class="text-[0.6vw] uppercase text-amber-300/80">{{ secondInventoryItems.filter(isItemDefined).length }}/{{ secondInventoryItems.length }}</div>
@@ -96,16 +98,79 @@ export function generateBriefcaseTemplate() {
                     </div>
                 </div>
                 
+                <!-- Equipment Bar (horizontal strip below player inventory only) -->
+                <div v-if="dualInventoryOpen" class="row-start-2 col-start-1 rounded-[1vw] shadow-[0_0.5vw_1vw_rgba(0,0,0,0.9),inset_0_0.3vh_0.6vh_rgba(0,0,0,0.6)] border-2 p-[0.5vw] flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(90,61,37,0.9), rgba(74,47,26,0.95)); border-color: rgba(212,175,55,0.5);">
+                    <div class="flex justify-between items-baseline mb-[0.5vh]">
+                        <div class="font-bold text-[0.7vw] uppercase tracking-[0.16em] text-amber-200" style="text-shadow: 0 2px 3px rgba(0,0,0,0.7);">🎫 Ausrüstung</div>
+                        <div class="text-[0.6vw] uppercase text-amber-300/80">4 Slots</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-4 gap-[0.4vw]">
+                        <div data-equipment-slot="vest" @mousedown="handleEquipmentMouseDown($event, 'vest')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-amber-400 hover:bg-amber-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(212,175,55,0.05); border-color: rgba(212,175,55,0.4);">
+                            <template v-if="equipmentSlots.vest">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(90,61,37,0.6);">{{ equipmentSlots.vest.emoji }}</div>
+                                <span v-if="equipmentSlots.vest.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-amber-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.vest.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🦺</span>
+                                <span class="text-[0.5vw] uppercase text-amber-50/90">Weste</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="weapon" @mousedown="handleEquipmentMouseDown($event, 'weapon')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-amber-400 hover:bg-amber-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(212,175,55,0.05); border-color: rgba(212,175,55,0.4);">
+                            <template v-if="equipmentSlots.weapon">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(90,61,37,0.6);">{{ equipmentSlots.weapon.emoji }}</div>
+                                <span v-if="equipmentSlots.weapon.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-amber-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.weapon.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🔫</span>
+                                <span class="text-[0.5vw] uppercase text-amber-50/90">Waffe</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="bag1" @mousedown="handleEquipmentMouseDown($event, 'bag1')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-amber-400 hover:bg-amber-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(212,175,55,0.05); border-color: rgba(212,175,55,0.4);">
+                            <template v-if="equipmentSlots.bag1">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(90,61,37,0.6);">{{ equipmentSlots.bag1.emoji }}</div>
+                                <span v-if="equipmentSlots.bag1.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-amber-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.bag1.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">👜</span>
+                                <span class="text-[0.5vw] uppercase text-amber-100/90">Tasche 1</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="bag2" @mousedown="handleEquipmentMouseDown($event, 'bag2')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-amber-400 hover:bg-amber-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(212,175,55,0.05); border-color: rgba(212,175,55,0.4);">
+                            <template v-if="equipmentSlots.bag2">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(90,61,37,0.6);">{{ equipmentSlots.bag2.emoji }}</div>
+                                <span v-if="equipmentSlots.bag2.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-amber-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.bag2.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🎒</span>
+                                <span class="text-[0.5vw] uppercase text-amber-100/90">Tasche 2</span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Button Column (only visible in dual mode) - Briefcase style -->
-                <div v-if="dualInventoryOpen" class="order-3 flex flex-col gap-[1.5vh] justify-center max-h-[47vh]">
-                    <!-- Items Entfernen Button -->
-                    <button @click="clearDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(180,120,60,0.95), rgba(139,90,43,0.98)); color: #fed7aa; border-color: rgba(251,191,36,0.6); box-shadow: 0 0.5vh 1vh rgba(139,90,43,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        🗑️ Items Entfernen
+                <div v-if="dualInventoryOpen" class="row-start-1 row-span-2 col-start-3 flex flex-col gap-[1vh] justify-end">
+                    <!-- Bargeld Anzeige -->
+                    <div class="w-full rounded-lg border-2 p-[0.4vw] flex flex-col items-center gap-[0.3vh]" style="background: linear-gradient(135deg, rgba(90,61,37,0.9), rgba(74,47,26,0.95)); border-color: rgba(212,175,55,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8);">
+                        <div class="w-[2vw] h-[2vw] rounded-lg flex items-center justify-center text-[1.2vw]" style="background: radial-gradient(circle, rgba(251,191,36,0.85), rgba(217,119,6,0.9)); box-shadow: 0 0.2vw 0.4vw rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.3);">💰</div>
+                        <div class="text-[0.5vw] uppercase tracking-wider text-amber-200">Bargeld</div>
+                        <div class="text-[0.8vw] font-bold text-amber-100" style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">2.500 $</div>
+                    </div>
+                    
+                    <!-- Kleidung Button -->
+                    <button @click="openClothing" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(139,90,60,0.8)]" style="background: linear-gradient(135deg, rgba(90,61,37,0.95), rgba(74,47,26,0.98)); border-color: rgba(212,175,55,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8);">
+                        <span class="text-[1.8vw]">👔</span>
                     </button>
                     
-                    <!-- Schließen & Speichern Button -->
-                    <button @click="closeDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(74,133,71,0.95), rgba(56,103,54,0.98)); color: #e7f4e7; border-color: rgba(134,239,172,0.6); box-shadow: 0 0.5vh 1vh rgba(56,103,54,0.6), inset 0 1px 3px rgba(255,255,255,0.15); text-shadow: 0 2px 4px rgba(0,0,0,0.9);">
-                        ✅ Schließen & Speichern
+                    <!-- Items Entfernen Button -->
+                    <button @click="clearDualInventory" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(217,119,6,0.8)]" style="background: linear-gradient(135deg, rgba(180,120,60,0.95), rgba(139,90,43,0.98)); border-color: rgba(217,119,6,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8);">
+                        <span class="text-[1.8vw]">🗑️</span>
+                    </button>
+                    
+                    <!-- Schließen & Speichern Button (ganz unten) -->
+                    <button @click="closeDualInventory" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(74,133,71,0.8)]" style="background: linear-gradient(135deg, rgba(74,133,71,0.95), rgba(56,103,54,0.98)); border-color: rgba(134,239,172,0.7); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), 0 0 1vw rgba(74,133,71,0.3);">
+                        <span class="text-[1.8vw]">✅</span>
                     </button>
                 </div>
                 
@@ -154,15 +219,15 @@ export function generateBriefcaseTemplate() {
                 </div>
                 
                 <!-- Main inventory (center) -->
-                <div :class="dualInventoryOpen ? 'order-1 max-h-[47vh]' : 'col-start-2 row-start-1 row-span-2'" class="rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(61,40,23,0.9), rgba(45,24,16,0.95), rgba(26,15,8,0.98)); border-color: rgba(212,175,55,0.6);">
+                <div :class="dualInventoryOpen ? 'row-start-1 col-start-1' : 'col-start-2 row-start-1 row-span-2'" class="rounded-[1.3vw] shadow-[0_0.8vw_1.6vw_rgba(0,0,0,0.95),inset_0_0.5vh_1vh_rgba(0,0,0,0.6)] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(74,47,26,0.95), rgba(58,37,21,0.98)); border-color: rgba(139,90,60,0.6);">
                     <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(45,24,16,0.95), rgba(26,15,8,0.98)); border-color: rgba(212,175,55,0.4); box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
                         <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-amber-200" style="text-shadow: 0 2px 4px rgba(0,0,0,0.8);">🎒 Inventar</div>
                         <div class="text-[0.6vw] uppercase text-amber-300/80">50 Slots • {{ inventoryItems.filter(isItemDefined).length }} belegt</div>
                     </div>
                     
                     <!-- Custom Scrollbar: Brown-Gold theme -->
-                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-briefcase" :class="dualInventoryOpen ? 'p-[0.8vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(212,175,55,0.95) rgba(45,24,16,0.9);">
-                        <div class="grid" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.5vw]' : 'grid-cols-5 gap-[0.6vw]'">
+                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-briefcase" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(212,175,55,0.95) rgba(45,24,16,0.9);">
+                        <div class="grid auto-rows-min" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.4vw]' : 'grid-cols-5 gap-[0.6vw]'">
                             <div v-for="(item, index) in inventoryItems" :key="index" 
                                 :data-slot-index="index"
                                 :class="[
@@ -257,7 +322,11 @@ export function generateBriefcaseTemplate() {
                         <div class="font-bold text-[0.7vw] uppercase tracking-[0.16em] text-amber-100" style="text-shadow: 0 2px 4px rgba(0,0,0,0.7);">⚡ Quick Actions</div>
                     </div>
                     <button @click="openClothing" class="w-full aspect-square rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105" style="background: linear-gradient(135deg, rgba(90,61,37,0.85), rgba(61,40,23,0.9)); border-color: rgba(212,175,55,0.6); box-shadow: 0 0.4vw 0.8vw rgba(0,0,0,0.7);">
-                        <span class="text-[2vw]">👔</span>
+                        <span class="text-[1.8vw]">👔</span>
+                    </button>
+                    
+                    <button @click="openGround" class="w-full aspect-square rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105" style="background: linear-gradient(135deg, rgba(90,61,37,0.85), rgba(61,40,23,0.9)); border-color: rgba(212,175,55,0.6); box-shadow: 0 0.4vw 0.8vw rgba(0,0,0,0.7);">
+                        <span class="text-[1.8vw]">🌍</span>
                     </button>
                     <button @click="openGlovebox" class="w-full aspect-square rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105" style="background: linear-gradient(135deg, rgba(90,61,37,0.85), rgba(61,40,23,0.9)); border-color: rgba(212,175,55,0.6); box-shadow: 0 0.4vw 0.8vw rgba(0,0,0,0.7);">
                         <span class="text-[2vw]">🧤</span>

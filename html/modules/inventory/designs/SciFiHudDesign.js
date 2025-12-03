@@ -1,7 +1,7 @@
 // Sci-Fi HUD Design Template - Futuristic holographic interface with cyan glow effects
 export function generateSciFiHudTemplate() {
     return `
-    <div class="relative w-full h-full flex justify-center overflow-hidden" :class="dualInventoryOpen ? 'items-start pt-[10vh]' : 'items-center'">
+    <div class="relative w-full h-full flex justify-center items-center overflow-hidden">
         <!-- Animated Background Data Streams -->
         <div class="absolute inset-0 opacity-35 pointer-events-none overflow-hidden">
             <div class="absolute w-full h-[0.15vh] bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-[scan_4s_ease-in-out_infinite]" style="top: 20%; animation-delay: 0s; box-shadow: 0 0 1vw rgba(6,182,212,0.8);"></div>
@@ -18,7 +18,7 @@ export function generateSciFiHudTemplate() {
             repeating-linear-gradient(90deg, transparent 0, transparent 2vw, rgba(6,182,212,0.4) 2vw, rgba(6,182,212,0.4) calc(2vw + 1px));"></div>
         
         <!-- Main HUD Container with Hexagon Clip -->
-        <div class="relative w-full h-full p-[1.5vw] flex flex-col" :class="dualInventoryOpen ? 'justify-start' : ''" style="background: linear-gradient(135deg, rgba(12,30,46,0.95), rgba(8,47,73,0.98), rgba(4,24,38,0.99)); box-shadow: inset 0 0 3vw rgba(6,182,212,0.3), 0 0 2vw rgba(6,182,212,0.5); animation: hologramFlicker 0.15s infinite alternate;">
+        <div class="relative p-[1.5vw] flex flex-col" :class="dualInventoryOpen ? 'w-[90vw] h-[64vh] justify-start' : 'w-full h-full'" style="background: linear-gradient(135deg, rgba(12,30,46,0.95), rgba(8,47,73,0.98), rgba(4,24,38,0.99)); box-shadow: inset 0 0 3vw rgba(6,182,212,0.3), 0 0 2vw rgba(6,182,212,0.5); animation: hologramFlicker 0.15s infinite alternate;">
             
             <!-- Rotating Hexagon Border -->
             <div class="absolute inset-0 opacity-40 pointer-events-none" style="background: conic-gradient(from 0deg at 50% 50%, rgba(6,182,212,0.6) 0deg, transparent 60deg, rgba(217,70,239,0.6) 180deg, transparent 240deg, rgba(34,197,94,0.6) 300deg, transparent 360deg); animation: rotate 20s linear infinite;"></div>
@@ -41,7 +41,9 @@ export function generateSciFiHudTemplate() {
             </div>
             
             <!-- Content Grid -->
-            <div class="relative z-10 grid gap-[1vw] h-full" :class="dualInventoryOpen ? 'grid-cols-3 gap-[1.5vw] items-start justify-center' : 'grid-cols-[20%_1fr_20%_8%] grid-rows-[1fr_1fr]'" :style="dualInventoryOpen ? 'grid-template-columns: 38% 38% 10%;' : ''">
+            <div class="relative z-10 grid h-full" 
+                :class="dualInventoryOpen ? 'gap-[1vw]' : 'grid-cols-[20%_1fr_20%_8%] grid-rows-[1fr_1fr] gap-[1vw]'"
+                :style="dualInventoryOpen ? 'grid-template-columns: 45% 45% 8%; grid-template-rows: 1fr auto;' : ''">
                 
                 <!-- Wallet (top-left) - Holographic Data Panel -->
                 <div v-if="!dualInventoryOpen" class="col-start-1 row-start-1 relative rounded-[0.8vw] border-2 p-[0.7vw] flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(6,182,212,0.08), rgba(8,47,73,0.85)); border-color: rgba(6,182,212,0.6); box-shadow: 0 0 1.5vw rgba(6,182,212,0.5), inset 0 0 1vw rgba(6,182,212,0.15);">
@@ -76,7 +78,7 @@ export function generateSciFiHudTemplate() {
                 </div>
                 
                 <!-- Second Inventory (when dual mode active) OR Stats (top-right) - Bio Monitor -->
-                <div v-if="dualInventoryOpen" class="order-2 max-h-[47vh] rounded-[0.8vw] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(8,47,73,0.85)); border-color: rgba(16,185,129,0.6); box-shadow: 0 0 1.5vw rgba(16,185,129,0.5), inset 0 0 1vw rgba(16,185,129,0.15);">
+                <div v-if="dualInventoryOpen" class="row-start-1 row-span-2 col-start-2 rounded-[0.8vw] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(8,47,73,0.85)); border-color: rgba(16,185,129,0.6); box-shadow: 0 0 1.5vw rgba(16,185,129,0.5), inset 0 0 1vw rgba(16,185,129,0.15);">
                     <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(8,47,73,0.9), rgba(4,24,38,0.95)); border-color: rgba(16,185,129,0.4); box-shadow: 0 0 1vw rgba(16,185,129,0.4);">
                         <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-cyan-200" style="text-shadow: 0 0 0.5vw rgba(16,185,129,0.8);">📦 {{ dualInventoryTitle }}</div>
                         <div class="text-[0.6vw] uppercase text-cyan-400/80" style="text-shadow: 0 0 0.4vw rgba(6,182,212,0.8);">{{ secondInventoryItems.filter(isItemDefined).length }}/{{ secondInventoryItems.length }}</div>
@@ -108,13 +110,79 @@ export function generateSciFiHudTemplate() {
                     </div>
                 </div>
                 
+                <!-- Equipment Bar (horizontal strip below player inventory only) -->
+                <div v-if="dualInventoryOpen" class="row-start-2 col-start-1 rounded-[0.8vw] border-2 p-[0.5vw] flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(8,47,73,0.85), rgba(4,24,38,0.9)); border-color: rgba(6,182,212,0.5); box-shadow: 0 0 1vw rgba(6,182,212,0.4), inset 0 0 0.5vw rgba(6,182,212,0.1);">
+                    <div class="flex justify-between items-baseline mb-[0.5vh]">
+                        <div class="font-bold text-[0.7vw] uppercase tracking-[0.16em] text-cyan-300" style="text-shadow: 0 0 0.5vw rgba(6,182,212,0.8);">🎫 Ausrüstung</div>
+                        <div class="text-[0.6vw] uppercase text-cyan-400/80">4 Slots</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-4 gap-[0.4vw]">
+                        <div data-equipment-slot="vest" @mousedown="handleEquipmentMouseDown($event, 'vest')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-cyan-400 hover:bg-cyan-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(6,182,212,0.05); border-color: rgba(6,182,212,0.3);">
+                            <template v-if="equipmentSlots.vest">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(8,47,73,0.6);">{{ equipmentSlots.vest.emoji }}</div>
+                                <span v-if="equipmentSlots.vest.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-cyan-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.vest.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🦺</span>
+                                <span class="text-[0.5vw] uppercase text-cyan-200/90">Weste</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="weapon" @mousedown="handleEquipmentMouseDown($event, 'weapon')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-cyan-400 hover:bg-cyan-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(6,182,212,0.05); border-color: rgba(6,182,212,0.3);">
+                            <template v-if="equipmentSlots.weapon">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(8,47,73,0.6);">{{ equipmentSlots.weapon.emoji }}</div>
+                                <span v-if="equipmentSlots.weapon.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-cyan-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.weapon.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🔫</span>
+                                <span class="text-[0.5vw] uppercase text-cyan-200/90">Waffe</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="bag1" @mousedown="handleEquipmentMouseDown($event, 'bag1')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-cyan-400 hover:bg-cyan-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(6,182,212,0.05); border-color: rgba(6,182,212,0.3);">
+                            <template v-if="equipmentSlots.bag1">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(8,47,73,0.6);">{{ equipmentSlots.bag1.emoji }}</div>
+                                <span v-if="equipmentSlots.bag1.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-cyan-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.bag1.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">👜</span>
+                                <span class="text-[0.5vw] uppercase text-cyan-200/90">Tasche 1</span>
+                            </template>
+                        </div>
+                        <div data-equipment-slot="bag2" @mousedown="handleEquipmentMouseDown($event, 'bag2')" class="rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-[0.35vw] transition-all hover:border-cyan-400 hover:bg-cyan-500/10 cursor-pointer relative" style="aspect-ratio: 1/1; background: rgba(6,182,212,0.05); border-color: rgba(6,182,212,0.3);">
+                            <template v-if="equipmentSlots.bag2">
+                                <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw]" style="background: rgba(8,47,73,0.6);">{{ equipmentSlots.bag2.emoji }}</div>
+                                <span v-if="equipmentSlots.bag2.quantity > 1" class="absolute top-[0.2vh] right-[0.3vw] bg-cyan-500 text-white text-[0.5vw] font-bold px-[0.3vw] rounded-full">{{ equipmentSlots.bag2.quantity }}</span>
+                            </template>
+                            <template v-else>
+                                <span class="text-[1.5vw]">🎒</span>
+                                <span class="text-[0.5vw] uppercase text-cyan-200/90">Tasche 2</span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Button Column (only visible in dual mode) - Holographic style -->
-                <div v-if="dualInventoryOpen" class="order-3 flex flex-col gap-[1.5vh] justify-center max-h-[47vh]">
-                    <button @click="clearDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(245,158,11,0.9), rgba(217,119,6,0.95)); color: #fef3c7; border-color: rgba(252,211,77,0.8); box-shadow: 0 0.5vh 1vh rgba(217,119,6,0.8), inset 0 0 1vw rgba(252,211,77,0.3), 0 0 1.5vw rgba(245,158,11,0.5); text-shadow: 0 0 0.5vw rgba(252,211,77,0.8);">
-                        🗑️ Items Entfernen
+                <div v-if="dualInventoryOpen" class="row-start-1 row-span-2 col-start-3 flex flex-col gap-[1vh] justify-end">
+                    <!-- Bargeld Anzeige -->
+                    <div class="w-full rounded-lg border-2 p-[0.4vw] flex flex-col items-center gap-[0.3vh]" style="background: linear-gradient(135deg, rgba(8,47,73,0.9), rgba(4,24,38,0.95)); border-color: rgba(6,182,212,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), 0 0 1vw rgba(6,182,212,0.4);">
+                        <div class="w-[2vw] h-[2vw] rounded-lg flex items-center justify-center text-[1.2vw]" style="background: radial-gradient(circle, rgba(16,185,129,0.85), rgba(5,150,105,0.9)); box-shadow: 0 0.2vw 0.4vw rgba(0,0,0,0.5), 0 0 0.8vw rgba(16,185,129,0.6);">💰</div>
+                        <div class="text-[0.5vw] uppercase tracking-wider text-cyan-300">Bargeld</div>
+                        <div class="text-[0.8vw] font-bold text-cyan-100" style="text-shadow: 0 0 0.5vw rgba(6,182,212,0.6);">2.500 $</div>
+                    </div>
+                    
+                    <!-- Kleidung Button -->
+                    <button @click="openClothing" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(6,182,212,0.8)]" style="background: linear-gradient(135deg, rgba(8,47,73,0.95), rgba(4,24,38,0.98)); border-color: rgba(6,182,212,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), 0 0 1vw rgba(6,182,212,0.3);">
+                        <span class="text-[1.8vw]">👔</span>
                     </button>
-                    <button @click="closeDualInventory" class="w-full px-[0.8vw] py-[1.2vh] rounded-xl border-2 font-bold text-[0.7vw] uppercase tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_2vw_currentColor] active:scale-95" style="background: linear-gradient(135deg, rgba(34,197,94,0.9), rgba(5,150,105,0.95)); color: #d1fae5; border-color: rgba(110,231,183,0.8); box-shadow: 0 0.5vh 1vh rgba(5,150,105,0.8), inset 0 0 1vw rgba(110,231,183,0.3), 0 0 1.5vw rgba(34,197,94,0.5); text-shadow: 0 0 0.5vw rgba(110,231,183,0.8);">
-                        ✅ Schließen & Speichern
+                    
+                    <!-- Items Entfernen Button -->
+                    <button @click="clearDualInventory" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(245,158,11,0.8)]" style="background: linear-gradient(135deg, rgba(245,158,11,0.95), rgba(217,119,6,0.98)); border-color: rgba(252,211,77,0.6); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), 0 0 1vw rgba(245,158,11,0.4);">
+                        <span class="text-[1.8vw]">🗑️</span>
+                    </button>
+                    
+                    <!-- Schließen & Speichern Button (ganz unten) -->
+                    <button @click="closeDualInventory" class="w-full aspect-square rounded-lg border-2 flex items-center justify-center transition-all hover:scale-105 hover:shadow-[0_0_1.5vw_rgba(34,197,94,0.8)]" style="background: linear-gradient(135deg, rgba(34,197,94,0.95), rgba(5,150,105,0.98)); border-color: rgba(110,231,183,0.7); box-shadow: 0 0.3vw 0.6vw rgba(0,0,0,0.8), 0 0 1vw rgba(34,197,94,0.4);">
+                        <span class="text-[1.8vw]">✅</span>
                     </button>
                 </div>
                 
@@ -151,7 +219,7 @@ export function generateSciFiHudTemplate() {
                 </div>
                 
                 <!-- Keys (bottom-left) - Access Terminal -->
-                <div class="col-start-1 row-start-2 relative rounded-[0.8vw] border-2 p-[0.7vw] flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(217,70,239,0.08), rgba(8,47,73,0.85)); border-color: rgba(217,70,239,0.6); box-shadow: 0 0 1.5vw rgba(217,70,239,0.5), inset 0 0 1vw rgba(217,70,239,0.15);">
+                <div v-if="!dualInventoryOpen" class="col-start-1 row-start-2 relative rounded-[0.8vw] border-2 p-[0.7vw] flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(217,70,239,0.08), rgba(8,47,73,0.85)); border-color: rgba(217,70,239,0.6); box-shadow: 0 0 1.5vw rgba(217,70,239,0.5), inset 0 0 1vw rgba(217,70,239,0.15);">
                     <!-- Data stream effect -->
                     <div class="absolute inset-0 pointer-events-none opacity-20" style="background: repeating-linear-gradient(90deg, transparent 0, transparent 1vw, rgba(217,70,239,0.3) 1vw, rgba(217,70,239,0.3) calc(1vw + 1px)); animation: dataStream 2s linear infinite;"></div>
                     
@@ -169,15 +237,15 @@ export function generateSciFiHudTemplate() {
                 </div>
                 
                 <!-- Main inventory (center) - Storage Matrix -->
-                <div :class="dualInventoryOpen ? 'order-1 max-h-[47vh]' : 'col-start-2 row-start-1 row-span-2'" class="rounded-[0.8vw] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(6,182,212,0.05), rgba(4,24,38,0.95)); border-color: rgba(6,182,212,0.7); box-shadow: 0 0 2vw rgba(6,182,212,0.6), inset 0 0 1.5vw rgba(6,182,212,0.1);">
+                <div :class="dualInventoryOpen ? 'row-start-1 col-start-1' : 'col-start-2 row-start-1 row-span-2'" class="rounded-[0.8vw] border-2 flex flex-col overflow-hidden" style="background: linear-gradient(135deg, rgba(6,182,212,0.05), rgba(4,24,38,0.95)); border-color: rgba(6,182,212,0.7); box-shadow: 0 0 2vw rgba(6,182,212,0.6), inset 0 0 1.5vw rgba(6,182,212,0.1);">
                     <div class="px-[1vw] py-[0.8vh] border-b-2 flex justify-between items-baseline" style="background: linear-gradient(90deg, rgba(8,47,73,0.95), rgba(12,30,46,0.98)); border-color: rgba(6,182,212,0.5); box-shadow: 0 0 1vw rgba(6,182,212,0.4);">
                         <div class="font-bold text-[0.75vw] uppercase tracking-[0.22em] text-cyan-300" style="text-shadow: 0 0 0.5vw rgba(6,182,212,1);">🎒 Inventar</div>
                         <div class="text-[0.6vw] uppercase text-cyan-400/80" style="text-shadow: 0 0 0.4vw rgba(6,182,212,0.8);">50 Slots • {{ inventoryItems.filter(isItemDefined).length }} belegt</div>
                     </div>
                     
                     <!-- Custom Scrollbar: Cyber theme -->
-                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-scifi" :class="dualInventoryOpen ? 'p-[0.8vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(6,182,212,0.95) rgba(8,47,73,0.9);">
-                        <div class="grid" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.5vw]' : 'grid-cols-5 gap-[0.6vw]'">
+                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-scifi" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(6,182,212,0.95) rgba(8,47,73,0.9);">
+                        <div class="grid auto-rows-min" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.4vw]' : 'grid-cols-5 gap-[0.6vw]'">
                             <div v-for="(item, index) in inventoryItems" :key="index" 
                                 :data-slot-index="index"
                                 :class="[
@@ -272,7 +340,11 @@ export function generateSciFiHudTemplate() {
                         <div class="font-bold text-[0.7vw] uppercase tracking-[0.16em] text-cyan-300" style="text-shadow: 0 0 0.6vw rgba(6,182,212,0.8);">⚡ Quick Actions</div>
                     </div>
                     <button @click="openClothing" class="w-full aspect-square rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105" style="background: linear-gradient(135deg, rgba(8,47,73,0.95), rgba(4,24,38,0.98)); border-color: rgba(6,182,212,0.6); box-shadow: 0 0 1.5vw rgba(6,182,212,0.4), inset 0 0 1vw rgba(6,182,212,0.15);">
-                        <span class="text-[2vw]">👔</span>
+                        <span class="text-[1.8vw]">👔</span>
+                    </button>
+                    
+                    <button @click="openGround" class="w-full aspect-square rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105" style="background: linear-gradient(135deg, rgba(8,47,73,0.95), rgba(4,24,38,0.98)); border-color: rgba(6,182,212,0.6); box-shadow: 0 0 1.5vw rgba(6,182,212,0.4), inset 0 0 1vw rgba(6,182,212,0.15);">
+                        <span class="text-[1.8vw]">🌍</span>
                     </button>
                     <button @click="openGlovebox" class="w-full aspect-square rounded-xl border-2 flex items-center justify-center transition-all hover:scale-105" style="background: linear-gradient(135deg, rgba(8,47,73,0.95), rgba(4,24,38,0.98)); border-color: rgba(6,182,212,0.6); box-shadow: 0 0 1.5vw rgba(6,182,212,0.4), inset 0 0 1vw rgba(6,182,212,0.15);">
                         <span class="text-[2vw]">🧤</span>

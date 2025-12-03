@@ -17,6 +17,7 @@ function FW.DB.SetupTables()
             money_bank      INT NOT NULL DEFAULT 0,
             inventory       LONGTEXT NOT NULL DEFAULT '{}',
             inventory_slots LONGTEXT DEFAULT NULL,
+            ui_settings     LONGTEXT DEFAULT NULL,
             job_name        VARCHAR(50) NOT NULL DEFAULT 'unemployed',
             job_grade       INT NOT NULL DEFAULT 0,
             position_x      DOUBLE NOT NULL DEFAULT 0,
@@ -167,6 +168,7 @@ function FW.DB.SavePlayer(row, cb)
                 position_y = ?,
                 position_z = ?,
                 inventory = ?,
+                ui_settings = ?,
                 daten = ?,
                 last_seen = CURRENT_TIMESTAMP
             WHERE identifier = ?
@@ -186,6 +188,7 @@ function FW.DB.SavePlayer(row, cb)
             row.position_y or 0,
             row.position_z or 75,
             row.inventory or '[]',
+            row.ui_settings or '{}',
             row.daten or '{}',
             row.identifier
         },

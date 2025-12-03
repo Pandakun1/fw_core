@@ -12,8 +12,15 @@ import MulticharModule from './modules/character/MulticharModule.js';
 import CharCreatorModule from './modules/character/CharCreatorModule.js';
 import AppearanceModule from './modules/character/AppearanceModule.js';
 
+// Settings System
+import { useSettingsStore } from './modules/settings/SettingsStore.js';
+
 const App = {
     setup() {
+        // Initialize Settings Store
+        const settingsStore = useSettingsStore();
+        console.log('[App] Settings Store initialized:', settingsStore);
+        
         const isVisible = ref(false);
         const activeRoute = ref(null);
         const routeData = ref({});
@@ -116,3 +123,16 @@ const app = createApp(App);
 app.component('hud-component', HUDModule);
 app.component('notify-component', NotifyModule);
 app.mount('#app');
+
+// ============================================
+// NUI READY SIGNAL (für Settings System)
+// ============================================
+setTimeout(() => {
+    fetch(`https://fw_core/nuiReady`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    }).catch(() => {
+        console.log('[App] NUI Ready signal sent (or running in browser)');
+    });
+}, 500); // Warte bis Vue App vollständig geladen ist

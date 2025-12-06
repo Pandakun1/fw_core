@@ -1,7 +1,7 @@
 // Forest Design Template - Immersive woodland experience with trees, wood, moss, and nature
 export function generateForestTemplate() {
     return `
-    <div class="relative w-full h-full flex justify-center items-center overflow-hidden">
+    <div class="relative rounded-[2.5vw] w-full h-full flex justify-center items-center overflow-hidden">
         <!-- Mystical Forest Atmosphere with Magic Glow -->
         <div class="absolute inset-0 blur-[3vw] opacity-60 animate-pulse" style="background: radial-gradient(circle at 30% 40%, rgba(52,211,153,0.25), transparent 45%), radial-gradient(circle at 70% 60%, rgba(34,197,94,0.22), transparent 50%), radial-gradient(circle at 50% 80%, rgba(101,163,13,0.28), transparent 55%), radial-gradient(circle at 80% 30%, rgba(74,222,128,0.15), transparent 50%); animation-duration: 4s;"></div>
         
@@ -96,9 +96,6 @@ export function generateForestTemplate() {
                                     <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw] z-10" style="background: rgba(20,83,45,0.6);">{{ item.emoji }}</div>
                                     <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-white text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(34,197,94,0.9), rgba(22,163,74,0.95)); box-shadow: 0 0 0.4vw rgba(34,197,94,0.6);">
                                         {{ item.quantity }}
-                                    </div>
-                                    <div v-if="hoveredItem === item.id" class="absolute left-1/2 bottom-full -translate-x-1/2 mb-[0.4vh] px-[0.5vw] py-[0.3vh] rounded-lg text-[0.65vw] border whitespace-nowrap z-50 animate-[fadeIn_0.16s_ease-out]" style="background: rgba(5,46,22,0.98); color: #d1fae5; border-color: rgba(52,211,153,0.6);">
-                                        {{ item.name }}
                                     </div>
                                 </template>
                             </div>
@@ -239,7 +236,7 @@ export function generateForestTemplate() {
                         <div class="text-[0.6vw] uppercase text-emerald-300/80">50 Slots • {{ inventoryItems.filter(isItemDefined).length }} belegt</div>
                     </div>
                     
-                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-forest" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(34,197,94,0.95) rgba(45,24,16,0.9);">
+                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-forest rounded-lg" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(34,197,94,0.95) rgba(45,24,16,0.9);">
                         <div class="grid auto-rows-min" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.4vw]' : 'grid-cols-5 gap-[0.6vw]'">
                             <div v-for="(item, index) in inventoryItems" :key="index" 
                                 :data-slot-index="index"
@@ -273,9 +270,6 @@ export function generateForestTemplate() {
                                     <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw] z-10" style="background: rgba(61,40,23,0.3);">{{ item.emoji }}</div>
                                     <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-white text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(34,197,94,0.9), rgba(22,163,74,0.95)); box-shadow: 0 0 0.4vw rgba(34,197,94,0.6);">
                                         {{ item.quantity }}
-                                    </div>
-                                    <div v-if="hoveredItem === item.id" class="absolute left-1/2 bottom-full -translate-x-1/2 mb-[0.4vh] px-[0.5vw] py-[0.3vh] rounded-lg text-[0.65vw] border whitespace-nowrap z-50 animate-[fadeIn_0.16s_ease-out]" style="background: rgba(45,24,16,0.98); color: #fef3c7; border-color: rgba(52,211,153,0.6);">
-                                        {{ item.name }}
                                     </div>
                                 </template>
                             </div>

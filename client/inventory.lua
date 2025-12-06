@@ -11,7 +11,7 @@ function OpenInventory()
     -- Check beim Manager, ob z.B. Admin Menu schon offen ist
     if exports['fw_core']:IsAnyUIOpen() then return end 
 
-    print('[Inventory] Opening...')
+    FW.Debug('Inventory', 'Opening...')
     
     if FW and FW.TriggerCallback then
         FW.TriggerCallback('fw:inventory:getInventoryData', function(inventory)
@@ -28,8 +28,8 @@ function OpenInventory()
                     inventoryData = inventory.inventory
                 end
                 
-                print('[Inventory] Received inventory type:', type(inventoryData))
-                print('[Inventory] Inventory data:', json.encode(inventoryData))
+                FW.Debug('Inventory', 'Received inventory', type(inventoryData))
+                FW.DebugTable('Inventory', 'Inventory data', inventoryData)
                 
                 local playerPed = PlayerPedId()
                 local health = (GetEntityHealth(playerPed) - 100) / (GetEntityMaxHealth(playerPed) - 100) * 100
@@ -78,7 +78,7 @@ function CloseInventory()
             return
         end
         
-        print('[Inventory] Speichere Inventar nach Schließen...')
+        FW.Debug('Inventory', 'Saving inventory after close')
         TriggerServerEvent('fw:inventory:saveInventory')
     end)
 end
@@ -168,8 +168,10 @@ RegisterNetEvent('fw:inventory:refresh', function(inventory)
     if isInventoryOpen then
         -- Count object keys properly (can't use # on object)
         local count = 0
-        for _ in pairs(inventory or {}) do count = count + 1 end
-        print('[Inventory Client] 🔄 Refreshing inventory with', count, 'items')
+        if inventory and type(inventory) == 'table' then
+            for _ in pairs(inventory) do count = count + 1 end
+        end
+        FW.Debug('Inventory', 'Refresh', count, 'items')
         SendNUIMessage({ action = 'updateInventory', inventory = inventory or {} })
     end
 end)

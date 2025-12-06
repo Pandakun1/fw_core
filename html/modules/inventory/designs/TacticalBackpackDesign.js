@@ -1,7 +1,7 @@
 // Tactical Backpack Design Template - Modern realistic tactical backpack with subtle futuristic elements  
 export function generateTacticalBackpackTemplate() {
     return `
-    <div class="relative w-full h-full flex justify-center items-center overflow-hidden">
+    <div class="relative rounded-[2.5vw] w-full h-full flex justify-center items-center overflow-hidden">
         <!-- Ambient Tech Glow with Pulse Animation -->
         <div class="absolute inset-0 blur-[4vw] opacity-40 animate-pulse" style="background: radial-gradient(circle at 35% 45%, rgba(59,130,246,0.22), transparent 50%), radial-gradient(circle at 65% 55%, rgba(34,197,94,0.18), transparent 55%); animation-duration: 3s;"></div>
         
@@ -82,9 +82,6 @@ export function generateTacticalBackpackTemplate() {
                                     <div class="w-[2.2vw] h-[2.2vw] rounded flex items-center justify-center text-[1.5vw] z-10" style="background: rgba(6,78,59,0.5);">{{ item.emoji }}</div>
                                     <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-white text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(16,185,129,0.95), rgba(5,150,105,0.9)); box-shadow: 0 0 0.4vw rgba(16,185,129,0.6);">
                                         {{ item.quantity }}
-                                    </div>
-                                    <div v-if="hoveredItem === item.id" class="absolute left-1/2 bottom-full -translate-x-1/2 mb-[0.4vh] px-[0.5vw] py-[0.3vh] rounded-lg text-[0.65vw] border whitespace-nowrap z-50 animate-[fadeIn_0.16s_ease-out]" style="background: rgba(4,47,46,0.98); color: #d1fae5; border-color: rgba(16,185,129,0.6);">
-                                        {{ item.name }}
                                     </div>
                                 </template>
                             </div>
@@ -223,9 +220,9 @@ export function generateTacticalBackpackTemplate() {
                     </div>
                     
                     <!-- Custom Scrollbar: Dark tactical theme -->
-                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-tactical" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(59,130,246,0.95) rgba(26,37,47,0.9);">
+                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-tactical rounded-lg" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(6,182,212,0.9) rgba(4,24,38,0.95);">
                         <div class="grid auto-rows-min" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.4vw]' : 'grid-cols-5 gap-[0.6vw]'">
-                            <div v-for="(item, index) in inventoryItems" :key="index" 
+                            <div v-for="(item, index) in inventoryItems" :key="index"
                                 :data-slot-index="index"
                                 :class="[
                                     'relative rounded-lg border flex items-center justify-center cursor-grab transition-all aspect-square',
@@ -237,6 +234,7 @@ export function generateTacticalBackpackTemplate() {
                                 ]"
                                 :style="isItemDefined(item) ? 'background: linear-gradient(135deg, rgba(30,41,59,0.8), rgba(15,23,42,0.9));' : 'background: linear-gradient(135deg, rgba(15,23,42,0.6), rgba(5,10,15,0.7));'"
                                 @mousedown="(e) => handleMouseDown(e, index)"
+                                @contextmenu.prevent="(e) => openContextMenu(e, item, index)"
                                 @click="selectedItem = selectedItem === item?.id ? null : item?.id"
                                 @mouseenter="hoveredItem = item?.id"
                                 @mouseleave="hoveredItem = null"
@@ -250,11 +248,8 @@ export function generateTacticalBackpackTemplate() {
                                 
                                 <template v-if="isItemDefined(item)">
                                     <div class="w-[2.2vw] h-[2.2vw] rounded flex items-center justify-center text-[1.5vw] z-10" style="background: rgba(26,37,47,0.5);">{{ item.emoji }}</div>
-                                    <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-slate-900 text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(14,165,233,0.95), rgba(3,105,161,0.95)); box-shadow: 0 0 0.4vw rgba(14,165,233,0.6), inset 0 1px 2px rgba(255,255,255,0.3);">
+                                    <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-white text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(6,182,212,0.9), rgba(20,184,166,0.95)); box-shadow: 0 0 0.4vw rgba(6,182,212,0.6);">
                                         {{ item.quantity }}
-                                    </div>
-                                    <div v-if="hoveredItem === item.id" class="absolute left-1/2 bottom-full -translate-x-1/2 mb-[0.4vh] px-[0.5vw] py-[0.3vh] rounded-lg text-[0.65vw] border whitespace-nowrap z-50 animate-[fadeIn_0.16s_ease-out]" style="background: rgba(5,10,15,0.98); color: #e2e8f0; border-color: rgba(71,85,105,0.7); box-shadow: 0 4px 8px rgba(0,0,0,0.8);">
-                                        {{ item.name }}
                                     </div>
                                 </template>
                             </div>

@@ -12,7 +12,6 @@ class UIManager {
     constructor() {
         this.modules = new Map();
         this.activeModule = null;
-        this.debugMode = true;
         this.init();
     }
 
@@ -22,7 +21,7 @@ class UIManager {
             this.closeAll();
         });
 
-        this.log('UIManager initialized');
+        FWDebug.log('UIManager', 'Initialized');
     }
 
     /**
@@ -64,7 +63,7 @@ class UIManager {
         };
 
         this.modules.set(name, module);
-        this.log(`Module registered: ${name}`, { actions, exclusive });
+        FWDebug.log('UIManager', 'Module registered', name, 'Actions:', actions, 'Exclusive:', exclusive);
 
         // Registriere NUI Actions für dieses Modul
         actions.forEach(action => {
@@ -93,7 +92,7 @@ class UIManager {
         }
 
         if (module.isOpen) {
-            this.log(`Module ${name} is already open`);
+            FWDebug.log('UIManager', 'Module already open', name);
             return;
         }
 
@@ -102,7 +101,7 @@ class UIManager {
             this.closeOthers(name);
         }
 
-        this.log(`Opening module: ${name}`, data);
+        FWDebug.log('UIManager', 'Opening module', name, data);
 
         // Setze als aktives Modul
         this.activeModule = name;
@@ -138,7 +137,7 @@ class UIManager {
             return;
         }
 
-        this.log(`Closing module: ${name}`);
+        FWDebug.log('UIManager', 'Closing module', name);
 
         module.isOpen = false;
 
@@ -177,7 +176,7 @@ class UIManager {
      * Schließe alle Module
      */
     closeAll() {
-        this.log('Closing all modules');
+        FWDebug.log('UIManager', 'Closing all modules');
         this.modules.forEach((module, name) => {
             if (module.isOpen) {
                 this.close(name);
@@ -206,12 +205,6 @@ class UIManager {
 
     capitalize(str) {
         return str.charAt(0).toUpperCase() + str.slice(1);
-    }
-
-    log(message, data) {
-        if (this.debugMode) {
-            console.log(`[UIManager] ${message}`, data || '');
-        }
     }
 }
 

@@ -19,7 +19,6 @@ const App = {
     setup() {
         // Initialize Settings Store
         const settingsStore = useSettingsStore();
-        console.log('[App] Settings Store initialized:', settingsStore);
         
         const isVisible = ref(false);
         const activeRoute = ref(null);
@@ -132,7 +131,5 @@ setTimeout(() => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
-    }).catch(() => {
-        console.log('[App] NUI Ready signal sent (or running in browser)');
-    });
+    }).catch(() => {});
 }, 500); // Warte bis Vue App vollständig geladen ist

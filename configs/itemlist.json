@@ -17,7 +17,7 @@
     {"name": "duct_tape",       "label": "Klebeband",       "emoji": "📦", "itemweight": 150,      "type": "tool",      "canUse": false},
     {"name": "flashlight",      "label": "Taschenlampe",    "emoji": "🔦", "itemweight": 250,      "type": "tool",      "canUse": true},
     {"name": "binoculars",      "label": "Fernglas",        "emoji": "🔭", "itemweight": 350,      "type": "tool",      "canUse": true},
-    {"name": "backpack",        "label": "Rucksack",        "emoji": "🎒", "itemweight": 800,      "type": "backpack",  "canUse": false},
+    {"name": "backpack",        "label": "Rucksack",        "emoji": "🎒", "itemweight": 800,      "type": "backpack",  "canUse": true},
     {"name": "duffle_bag",      "label": "Reisetasche",     "emoji": "💼", "itemweight": 1000,     "type": "bag",       "canUse": false},
     {"name": "money",           "label": "Bargeld",         "emoji": "💵", "itemweight": 0,        "type": "item",      "canUse": false},
     {"name": "id_card",         "label": "Personalausweis", "emoji": "🪪", "itemweight": 10,       "type": "item",      "canUse": false},
@@ -59,7 +59,7 @@
     {"name": "weapon_rifle",    "label": "🔫 Gewehr",        "itemweight": 4000,    "type": "weapon",    "canUse": false, "emoji": "🔫"},
     
     {"name": "backpack_small",  "label": "🎒 Kleiner Rucksack", "itemweight": 1000, "type": "backpack",  "canUse": false, "emoji": "🎒"},
-    {"name": "backpack_medium", "label": "🎒 Rucksack",      "itemweight": 1500,    "type": "backpack",  "canUse": false, "emoji": "🎒"},
+    {"name": "backpack_medium", "label": "🎒 Rucksack",      "itemweight": 1500,    "type": "backpack",  "canUse": true, "emoji": "🎒"},
     {"name": "backpack_large",  "label": "🎒 Großer Rucksack", "itemweight": 2000,  "type": "backpack",  "canUse": false, "emoji": "🎒"},
     {"name": "backpack_tactical", "label": "🎒 Taktischer Rucksack", "itemweight": 2500, "type": "backpack", "canUse": false, "emoji": "🎒"},
     

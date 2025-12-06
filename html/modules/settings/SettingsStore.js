@@ -28,8 +28,6 @@ export const useSettingsStore = defineStore('settings', {
         // Nur Inventory Design - MUST use arrow function for Pinia
         inventoryDesign: (state) => {
             const design = state.settings['inventory_design'];
-            console.log('[Settings Store] 🔍 Getter called - state.settings:', JSON.stringify(state.settings));
-            console.log('[Settings Store] 🔍 Getter result:', design);
             return design || 'forest';
         },
     },
@@ -37,9 +35,7 @@ export const useSettingsStore = defineStore('settings', {
     actions: {
         // Initialisierung: Lade Settings vom Client
         async loadSettings(settingsData) {
-            console.log('[Settings Store] 📂 Loading settings from client:', settingsData);
-            console.log('[Settings Store] 📂 Settings type:', typeof settingsData);
-            console.log('[Settings Store] 📂 Settings keys:', settingsData ? Object.keys(settingsData) : 'none');
+            FWDebug.log('Settings', 'Loading from client', settingsData);
             
             if (settingsData && typeof settingsData === 'object') {
                 // DIREKTE Zuweisung statt Merge für saubere Reaktivität
@@ -48,13 +44,8 @@ export const useSettingsStore = defineStore('settings', {
                     this.settings[key] = settingsData[key];
                 });
                 
-                console.log('[Settings Store] 📦 Updated settings:', JSON.stringify(this.settings));
-                console.log('[Settings Store] 🔍 Direct access this.settings.inventory_design:', this.settings.inventory_design);
-                console.log('[Settings Store] 🔍 Direct access this.settings["inventory_design"]:', this.settings['inventory_design']);
-                console.log('[Settings Store] 📦 inventoryDesign getter:', this.inventoryDesign);
-                
                 this.isLoaded = true;
-                console.log('[Settings Store] ✅ Settings loaded successfully');
+                FWDebug.log('Settings', 'Loaded successfully', this.settings);
                 
                 // Triggere Event für andere Module
                 window.dispatchEvent(new CustomEvent('fw:settingsLoaded', { detail: this.settings }));
@@ -66,11 +57,11 @@ export const useSettingsStore = defineStore('settings', {
         // Setze einzelne Einstellung und speichere
         setSetting(key, value) {
             if (!key || value === undefined) {
-                console.error('[Settings Store] ❌ Invalid key or value');
+                FWDebug.log('Settings', 'Invalid key or value');
                 return false;
             }
             
-            console.log(`[Settings Store] 💾 Setting ${key} = ${value}`);
+            FWDebug.log('Settings', 'Setting', key, '=', value);
             
             // Optimistic Update
             this.settings[key] = value;
@@ -83,7 +74,7 @@ export const useSettingsStore = defineStore('settings', {
             }).then(response => response.json())
               .then(result => {
                   if (result.success) {
-                      console.log(`[Settings Store] ✅ Setting ${key} saved to server`);
+                      FWDebug.log('Settings', 'Saved to server', key);
                       
                       // Triggere Change-Event
                       window.dispatchEvent(new CustomEvent('fw:settingChanged', { 
@@ -91,16 +82,14 @@ export const useSettingsStore = defineStore('settings', {
                       }));
                   }
               })
-              .catch(error => {
-                  console.log('[Settings Store] Running in browser, server save skipped');
-              });
+              .catch(error => {});
             
             return true;
         },
         
         // Speichere alle Settings (Bulk-Save)
         async saveAllSettings() {
-            console.log('[Settings Store] 💾 Saving all settings...');
+            FWDebug.log('Settings', 'Saving all settings');
             
             this.isSaving = true;
             
@@ -114,14 +103,12 @@ export const useSettingsStore = defineStore('settings', {
                 const result = await response.json();
                 
                 if (result.success) {
-                    console.log('[Settings Store] ✅ All settings saved');
+                    FWDebug.log('Settings', 'All saved');
                     return true;
                 } else {
-                    console.error('[Settings Store] ❌ Failed to save settings:', result.error);
                     return false;
                 }
             } catch (error) {
-                console.error('[Settings Store] ❌ Error saving settings:', error);
                 return false;
             } finally {
                 this.isSaving = false;
@@ -130,8 +117,6 @@ export const useSettingsStore = defineStore('settings', {
         
         // Setze Settings auf Defaults zurück
         async resetSettings() {
-            console.log('[Settings Store] 🔄 Resetting settings to defaults...');
-            
             this.isSaving = true;
             
             try {
@@ -145,18 +130,15 @@ export const useSettingsStore = defineStore('settings', {
                 
                 if (result.success) {
                     this.settings = result.settings;
-                    console.log('[Settings Store] ✅ Settings reset to defaults');
                     
                     // Triggere Event
                     window.dispatchEvent(new CustomEvent('fw:settingsReset', { detail: this.settings }));
                     
                     return true;
                 } else {
-                    console.error('[Settings Store] ❌ Failed to reset settings');
                     return false;
                 }
             } catch (error) {
-                console.error('[Settings Store] ❌ Error resetting settings:', error);
                 return false;
             } finally {
                 this.isSaving = false;
@@ -165,7 +147,7 @@ export const useSettingsStore = defineStore('settings', {
         
         // Hole Settings vom Client (Request)
         async requestSettings() {
-            console.log('[Settings Store] 📨 Requesting settings from client...');
+            FWDebug.log('Settings', 'Requesting from client');
             
             try {
                 const response = await fetch(`https://${GetParentResourceName()}/requestSettings`, {
@@ -180,11 +162,9 @@ export const useSettingsStore = defineStore('settings', {
                     this.loadSettings(settings);
                     return true;
                 } else {
-                    console.error('[Settings Store] ❌ Invalid settings received from request');
                     return false;
                 }
             } catch (error) {
-                console.error('[Settings Store] ❌ Error requesting settings:', error);
                 return false;
             }
         },
@@ -208,11 +188,11 @@ if (typeof window !== 'undefined') {
         const data = event.data;
         
         if (data.action === 'loadSettings' && data.settings) {
-            console.log('[Settings Store] 📥 Received loadSettings from client');
+            FWDebug.log('Settings', 'Received loadSettings from client');
             const store = useSettingsStore();
             store.loadSettings(data.settings);
         }
     });
     
-    console.log('[Settings Store] ⚙️ Settings Store initialized');
+    FWDebug.log('Settings', 'Store initialized');
 }

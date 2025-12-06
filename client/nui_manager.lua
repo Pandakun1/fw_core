@@ -15,8 +15,7 @@ exports('IsAnyUIOpen', IsAnyUIOpen)
 function RegisterUIOpen(moduleName, hasCursor)
     openModules[moduleName] = true
     SetNuiFocus(true, hasCursor)
-    -- Debug
-    print('[NUI Manager] Module opened:', moduleName)
+    FW.Debug('NUI', 'Module opened', moduleName)
 end
 exports('RegisterUIOpen', RegisterUIOpen)
 
@@ -27,12 +26,17 @@ function RegisterUIClose(moduleName)
     -- Nur wenn KEIN anderes Modul mehr offen ist, Fokus entfernen
     if not IsAnyUIOpen() then
         SetNuiFocus(false, false)
-        print('[NUI Manager] All modules closed, Focus removed')
+        FW.Debug('NUI', 'All closed')
     else
-        print('[NUI Manager] Module closed:', moduleName, '- Focus remains active')
+        FW.Debug('NUI', 'Module closed', moduleName)
     end
 end
 exports('RegisterUIClose', RegisterUIClose)
+
+-- NUI Callback: Debug Config abrufen
+RegisterNUICallback('getDebugConfig', function(data, cb)
+    cb(Config.Debug or false)
+end)
 
 -- NUI Callback: Globales Schließen (Sicherheitsnetz)
 RegisterNUICallback('closeAll', function(data, cb)

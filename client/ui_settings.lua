@@ -3,8 +3,6 @@
 -- Spielerabhängige UI-Einstellungen mit Datenbank
 -- ============================================
 
-print('[FW UI Settings] 🚀 Client UI Settings module loading...')
-
 local isNUIReady = false
 local isPlayerSpawned = false
 local currentSettings = {}
@@ -20,14 +18,11 @@ local defaultSettings = {
 
 local function sendSettingsToNUI()
     if not isNUIReady then
-        print('[FW UI Settings] ⏳ NUI not ready yet, deferring settings sync...')
+        FW.Debug('UI Settings', 'NUI not ready, deferring sync')
         return
     end
     
-    print('[FW UI Settings] 📤 Sending settings to NUI:')
-    for key, value in pairs(currentSettings) do
-        print(('  - %s: %s'):format(key, tostring(value)))
-    end
+    FW.Debug('UI Settings', 'Sending settings to NUI', currentSettings)
     
     SendNUIMessage({
         action = 'loadSettings',
@@ -40,24 +35,19 @@ end
 -- ============================================
 
 local function loadSettingsFromServer()
-    print('[FW UI Settings] 📂 Requesting settings from server...')
+    FW.Debug('UI Settings', 'Requesting settings from server')
     
     FW.TriggerCallback('fw:ui:getSettings', function(settings)
         if settings and type(settings) == 'table' then
             currentSettings = settings
-            print('[FW UI Settings] ✅ Settings loaded from server')
-            
-            -- Debug output
-            for key, value in pairs(currentSettings) do
-                print(('  - %s: %s'):format(key, tostring(value)))
-            end
+            FW.Debug('UI Settings', 'Settings loaded', currentSettings)
             
             -- Send to NUI if ready
             if isNUIReady then
                 sendSettingsToNUI()
             end
         else
-            print('[FW UI Settings] ⚠️ Failed to load from server, using defaults')
+            FW.Debug('UI Settings', 'Failed to load, using defaults')
             currentSettings = defaultSettings
         end
     end)
@@ -70,7 +60,7 @@ end
 -- Warte bis Spieler gespawnt ist
 RegisterNetEvent('fw:spawnPlayer')
 AddEventHandler('fw:spawnPlayer', function(spawnData)
-    print('[FW UI Settings] 🎮 Player spawned, loading UI settings...')
+    FW.Debug('UI Settings', 'Player spawned, loading settings')
     isPlayerSpawned = true
     
     -- Sofort laden, keine Verzögerung
@@ -80,7 +70,7 @@ end)
 -- Alternative: Lade Settings beim Character-Select
 RegisterNetEvent('fw:playerReady')
 AddEventHandler('fw:playerReady', function()
-    print('[FW UI Settings] 👤 Player ready, pre-loading UI settings...')
+    FW.Debug('UI Settings', 'Player ready, pre-loading')
     isPlayerSpawned = true
     
     -- Warte kurz bis FW.TriggerCallback verfügbar ist
@@ -95,7 +85,7 @@ end)
 
 -- NUI signalisiert Bereitschaft
 RegisterNUICallback('nuiReady', function(data, cb)
-    print('[FW UI Settings] 🟢 NUI is ready')
+    FW.Debug('UI Settings', 'NUI is ready')
     isNUIReady = true
     
     -- Sende Settings wenn bereits geladen
@@ -108,7 +98,7 @@ end)
 
 -- NUI fordert Settings an
 RegisterNUICallback('requestSettings', function(data, cb)
-    print('[FW UI Settings] 📨 NUI requested settings')
+    FW.Debug('UI Settings', 'NUI requested settings')
     
     if next(currentSettings) then
         cb(currentSettings)
@@ -127,12 +117,12 @@ RegisterNUICallback('saveSetting', function(data, cb)
     local value = data.value
     
     if not key then
-        print('[FW UI Settings] ❌ No key provided')
+        FW.Debug('UI Settings', 'No key provided')
         cb({ success = false, error = 'No key' })
         return
     end
     
-    print(('[FW UI Settings] 💾 NUI requests save: %s = %s (type: %s)'):format(key, tostring(value), type(value)))
+    FW.Debug('UI Settings', 'Saving setting', key, '=', value)
     
     -- Update lokal
     currentSettings[key] = value
@@ -151,14 +141,12 @@ RegisterNUICallback('saveSettings', function(data, cb)
     local newSettings = data.settings
     
     if not newSettings or type(newSettings) ~= 'table' then
-        print('[FW UI Settings] ❌ Invalid settings data')
+        FW.Debug('UI Settings', 'Invalid settings data')
         cb({ success = false, error = 'Invalid data' })
         return
     end
     
-    print(('[FW UI Settings] 💾 Saving %d settings'):format(
-        type(newSettings) == 'table' and #newSettings or 0
-    ))
+    FW.Debug('UI Settings', 'Saving all settings')
     
     -- Update lokal
     for key, value in pairs(newSettings) do
@@ -176,7 +164,7 @@ end)
 
 -- NUI setzt Settings zurück
 RegisterNUICallback('resetSettings', function(data, cb)
-    print('[FW UI Settings] 🔄 Resetting settings to defaults')
+    FW.Debug('UI Settings', 'Resetting to defaults')
     
     -- Sende Reset an Server
     TriggerServerEvent('fw:ui:resetSettings')
@@ -187,7 +175,7 @@ end)
 -- Server bestätigt Reset
 RegisterNetEvent('fw:ui:settingsReset')
 AddEventHandler('fw:ui:settingsReset', function(defaultSettingsFromServer)
-    print('[FW UI Settings] ✅ Settings reset confirmed by server')
+    FW.Debug('UI Settings', 'Reset confirmed by server')
     
     currentSettings = defaultSettingsFromServer or defaultSettings
     
@@ -231,6 +219,4 @@ exports('ReloadUISettings', function()
     loadSettingsFromServer()
 end)
 
-print('[FW UI Settings] ✅ Client UI Settings module loaded')
-print('[FW UI Settings] 📋 Exports: GetUISetting, SetUISetting, GetAllUISettings, HasUISetting, ReloadUISettings')
-print('[FW UI Settings] 📋 Events: fw:ui:settingChanged, fw:ui:settingsChanged')
+FW.Debug('UI Settings', 'Module loaded with exports')

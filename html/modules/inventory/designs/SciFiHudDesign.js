@@ -1,7 +1,7 @@
 // Sci-Fi HUD Design Template - Futuristic holographic interface with cyan glow effects
 export function generateSciFiHudTemplate() {
     return `
-    <div class="relative w-full h-full flex justify-center items-center overflow-hidden">
+    <div class="relative rounded-[2.5vw] w-full h-full flex justify-center items-center overflow-hidden">
         <!-- Animated Background Data Streams -->
         <div class="absolute inset-0 opacity-35 pointer-events-none overflow-hidden">
             <div class="absolute w-full h-[0.15vh] bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-[scan_4s_ease-in-out_infinite]" style="top: 20%; animation-delay: 0s; box-shadow: 0 0 1vw rgba(6,182,212,0.8);"></div>
@@ -85,7 +85,7 @@ export function generateSciFiHudTemplate() {
                         <div class="text-[0.6vw] uppercase text-emerald-400/90 relative z-10" style="text-shadow: 0 0 0.5vw rgba(16,185,129,0.8);">{{ secondInventoryItems.filter(isItemDefined).length }}/{{ secondInventoryItems.length }}</div>
                     </div>
                     
-                    <div class="flex-1 overflow-y-auto min-h-0 p-[0.5vw] custom-scrollbar-scifi-second" style="scrollbar-width: thin; scrollbar-color: rgba(16,185,129,0.95) rgba(8,47,73,0.9);">
+                    <div class="flex-1 overflow-y-auto min-h-0 p-[0.5vw] custom-scrollbar-scifi-second rounded-lg" style="scrollbar-width: thin; scrollbar-color: rgba(16,185,129,0.95) rgba(8,47,73,0.9);">
                         <div class="grid grid-cols-5 gap-[0.4vw] auto-rows-min">
                             <div v-for="(item, index) in secondInventoryItems" :key="'second-' + index" :data-slot-index="'second-' + index" @mousedown="(e) => handleMouseDown(e, 'second-' + index)" @contextmenu.prevent="(e) => openContextMenu(e, item, 'second-' + index)" @mouseenter="hoveredItem = item?.id" @mouseleave="hoveredItem = null" class="relative rounded-lg border-2 flex items-center justify-center p-[0.35vw] cursor-grab transition-all hover:-translate-y-[0.25vh] hover:scale-105" style="aspect-ratio: 1/1; width: 100%;" :style="isItemDefined(item) ? 'background: linear-gradient(135deg, rgba(8,47,73,0.8), rgba(4,24,38,0.9)); border-color: rgba(16,185,129,0.5); box-shadow: 0 0 0.5vw rgba(16,185,129,0.3);' : 'background: linear-gradient(135deg, rgba(8,47,73,0.4), rgba(4,24,38,0.6)); border-color: rgba(16,185,129,0.25);'"
                             >
@@ -95,9 +95,6 @@ export function generateSciFiHudTemplate() {
                                     <div class="w-[2.2vw] h-[2.2vw] rounded flex items-center justify-center text-[1.5vw] z-10" style="background: rgba(8,47,73,0.5);">{{ item.emoji }}</div>
                                     <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-white text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(16,185,129,0.95), rgba(5,150,105,0.9)); box-shadow: 0 0 0.4vw rgba(16,185,129,0.6);">
                                         {{ item.quantity }}
-                                    </div>
-                                    <div v-if="hoveredItem === item.id" class="absolute left-1/2 bottom-full -translate-x-1/2 mb-[0.4vh] px-[0.5vw] py-[0.3vh] rounded-lg text-[0.65vw] border whitespace-nowrap z-50 animate-[fadeIn_0.16s_ease-out]" style="background: rgba(4,24,38,0.98); color: #a7f3d0; border-color: rgba(16,185,129,0.6); box-shadow: 0 0 0.8vw rgba(16,185,129,0.5);">
-                                        {{ item.name }}
                                     </div>
                                 </template>
                             </div>
@@ -239,7 +236,7 @@ export function generateSciFiHudTemplate() {
                     </div>
                     
                     <!-- Custom Scrollbar: Cyber theme -->
-                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-scifi" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(6,182,212,0.95) rgba(8,47,73,0.9);">
+                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-scifi rounded-lg" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(6,182,212,0.95) rgba(8,47,73,0.9);">
                         <div class="grid auto-rows-min" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.4vw]' : 'grid-cols-5 gap-[0.6vw]'">
                             <div v-for="(item, index) in inventoryItems" :key="index" 
                                 :data-slot-index="index"
@@ -253,6 +250,7 @@ export function generateSciFiHudTemplate() {
                                 ]"
                                 :style="isItemDefined(item) ? 'background: linear-gradient(135deg, rgba(6,182,212,0.15), rgba(8,47,73,0.9));' : 'background: linear-gradient(135deg, rgba(8,47,73,0.5), rgba(4,24,38,0.7));'"
                                 @mousedown="(e) => handleMouseDown(e, index)"
+                                @contextmenu.prevent="(e) => openContextMenu(e, item, index)"
                                 @click="selectedItem = selectedItem === item?.id ? null : item?.id"
                                 @mouseenter="hoveredItem = item?.id"
                                 @mouseleave="hoveredItem = null"
@@ -268,9 +266,6 @@ export function generateSciFiHudTemplate() {
                                     <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw] z-10 border border-cyan-500/30" style="background: rgba(8,47,73,0.6); box-shadow: inset 0 0 0.5vw rgba(6,182,212,0.2);">{{ item.emoji }}</div>
                                     <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-cyan-950 text-[0.65vw] font-bold flex items-center justify-center z-10 border border-cyan-400/60" style="background: linear-gradient(90deg, rgba(6,182,212,0.95), rgba(16,185,129,0.9)); box-shadow: 0 0 0.8vw rgba(6,182,212,0.8), inset 0 0 0.3vw rgba(255,255,255,0.4);">
                                         {{ item.quantity }}
-                                    </div>
-                                    <div v-if="hoveredItem === item.id" class="absolute left-1/2 bottom-full -translate-x-1/2 mb-[0.4vh] px-[0.5vw] py-[0.3vh] rounded-lg text-[0.65vw] border whitespace-nowrap z-50 animate-[fadeIn_0.16s_ease-out]" style="background: rgba(8,47,73,0.98); color: #a5f3fc; border-color: rgba(6,182,212,0.7); box-shadow: 0 0 1vw rgba(6,182,212,0.8), inset 0 0 0.5vw rgba(6,182,212,0.2);">
-                                        {{ item.name }}
                                     </div>
                                 </template>
                             </div>

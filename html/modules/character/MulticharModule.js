@@ -10,17 +10,17 @@ const MulticharModule = {
         const { send } = useNUI();
 
         const selectChar = (charid) => {
-            console.log('[MulticharModule] Selecting character:', charid);
+            FWDebug.log('Multichar', 'Selecting character', charid);
             send('selectCharacter', { charid });
         };
 
         const createNew = () => {
-            console.log('[MulticharModule] Creating new character');
+            FWDebug.log('Multichar', 'Creating new character');
             send('openCharCreator');
         };
 
         const deleteChar = (charid) => {
-            console.log('[MulticharModule] Deleting character:', charid);
+            FWDebug.log('Multichar', 'Deleting character', charid);
             send('deleteCharacter', { charid });
         };
 

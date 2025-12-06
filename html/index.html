@@ -88,6 +88,28 @@
     transform: scale(0.9);
     opacity: 0;
 }
+
+/* Context Menu Fade Transition */
+.context-fade-enter-active,
+.context-fade-leave-active {
+    transition: opacity 0.2s ease;
+}
+
+.context-fade-enter-from,
+.context-fade-leave-to {
+    opacity: 0;
+}
+
+.context-fade-enter-active .context-menu,
+.context-fade-leave-active .context-menu {
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.context-fade-enter-from .context-menu,
+.context-fade-leave-to .context-menu {
+    transform: scale(0.95) translateY(-10px);
+    opacity: 0;
+}
 </style>
 <head>
     <meta charset="UTF-8">
@@ -302,13 +324,12 @@
     
 </head>
 <body>
-    <link rel="stylesheet" href="modules/inventory/briefcase.css">
     <div id="app"></div>
 
     <script src="core/NUIBridge.js"></script>
+    <script src="shared/debug.js"></script>
     <script src="core/focusManager.js"></script>
     <script src="core/UIManager.js"></script>
-
     <script src="shared/composables/useNUI.js"></script>
     <script src="shared/stored/appStore.js"></script>
     <script src="modules/inventory/InventoryStore.js"></script>

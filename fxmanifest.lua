@@ -7,7 +7,7 @@ version '1.0.0'
 
 shared_scripts {
     'configs/*.lua',
-    --'shared/*.lua',
+    'shared/*.lua',
     'handler/*.lua'
 }
 

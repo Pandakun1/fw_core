@@ -1,5 +1,8 @@
 Config = {}
 
+-- Debug Modus (lädt aus main.json)
+Config.Debug = false -- Wird beim Resource-Start aus main.json geladen
+
 Config.AutoSaveInterval = 1 -- in Minuten
 
 Config.Firstspawn = vector4(-183.0, -498.0, 35.0, 70.0) -- x, y, z, heading

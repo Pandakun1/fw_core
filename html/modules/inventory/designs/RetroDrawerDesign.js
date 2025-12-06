@@ -1,7 +1,7 @@
 // Retro Drawer Design Template - Vintage wooden drawer with metal handles and patina
 export function generateRetroDrawerTemplate() {
     return `
-    <div class="relative w-full h-full flex justify-center items-center overflow-hidden">
+    <div class="relative rounded-[2.5vw] w-full h-full flex justify-center items-center overflow-hidden">
         <!-- Ambient Glow with Warm Pulse -->
         <div class="absolute inset-0 blur-[4vw] opacity-45 animate-pulse" style="background: radial-gradient(circle at 35% 40%, rgba(139,90,60,0.3), transparent 50%), radial-gradient(circle at 65% 60%, rgba(217,119,6,0.25), transparent 55%); animation-duration: 5s;"></div>
         
@@ -100,11 +100,8 @@ export function generateRetroDrawerTemplate() {
                                 
                                 <template v-if="isItemDefined(item)">
                                     <div class="w-[2.2vw] h-[2.2vw] rounded-lg flex items-center justify-center text-[1.5vw] z-10" style="background: rgba(101,49,12,0.5);">{{ item.emoji }}</div>
-                                    <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-white text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(234,88,12,0.95), rgba(194,65,12,0.9)); box-shadow: 0 0 0.4vw rgba(234,88,12,0.6);">
+                                    <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-white text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(251,191,36,0.9), rgba(245,158,11,0.95)); box-shadow: 0 0 0.4vw rgba(251,191,36,0.6);">
                                         {{ item.quantity }}
-                                    </div>
-                                    <div v-if="hoveredItem === item.id" class="absolute left-1/2 bottom-full -translate-x-1/2 mb-[0.4vh] px-[0.5vw] py-[0.3vh] rounded-lg text-[0.65vw] border whitespace-nowrap z-50 animate-[fadeIn_0.16s_ease-out]" style="background: rgba(69,26,3,0.98); color: #fed7aa; border-color: rgba(234,88,12,0.6);">
-                                        {{ item.name }}
                                     </div>
                                 </template>
                             </div>
@@ -240,7 +237,7 @@ export function generateRetroDrawerTemplate() {
                     </div>
                     
                     <!-- Custom Scrollbar: Retro Wood-Bronze theme -->
-                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-retro" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(217,119,6,0.95) rgba(51,19,2,0.9);">
+                    <div class="flex-1 overflow-y-auto min-h-0 custom-scrollbar-retro rounded-lg" :class="dualInventoryOpen ? 'p-[0.5vw]' : 'p-[1vw]'" style="scrollbar-width: thin; scrollbar-color: rgba(217,119,6,0.9) rgba(45,24,16,0.95);">
                         <div class="grid auto-rows-min" :class="dualInventoryOpen ? 'grid-cols-5 gap-[0.4vw]' : 'grid-cols-5 gap-[0.6vw]'">
                             <div v-for="(item, index) in inventoryItems" :key="index"
                                 :data-slot-index="index"
@@ -254,6 +251,7 @@ export function generateRetroDrawerTemplate() {
                                 ]"
                                 :style="isItemDefined(item) ? 'background: linear-gradient(135deg, rgba(139,90,60,0.7), rgba(107,68,35,0.8));' : 'background: linear-gradient(135deg, rgba(107,68,35,0.5), rgba(90,61,37,0.6));'"
                                 @mousedown="(e) => handleMouseDown(e, index)"
+                                @contextmenu.prevent="(e) => openContextMenu(e, item, index)"
                                 @click="selectedItem = selectedItem === item?.id ? null : item?.id"
                                 @mouseenter="hoveredItem = item?.id"
                                 @mouseleave="hoveredItem = null"
@@ -267,11 +265,8 @@ export function generateRetroDrawerTemplate() {
                                 
                                 <template v-if="isItemDefined(item)">
                                     <div class="w-[2.2vw] h-[2.2vw] rounded-lg flex items-center justify-center text-[1.5vw] z-10" style="background: rgba(90,61,37,0.4);">{{ item.emoji }}</div>
-                                    <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-amber-950 text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(217,119,6,0.95), rgba(167,128,80,0.95)); box-shadow: 0 0 0.4vw rgba(217,119,6,0.6), inset 0 1px 2px rgba(255,255,255,0.3);">
+                                    <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-white text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(217,119,6,0.9), rgba(194,65,12,0.95)); box-shadow: 0 0 0.4vw rgba(217,119,6,0.6);">
                                         {{ item.quantity }}
-                                    </div>
-                                    <div v-if="hoveredItem === item.id" class="absolute left-1/2 bottom-full -translate-x-1/2 mb-[0.4vh] px-[0.5vw] py-[0.3vh] rounded-lg text-[0.65vw] border whitespace-nowrap z-50 animate-[fadeIn_0.16s_ease-out]" style="background: rgba(90,61,37,0.98); color: #fef3c7; border-color: rgba(217,119,6,0.6); box-shadow: 0 4px 8px rgba(0,0,0,0.7);">
-                                        {{ item.name }}
                                     </div>
                                 </template>
                             </div>

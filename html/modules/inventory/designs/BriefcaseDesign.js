@@ -1,7 +1,7 @@
 // Briefcase Design Template - Premium leather with stitching and metal hardware
 export function generateBriefcaseTemplate() {
     return `
-    <div class="relative w-full h-full flex justify-center items-center overflow-hidden">
+    <div class="relative rounded-[2.5vw] w-full h-full flex justify-center items-center overflow-hidden">
         <!-- Ambient Glow with Animation -->
         <div class="absolute inset-0 blur-[4vw] opacity-40 animate-pulse" style="background: radial-gradient(circle at 30% 40%, rgba(180,120,60,0.25), transparent 50%), radial-gradient(circle at 70% 60%, rgba(212,175,55,0.22), transparent 55%); animation-duration: 4s;"></div>
         
@@ -80,16 +80,10 @@ export function generateBriefcaseTemplate() {
                                 
                                 <template v-if="isItemDefined(item)">
                                     <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw] z-10" style="background: rgba(61,40,23,0.5);">{{ item.emoji }}</div>
-                                    <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-white text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(212,175,55,0.9), rgba(180,120,60,0.95)); box-shadow: 0 0 0.4vw rgba(212,175,55,0.6);">
+                                    <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-white text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(212,175,55,0.9), rgba(184,134,11,0.95)); box-shadow: 0 0 0.4vw rgba(212,175,55,0.6);">
                                         {{ item.quantity }}
                                     </div>
-                                    <div v-if="hoveredItem === item.id" class="absolute left-1/2 bottom-full -translate-x-1/2 mb-[0.4vh] px-[0.5vw] py-[0.3vh] rounded-lg text-[0.65vw] border whitespace-nowrap z-50 animate-[fadeIn_0.16s_ease-out]" style="background: rgba(45,24,16,0.98); color: #fef3c7; border-color: rgba(212,175,55,0.6);">
-                                        {{ item.name }}
-                                    </div>
                                 </template>
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 
                 <!-- Equipment Bar (horizontal strip below player inventory only) -->
@@ -234,6 +228,7 @@ export function generateBriefcaseTemplate() {
                                 ]"
                                 :style="isItemDefined(item) ? 'background: linear-gradient(135deg, rgba(90,61,37,0.7), rgba(61,40,23,0.8));' : 'background: linear-gradient(135deg, rgba(61,40,23,0.5), rgba(45,24,16,0.6));'"
                                 @mousedown="(e) => handleMouseDown(e, index)"
+                                @contextmenu.prevent="(e) => openContextMenu(e, item, index)"
                                 @click="selectedItem = selectedItem === item?.id ? null : item?.id"
                                 @mouseenter="hoveredItem = item?.id"
                                 @mouseleave="hoveredItem = null"
@@ -249,9 +244,6 @@ export function generateBriefcaseTemplate() {
                                     <div class="w-[2.2vw] h-[2.2vw] rounded-xl flex items-center justify-center text-[1.5vw] z-10" style="background: rgba(61,40,23,0.4);">{{ item.emoji }}</div>
                                     <div v-if="item.quantity > 1" class="absolute top-[0.3vh] right-[0.4vw] min-w-[1.3vw] h-[1.1vw] px-[0.3vw] rounded-full text-amber-950 text-[0.65vw] font-bold flex items-center justify-center z-10" style="background: linear-gradient(90deg, rgba(212,175,55,0.95), rgba(180,120,60,0.95)); box-shadow: 0 0 0.4vw rgba(212,175,55,0.6), inset 0 1px 2px rgba(255,255,255,0.3);">
                                         {{ item.quantity }}
-                                    </div>
-                                    <div v-if="hoveredItem === item.id" class="absolute left-1/2 bottom-full -translate-x-1/2 mb-[0.4vh] px-[0.5vw] py-[0.3vh] rounded-lg text-[0.65vw] border whitespace-nowrap z-50 animate-[fadeIn_0.16s_ease-out]" style="background: rgba(45,24,16,0.98); color: #fef3c7; border-color: rgba(212,175,55,0.6); box-shadow: 0 4px 8px rgba(0,0,0,0.7);">
-                                        {{ item.name }}
                                     </div>
                                 </template>
                             </div>

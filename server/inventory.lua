@@ -326,19 +326,16 @@ end)
 -- Callback: Inventar an Client senden (Slot-based Array)
 FW.RegisterServerCallback('fw:inventory:getInventoryData', function(source, cb)
     local src = source
-    print('[FW Server] getInventoryData callback called for player:', src)
+    FW.Debug('Inventory', 'getInventoryData', src)
 
     local Player = FW.GetPlayer(src)
     if not Player then
-        print('[FW Server] No player object for:', src)
+        FW.Debug('Inventory', 'No player object', src)
         cb({})
         return
     end
 
     local slots = Player.getInventory()
-    
-    -- Debug: Print slots content
-    print('[FW Server] Raw slots from player:', json.encode(slots))
     
     -- Build object format: { itemName_slotX: { slot, label, emoji, amount, ... } }
     -- Use unique keys to support multiple items with same name in different slots
@@ -350,23 +347,50 @@ FW.RegisterServerCallback('fw:inventory:getInventoryData', function(source, cb)
         if item and type(item) == 'table' and item.name and item.name ~= 'money' then
             -- Valid item, add to object with unique key: itemName_slot0, itemName_slot5, etc.
             local uniqueKey = item.name .. '_slot' .. (i - 1)
+            
+            -- BUGFIX: Lookup item in itemlist.json (by name OR by label for legacy items)
+            local itemData = FW.Inventory.List[item.name]
+            
+            -- Legacy Fix: Wenn Item nicht gefunden, suche nach Label
+            if not itemData then
+                for itemName, data in pairs(FW.Inventory.List) do
+                    if data.label == item.name then
+                        itemData = data
+                        FW.Debug('Inventory', 'Legacy item fix', item.name, '→', itemName)
+                        break
+                    end
+                end
+            end
+            
+            -- Use itemlist.json data if found, otherwise use DB data
+            local finalType = 'item'
+            local finalEmoji = item.emoji or '📦'
+            local finalWeight = item.itemweight or 0
+            local finalCanUse = item.canUse or false
+            
+            if itemData then
+                finalType = itemData.type or 'item'
+                finalEmoji = itemData.emoji or finalEmoji
+                finalWeight = itemData.itemweight or finalWeight
+                finalCanUse = itemData.canUse or finalCanUse
+            end
+            
             inventoryObject[uniqueKey] = {
                 slot = i - 1, -- Frontend uses 0-indexed
-                name = item.name, -- Original item name
+                name = item.name, -- Original item name (keep for compatibility)
                 label = item.label,
-                emoji = item.emoji or '📦',
+                emoji = finalEmoji,
                 amount = item.quantity or 1,
-                itemweight = item.itemweight or 0,
-                type = item.type or 'item',
-                canUse = item.canUse or false,
+                itemweight = finalWeight,
+                type = finalType,
+                canUse = finalCanUse,
                 metadata = item.metadata or {}
             }
             itemCount = itemCount + 1
-            print('[FW Server] Adding item:', item.name, 'to slot', i - 1, 'quantity:', item.quantity)
         end
     end
     
-    print('[FW Server] Sending', itemCount, 'items as object (money excluded)')
+    FW.Debug('Inventory', 'Sending items', itemCount)
     cb({ inventory = inventoryObject })
 end)
 
@@ -392,7 +416,9 @@ FW.RegisterServerCallback('fw:inventory:getGroundItems', function(source, cb)
         end
     end
     
-    print('[FW Server] Ground items near player:', json.encode(nearbyItems))
+    local itemCount = 0
+    for _ in pairs(nearbyItems) do itemCount = itemCount + 1 end
+    FW.Debug('Inventory', 'Ground items nearby', itemCount)
     cb(nearbyItems)
 end)
 
@@ -402,11 +428,11 @@ end)
 RegisterNetEvent('fw:inventory:useItem', function(itemName)
     local src = source
     if type(itemName) ~= "string" or itemName == "" then
-        print(('[FW] useItem: ungültiger itemName von %s'):format(src))
+        FW.Debug('Inventory', 'useItem invalid', src)
         return
     end
 
-    print(('[FW] Spieler %s benutzt Item: %s'):format(src, itemName))
+    FW.Debug('Inventory', 'useItem', itemName)
 
     local itemDef = FW.Inventory.List[itemName]
 
@@ -442,9 +468,11 @@ RegisterNetEvent('fw:inventory:dropItem', function(itemName, amount)
     if amount <= 0 then amount = 1 end
 
     if type(itemName) ~= "string" or itemName == "" then
-        print(('[FW] dropItem: ungültiger itemName von %s'):format(src))
+        FW.Debug('Inventory', 'dropItem invalid', src)
         return
     end
+    
+    FW.Debug('Inventory', 'dropItem', itemName, amount)
 
     local itemDef = FW.Inventory.List[itemName]
     if not itemDef then

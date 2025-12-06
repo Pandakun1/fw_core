@@ -105,7 +105,7 @@ AddEventHandler('playerDropped', function(reason)
     for lockKey, lockData in pairs(ActiveLocks) do
         if lockData.player_src == src then
             ActiveLocks[lockKey] = nil
-            print(('[FW Lock] 🔓 Auto-Release Lock bei Disconnect: %s (Grund: %s)'):format(lockKey, reason))
+            FW.Debug('Lock', 'Auto-release disconnect', lockKey)
         end
     end
 end)

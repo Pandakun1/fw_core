@@ -22,8 +22,9 @@ const InventoryModule = {
     const settingsStore = useSettingsStore();
     
     // State - WICHTIG: Lade Design erst nach Settings-Load, sonst immer forest!
-    const layoutKey = ref('forest'); // Aktives Design (wird angewendet)
+    const layoutKey = ref('forest'); // Aktives Design (wird angezeigt)
     const tempLayoutKey = ref('forest'); // Temporäres Design im Settings-Modal
+    const originalLayoutKey = ref('forest'); // Original Design vor Öffnen des Modals (für Abbrechen)
     const isDesignLoading = ref(true); // Controls opacity during design load (500ms)
     const themeKey = ref('classicLeather');
     const animationKey = ref('none');
@@ -90,24 +91,14 @@ const InventoryModule = {
     const useFlash = computed(() => animationKey.value === 'quickResponse');
     const usePulse = computed(() => animationKey.value === 'scannerPulse');
 
-    // Dummy Data
-    const keys = ref([
-        { name: 'Autoschlüssel', icon: '🚗🔑' },
-        { name: 'Haustür Schlüssel', icon: '🏠🔑' },
-        { name: 'Job Schlüssel', icon: '🏢🔑' },
-    ]);
-
-    const licenses = ref([
-        { id: 'id', label: 'ID Card', desc: 'Personalausweis' },
-        { id: 'driver', label: 'Führerschein', desc: 'PKW / Motorrad' },
-        { id: 'weapon', label: 'Waffenschein', desc: 'Registrierte Waffen' },
-    ]);
-
+    // State für Keys, Licenses, Stats (werden vom Server geladen)
+    const keys = ref([]);
+    const licenses = ref([]);
     const stats = ref([
-        { name: 'Health', value: 95, max: 100, color: '#16a34a' },
-        { name: 'Armor', value: 60, max: 100, color: '#2563eb' },
-        { name: 'Hunger', value: 35, max: 100, color: '#ea580c' },
-        { name: 'Durst', value: 70, max: 100, color: '#7c3aed' },
+        { name: 'Health', value: 0, max: 100, color: '#16a34a' },
+        { name: 'Armor', value: 0, max: 100, color: '#2563eb' },
+        { name: 'Hunger', value: 0, max: 100, color: '#ea580c' },
+        { name: 'Durst', value: 0, max: 100, color: '#7c3aed' },
     ]);
 
     // Layout Configs
@@ -140,9 +131,7 @@ const InventoryModule = {
         const maxSlots = props.data?.maxSlots || 50;
         const items = Array(maxSlots).fill(null);
         
-        console.log('[Inventar] 📊 Lade Inventar mit', maxSlots, 'Slots');
-        console.log('[Inventar] Props data type:', typeof props.data);
-        console.log('[Inventar] Props data:', JSON.stringify(props.data));
+        FWDebug.log('Inventory', 'Loading', maxSlots, 'slots');
         
         // Prüfe verschiedene Datenstrukturen
         let inventoryData = null;
@@ -151,23 +140,23 @@ const InventoryModule = {
         // Direkt als Array vom Server (Slot-based neues Format)
         if (Array.isArray(props.data)) {
             inventoryData = props.data;
-            console.log('[Inventar] ✅ Found inventory as direct array:', inventoryData.length, 'items');
+            FWDebug.log('Inventory', 'Format: direct array', inventoryData.length);
         }
         // Als inventory Property (Array)
         else if (Array.isArray(props.data?.inventory)) {
             inventoryData = props.data.inventory;
-            console.log('[Inventar] ✅ Found inventory array:', inventoryData.length, 'items');
+            FWDebug.log('Inventory', 'Format: inventory array', inventoryData.length);
         }
         // Doppelt verschachtelt: { inventory: { inventory: [...] } } (Backend unwrap)
         else if (props.data?.inventory?.inventory && Array.isArray(props.data.inventory.inventory)) {
             inventoryData = props.data.inventory.inventory;
-            console.log('[Inventar] ✅ Found nested inventory array (unwrapped):', inventoryData.length, 'items');
+            FWDebug.log('Inventory', 'Format: nested array', inventoryData.length);
         }
         // Als Objekt (Server-Format: { itemName: { label, amount, slot, ... } })
         else if (props.data?.inventory && typeof props.data.inventory === 'object' && !Array.isArray(props.data.inventory)) {
             inventoryData = props.data.inventory;
             isObjectFormat = true;
-            console.log('[Inventar] ✅ Found inventory object (server format) with keys:', Object.keys(inventoryData).length);
+            FWDebug.log('Inventory', 'Format: object', Object.keys(inventoryData).length);
         }
         // Direkt als Objekt
         else if (props.data && typeof props.data === 'object' && !Array.isArray(props.data) && Object.keys(props.data).length > 0) {
@@ -209,12 +198,11 @@ const InventoryModule = {
                             canUse: itemData.canUse || false
                         };
                         loadedCount++;
-                        console.log('[Inventar] Loaded', actualItemName, 'in slot', itemData.slot, ':', itemData.label || actualItemName, 'x', itemData.amount);
                     } else if (itemData) {
-                        console.warn('[Inventar] ⚠️ Item', uniqueKey, 'hat keinen gültigen Slot:', itemData.slot);
+                        FWDebug.log('Inventory', 'Invalid slot', uniqueKey, itemData.slot);
                     }
                 }
-                console.log('[Inventar] ✅', loadedCount, 'Items aus Objekt-Format geladen');
+                FWDebug.log('Inventory', 'Loaded object format', loadedCount);
             } else if (Array.isArray(inventoryData) && inventoryData.length > 0) {
                 // Array-Format (Slot-based from server)
                 let loadedCount = 0;
@@ -243,17 +231,16 @@ const InventoryModule = {
                             canUse: item.canUse || false
                         };
                         loadedCount++;
-                        console.log('[Inventar] Loaded item in slot', slotIndex, ':', item.label || item.name, 'x', (item.amount || item.quantity || 1));
                     }
                 });
-                console.log('[Inventar] ✅', loadedCount, 'Items aus Array-Format geladen');
+                FWDebug.log('Inventory', 'Loaded array format', loadedCount);
             }
         }
         
         // Setze Inventar (auch wenn leer)
         inventoryItems.value = items;
         const loadedCount = items.filter(item => item !== null).length;
-        console.log('[Inventar] ✅ Geladene Items:', loadedCount, 'von', maxSlots);
+        FWDebug.log('Inventory', 'Total loaded', loadedCount, '/', maxSlots);
     };
     
     // Helper: Hole Emoji aus itemlist.json basierend auf itemName
@@ -282,13 +269,22 @@ const InventoryModule = {
     
     // Equipment Validation: Prüft ob Item in Equipment-Slot gedroppt werden darf
     const canEquipToSlot = (item, targetSlot) => {
-        if (!item || !item.type) return { allowed: false, message: 'Ungültiges Item' };
+        FWDebug.log('Equipment', 'Validate', item?.name, item?.type, '→', targetSlot);
+        
+        if (!item || !item.type) {
+            FWDebug.log('Equipment', 'Invalid item or no type');
+            return { allowed: false, message: 'Ungültiges Item' };
+        }
         
         const slotConfig = equipmentConfig.value[targetSlot];
-        if (!slotConfig) return { allowed: false, message: 'Ungültiger Slot' };
+        if (!slotConfig) {
+            FWDebug.log('Equipment', 'Invalid slot', targetSlot);
+            return { allowed: false, message: 'Ungültiger Slot' };
+        }
         
         // Prüfe ob Item-Typ erlaubt ist
         const isAllowed = slotConfig.allowedTypes.includes(item.type);
+        FWDebug.log('Equipment', isAllowed ? 'OK' : 'REJECT', item.type, 'in', targetSlot);
         
         return {
             allowed: isAllowed,
@@ -303,7 +299,7 @@ const InventoryModule = {
 
         // Validate source item exists
         if (!isItemDefined(itemA)) {
-            console.log('[Inventar] Kein Item zum Verschieben in Slot', fromIndex);
+            FWDebug.log('Inventory', 'No item in slot', fromIndex);
             return;
         }
         
@@ -323,13 +319,11 @@ const InventoryModule = {
             newItems[fromIndex] = itemB;
             inventoryItems.value = newItems;
             
-            console.log('[Inventar] ✅ Dummy-Daten lokal verschoben:', fromIndex, '→', toIndex);
-            console.log('[Inventar] 💡 Tipp: Nutze "additem sandwich 5" in Server Console für echte Items');
+            FWDebug.log('Inventory', 'Dummy swap', fromIndex, '→', toIndex);
             return;
         }
         
-        console.log('[Inventar] 📤 Sende moveItem an Server:', itemA.name, 'von Slot', fromIndex, 'zu Slot', toIndex);
-        console.log('[Inventar] ItemName:', itemA.itemName || itemA.name);
+        FWDebug.log('Inventory', 'moveItem', itemA.itemName || itemA.name, fromIndex, '→', toIndex);
         
         // Send to server with itemName for proper identification
         send('moveItem', {
@@ -344,58 +338,53 @@ const InventoryModule = {
         // newItems[toIndex] = itemA;
         // newItems[fromIndex] = itemB;
         // inventoryItems.value = newItems;
-        
-        console.log('[Inventar] ⏳ Warte auf Server-Bestätigung...');
     };
 
     const handleSlotClick = (index) => {
-        console.log('[Inventar] Slot geklickt:', index);
-        if (isItemDefined(inventoryItems.value[index])) {
-            console.log('[Inventar] Item:', inventoryItems.value[index]);
-        }
+        FWDebug.log('Inventory', 'Slot click', index);
     };
 
     const handleKeyClick = (key) => {
-        console.log('[Inventar] Key geklickt:', key);
+        FWDebug.log('Inventory', 'Key click', key.name);
         send('useKey', { keyId: key.id });
     };
 
     const handleLicenseClick = (license) => {
-        console.log('[Inventar] License geklickt:', license);
+        FWDebug.log('Inventory', 'License click', license.id);
     };
 
     const handleUse = () => {
-        console.log('[Inventar] Use Item');
+        FWDebug.log('Inventory', 'Use item');
         send('useItem');
     };
 
     const handlePickup = () => {
-        console.log('[Inventar] Boden aufheben');
+        FWDebug.log('Inventory', 'Pickup ground');
         send('pickupFromGround');
     };
 
     const handleGive = () => {
-        console.log('[Inventar] Geben-Modus');
+        FWDebug.log('Inventory', 'Give mode');
         openDualInventory('give', '🤝 Geben-Modus');
     };
 
     const openTrunk = () => {
-        console.log('[Inventar] Kofferraum öffnen');
+        FWDebug.log('Inventory', 'Open trunk');
         openDualInventory('trunk', '🚗 Kofferraum');
     };
 
     const openGlovebox = () => {
-        console.log('[Inventar] Handschuhfach öffnen');
+        FWDebug.log('Inventory', 'Open glovebox');
         openDualInventory('glovebox', '🧤 Handschuhfach');
     };
 
     const openStorage = () => {
-        console.log('[Inventar] Lager öffnen');
+        FWDebug.log('Inventory', 'Open storage');
         openDualInventory('storage', '🏢 Lager');
     };
 
     const openBag = () => {
-        console.log('[Inventar] Tasche öffnen');
+        FWDebug.log('Inventory', 'Open bag');
         openDualInventory('bag', '👜 Tasche');
     };
 
@@ -411,7 +400,7 @@ const InventoryModule = {
             secondInventoryItems.value = secondInventoryCache[mode]
                 .map(item => item && item.name ? { ...item } : null);
             
-            console.log('[Inventar] Gecachte Items geladen für:', mode);
+            FWDebug.log('Inventory', 'Load cached', mode, secondInventoryItems.value.length);
             
             // WICHTIG: Entferne diese Items aus dem Spielerinventar
             secondInventoryItems.value.forEach((cachedItem, index) => {
@@ -424,16 +413,11 @@ const InventoryModule = {
                     );
                     
                     if (mainSlotIndex !== -1) {
-                        console.log('[Inventar] 🗑️ Entferne gecachtes Item aus Hauptinventar:', cachedItem.name, 'Slot', mainSlotIndex);
                         inventoryItems.value[mainSlotIndex] = null;
                         movedFromMainInventory.add(mainSlotIndex); // Tracking für Rückgabe beim Abbruch
-                    } else {
-                        console.warn('[Inventar] ⚠️ Gecachtes Item nicht im Hauptinventar gefunden:', cachedItem.name);
                     }
                 }
             });
-            
-            console.log('[Inventar] ✅ Gecachte Items aus Hauptinventar entfernt, Tracking aktiviert');
         } else {
             // Immer 50 Slots für symmetrisches Layout (gleiche Größe wie Hauptinventar)
             const slots = 50;
@@ -441,31 +425,25 @@ const InventoryModule = {
         }
         
         dualInventoryOpen.value = true;
-        console.log('[Inventar] Opening dual inventory:', mode);
+        FWDebug.log('Inventory', 'Dual open', mode);
     };
 
     const saveDualInventory = () => {
-        console.log('[Inventar] Dual-Inventar zwischenspeichern für Mode:', dualInventoryMode.value);
+        FWDebug.log('Inventory', 'Save dual cache', dualInventoryMode.value);
         
         // Speichere im Cache - aber nur eine Deep Copy um Referenzen zu brechen
         secondInventoryCache[dualInventoryMode.value] = secondInventoryItems.value
             .map(item => item && item.name ? { ...item } : null);
-        
-        // WICHTIG: Tracking bleibt bestehen!
-        // Beim Abbruch müssen die Items zurück ins Hauptinventar
-        console.log('[Inventar] Tracked slots bleiben erhalten:', Array.from(movedFromMainInventory));
         
         // Sende auch an Server falls nötig
         send('saveDualInventory', { 
             mode: dualInventoryMode.value, 
             items: secondInventoryItems.value 
         });
-        
-        console.log('[Inventar] ✅ Items zwischengespeichert, Tracking bleibt aktiv für Rückgabe beim Abbruch');
     };
 
     const clearDualInventory = () => {
-        console.log('[Inventar] Dual-Inventar Items entfernen - Items zurück ins Spieler-Inventar');
+        FWDebug.log('Inventory', 'Clear dual - return items');
         
         // Finde alle Items im Dual-Inventar
         const itemsToReturn = [];
@@ -475,7 +453,7 @@ const InventoryModule = {
             }
         });
         
-        console.log('[Inventar] 📦 Items zum Zurückgeben:', itemsToReturn.length);
+        FWDebug.log('Inventory', 'Items to return', itemsToReturn.length);
         
         // Schiebe Items zurück ins Spieler-Inventar
         itemsToReturn.forEach(item => {
@@ -492,9 +470,8 @@ const InventoryModule = {
                     type: item.type,
                     canUse: item.canUse
                 };
-                console.log('[Inventar] ✅ Item zurückgelegt:', item.name, 'in Slot', emptySlot);
             } else {
-                console.warn('[Inventar] ⚠️ Kein Platz für Item:', item.name);
+                FWDebug.log('Inventory', 'No space for item', item.name);
             }
         });
         
@@ -503,7 +480,7 @@ const InventoryModule = {
         secondInventoryItems.value = Array(emptySlots).fill(null);
         
         // Speichere beide Inventare sofort
-        console.log('[Inventar] 💾 Auto-Save nach Items Entfernen...');
+        FWDebug.log('Inventory', 'Auto-save after items removed');
         
         const mainInvArray = inventoryItems.value.map((item, index) => {
             if (!item) return null;
@@ -541,11 +518,11 @@ const InventoryModule = {
             });
         }
         
-        console.log('[Inventar] ✅ Alle Items zurückgelegt und gespeichert');
+        FWDebug.log('Inventory', 'All items returned and saved');
     };
 
     const confirmDualInventory = () => {
-        console.log('[Inventar] Dual-Inventar bestätigen - Mode:', dualInventoryMode.value);
+        FWDebug.log('Inventory', 'Confirming dual inventory', dualInventoryMode.value);
         
         const mode = dualInventoryMode.value;
         const metadata = dualInventoryMetadata.value || {};
@@ -561,12 +538,12 @@ const InventoryModule = {
             .filter(item => item !== null);
         
         if (itemsToTransfer.length === 0 && mode !== 'trunk' && mode !== 'glovebox' && mode !== 'stash') {
-            console.log('[Inventar] Keine Items zum Übertragen');
+            FWDebug.log('Inventory', 'No items to transfer');
             closeDualInventory();
             return;
         }
         
-        console.log('[Inventar] Items zum Übertragen:', itemsToTransfer);
+        FWDebug.log('Inventory', 'Items to transfer', itemsToTransfer.length);
         
         // Mode-spezifische Aktionen
         if (mode === 'give' || mode === 'ground') {
@@ -623,7 +600,7 @@ const InventoryModule = {
                 mainInventory: mainInventory
             });
             
-            console.log('[Inventar] ✅ Kofferraum + Hauptinventar gespeichert für Plate:', metadata.plate);
+            FWDebug.log('Inventory', 'Trunk saved for plate', metadata.plate);
         }
         else if (mode === 'glovebox') {
             // Handschuhfach: Speichere in DB (ARRAY format)
@@ -666,7 +643,7 @@ const InventoryModule = {
                 mainInventory: mainInventory
             });
             
-            console.log('[Inventar] ✅ Handschuhfach + Hauptinventar gespeichert für Plate:', metadata.plate);
+            FWDebug.log('Inventory', 'Glovebox saved for plate', metadata.plate);
         }
         else if (mode === 'stash') {
             // Lager: Speichere in DB (ARRAY format)
@@ -709,7 +686,7 @@ const InventoryModule = {
                 mainInventory: mainInventory
             });
             
-            console.log('[Inventar] ✅ Lager + Hauptinventar gespeichert für ID:', metadata.stashId);
+            FWDebug.log('Inventory', 'Stash saved for ID', metadata.stashId);
         }
         else if (mode === 'equipment') {
             // Equipment Storage (Rucksack/Tasche): Speichere in DB
@@ -732,7 +709,7 @@ const InventoryModule = {
                 inventory: equipmentInventory
             });
             
-            console.log('[Inventar] ✅ Equipment-Storage gespeichert für ID:', metadata.equipmentId);
+            FWDebug.log('Inventory', 'Equipment storage saved', metadata.equipmentId);
         }
         
         // Schließe Modal
@@ -923,58 +900,64 @@ const InventoryModule = {
     };
 
     const handleClose = () => {
-        console.log('[Inventar] Schließen via Button');
+        FWDebug.log('Inventory', 'Close via button');
         send('closeInventory');
     };
 
     const toggleSettings = () => {
         if (!settingsOpen.value) {
-            // Beim Öffnen: Kopiere aktuelle Einstellungen in temp
+            // Beim Öffnen: Speichere aktuelles Design als Original
+            originalLayoutKey.value = layoutKey.value;
             tempLayoutKey.value = layoutKey.value;
-            console.log('[Inventar] ⚙️ Settings opened, current design:', layoutKey.value);
+            FWDebug.log('Inventory', 'Settings opened', layoutKey.value);
+        } else {
+            // Beim Schließen ohne Speichern: Stelle Original wieder her
+            layoutKey.value = originalLayoutKey.value;
+            tempLayoutKey.value = originalLayoutKey.value;
+            FWDebug.log('Inventory', 'Settings closed, restored', originalLayoutKey.value);
         }
         settingsOpen.value = !settingsOpen.value;
     };
 
     const selectDesign = (designKey) => {
-        console.log(`[Inventar] 🎨 Design selected in modal: ${designKey}`);
+        FWDebug.log('Inventory', 'Design selected (preview)', designKey);
         tempLayoutKey.value = designKey;
+        // Live Preview: Zeige Design sofort an
+        layoutKey.value = designKey;
     };
 
     const saveSettings = () => {
-        console.log(`[Inventar] 💾 Saving settings - Design: ${tempLayoutKey.value}`);
+        FWDebug.log('Inventory', 'Saving settings', tempLayoutKey.value);
         
-        // Apply changes
-        layoutKey.value = tempLayoutKey.value;
-        
-        // Save to server
+        // Design ist bereits angezeigt (live preview), jetzt permanent speichern
+        originalLayoutKey.value = tempLayoutKey.value; // Update original so close doesn't restore
         settingsStore.setSetting('inventory_design', tempLayoutKey.value);
         
-        // Close modal
+        // Close modal directly (not via toggleSettings to prevent restore)
         settingsOpen.value = false;
         
-        console.log('[Inventar] ✅ Settings saved and applied!');
+        FWDebug.log('Inventory', 'Settings saved and applied');
     };
 
     const openClothing = () => {
-        console.log('[Inventar] Kleidung öffnen');
+        FWDebug.log('Inventory', 'Opening clothing');
         send('openClothing');
     };
 
     const openGround = () => {
-        console.log('[Inventar] 🌍 Boden öffnen - fordere Daten vom Server an');
+        FWDebug.log('Inventory', 'Opening ground');
         // Sende Request an Lua Client -> Server -> handleOpenDualInventory
         send('requestGroundInventory');
     };
 
     const toggleGiveMode = () => {
-        console.log('[Inventar] Geben-Modus umschalten');
+        FWDebug.log('Inventory', 'Toggle give mode');
         openDualInventory('give', '🤝 Geben');
     };
     
     const toggleEquipmentModal = () => {
         equipmentModalOpen.value = !equipmentModalOpen.value;
-        console.log('[Inventar] Equipment Modal:', equipmentModalOpen.value ? 'geöffnet' : 'geschlossen');
+        FWDebug.log('Inventory', 'Equipment modal', equipmentModalOpen.value ? 'open' : 'closed');
     };
     
     // Context Menu Functions (Right-Click)
@@ -986,15 +969,23 @@ const InventoryModule = {
             return; // No context menu for empty slots
         }
         
-        contextMenuItem.value = item;
+        console.log('[Context Menu] Mouse Position:', event.clientX, event.clientY);
+        console.log('[Context Menu] Item:', item.name, 'canUse:', item.canUse);
+        
+        contextMenuItem.value = { ...item }; // Copy item data
         contextMenuSlotIndex.value = slotIndex;
+        
+        // Position direkt an der Maus mit kleinem Offset (wie beim Ghost)
+        const offsetX = 10; // Kleiner Offset nach rechts
+        const offsetY = 10; // Kleiner Offset nach unten
+        
         contextMenuPosition.value = {
-            x: event.clientX,
-            y: event.clientY
+            x: event.clientX + offsetX,
+            y: event.clientY + offsetY
         };
         contextMenuOpen.value = true;
         
-        console.log('[Context Menu] Opened for item:', item.name, 'at slot:', slotIndex);
+        console.log('[Context Menu] Final Position:', contextMenuPosition.value);
     };
     
     const closeContextMenu = () => {
@@ -1005,7 +996,6 @@ const InventoryModule = {
     
     const useItemFromContext = () => {
         if (contextMenuItem.value) {
-            console.log('[Context Menu] Use item:', contextMenuItem.value.name);
             send('useItem', {
                 itemName: contextMenuItem.value.name,
                 slot: contextMenuSlotIndex.value
@@ -1014,22 +1004,10 @@ const InventoryModule = {
         closeContextMenu();
     };
     
-    const showItemDescription = () => {
-        if (contextMenuItem.value) {
-            console.log('[Context Menu] Show description for:', contextMenuItem.value.name);
-            // TODO: Show modal with item description
-            alert(`${contextMenuItem.value.emoji} ${contextMenuItem.value.label || contextMenuItem.value.name}\n\nBeschreibung: Ein nützliches Item.`);
-        }
-        closeContextMenu();
-    };
-    
     const showItemInfo = () => {
         if (contextMenuItem.value) {
-            console.log('[Context Menu] Show info for:', contextMenuItem.value.name);
-            // TODO: Show modal with metadata
-            const metadata = contextMenuItem.value.metadata || [];
-            const metaStr = metadata.length > 0 ? JSON.stringify(metadata, null, 2) : 'Keine Metadaten';
-            alert(`${contextMenuItem.value.emoji} ${contextMenuItem.value.label || contextMenuItem.value.name}\n\nMetadaten:\n${metaStr}`);
+            // TODO: Implement info modal
+            console.log('[Context Menu] Info feature - Coming soon!');
         }
         closeContextMenu();
     };
@@ -1131,7 +1109,6 @@ const InventoryModule = {
                 // Prüfe auf data-equipment-slot Attribut (Equipment Slots)
                 if (currentElement.hasAttribute && currentElement.hasAttribute('data-equipment-slot')) {
                     isOverProtectedArea = true;
-                    console.log('[Auto-Scroll] 🛡️ Equipment-Slot erkannt - Auto-Scroll blockiert');
                     break;
                 }
                 
@@ -2170,15 +2147,14 @@ const InventoryModule = {
     };
     
     onMounted(async () => {
-        console.log('[Inventar] Component mounted');
-        console.log('[Inventar] Props data:', props.data);
+        FWDebug.log('Inventory', 'Component mounted');
         
         // Start mit opacity 0 während Design lädt
         isDesignLoading.value = true;
         
         // KRITISCH: Wenn Store leer ist, fordere Settings vom Client an
         if (!settingsStore.isLoaded) {
-            console.log('[Inventar] 🔄 Settings not loaded yet, requesting from client...');
+            FWDebug.log('Inventory', 'Settings not loaded, requesting');
             await settingsStore.requestSettings();
             // Warte länger bis Store reaktiv aktualisiert ist (200ms statt 50ms)
             await new Promise(resolve => setTimeout(resolve, 200));
@@ -2193,9 +2169,7 @@ const InventoryModule = {
         const savedDesign = storeSettings?.inventory_design || storeSettings?.['inventory_design'] || null;
         const finalDesign = savedDesign || 'forest'; // Fallback to default
         
-        console.log('[Inventar] 🎨 Design Loading - settingsStore.settings:', JSON.stringify(storeSettings));
-        console.log('[Inventar] 🎨 Design Loading - isLoaded:', settingsStore.isLoaded);
-        console.log('[Inventar] 🎨 Design Loading - Saved:', savedDesign, '| Final:', finalDesign);
+        FWDebug.log('Inventory', 'Design loading', savedDesign, '→', finalDesign);
         layoutKey.value = finalDesign;
         tempLayoutKey.value = finalDesign; // Sync temp for modal
         
@@ -2204,7 +2178,7 @@ const InventoryModule = {
         // Warte 100ms damit Design vollständig laden kann (unsichtbar)
         await new Promise(resolve => setTimeout(resolve, 100));
         isDesignLoading.value = false; // Jetzt Fade-In
-        console.log('[Inventar] 🎨 Design loaded, fading in...');
+        FWDebug.log('Inventory', 'Design loaded, fading in');
         
         // KEIN Auto-Save mehr! Nur explizites Speichern via Button
         
@@ -2285,7 +2259,6 @@ const InventoryModule = {
                     openContextMenu,
                     closeContextMenu,
                     useItemFromContext,
-                    showItemDescription,
                     showItemInfo,
                     openClothing,
                     toggleGiveMode,
@@ -2353,7 +2326,6 @@ const InventoryModule = {
         openContextMenu,
         closeContextMenu,
         useItemFromContext,
-        showItemDescription,
         showItemInfo,
         moveItem,
         handleSlotClick,
@@ -2388,19 +2360,12 @@ const InventoryModule = {
         handleDrop,
     };
 },
-    template: `
-    <div :class="[
-        'fixed inset-0 flex items-center justify-center p-8',
-        'theme-' + themeKey,
-    ]"
-         :style="{ opacity: isDesignLoading ? 0 : 1, transition: 'opacity 0.2s ease-in' }">
-        <div :class="[
-        'layout-' + layoutKey
-    ]" :style="{ transform: 'scale(' + inventoryScale + ')', transformOrigin: 'center' }">
+    template: `<div :class="['fixed inset-0 flex items-center justify-center p-8', 'theme-' + themeKey]" :style="{ opacity: isDesignLoading ? 0 : 1, transition: 'opacity 0.2s ease-in' }">
+        <div :class="['layout-' + layoutKey]" :style="{ transform: 'scale(' + inventoryScale + ')', transformOrigin: 'center' }">
         <!-- Settings Menu -->
         <Transition name="settings-fade">
-            <div v-if="settingsOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center" @click.self="toggleSettings()">
-                <div class="absolute bg-gradient-to-br from-slate-800 to-slate-900 w-[480px] max-h-[80vh] rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.9)] border-2 border-slate-600/30" :style="{ left: settingsPosition.x + 'px', top: settingsPosition.y + 'px' }">
+            <div v-if="settingsOpen" class="fixed inset-0 flex items-center justify-center z-[9999] pointer-events-none">
+                <div class="pointer-events-auto bg-gradient-to-br from-slate-800 to-slate-900 w-[480px] max-h-[80vh] rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.9)] border-2 border-slate-600/30">
                     <!-- Settings Header -->
                     <div class="bg-gradient-to-r from-slate-700 to-slate-800 px-4 py-3 flex justify-between items-center rounded-t-2xl border-b-2 border-sky-500/30">
                         <div class="flex items-center gap-2 text-slate-50 font-bold text-base uppercase tracking-wider">
@@ -2462,10 +2427,99 @@ const InventoryModule = {
             </div>
         </Transition>
 
+        <!-- Context Menu Modal -->
+        <Transition name="context-fade">
+            <div v-if="contextMenuOpen && contextMenuItem" class="fixed inset-0 z-[10000] pointer-events-none">
+                <div @click="closeContextMenu" class="absolute inset-0 pointer-events-auto"></div>
+                <div class="context-menu pointer-events-auto fixed" :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }">
+                    <!-- Forest Theme -->
+                    <div v-if="layoutKey === 'forest'" class="bg-gradient-to-br from-emerald-900/95 to-green-950/98 w-[140px] rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.9)] border-2 border-emerald-600/50">
+                        <div class="bg-gradient-to-r from-emerald-800/80 to-green-900/90 px-2 py-1.5 flex items-center gap-1.5 rounded-t-lg border-b border-emerald-500/30">
+                            <span class="text-lg">{{ contextMenuItem.emoji }}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-emerald-50 font-bold text-[11px] truncate">{{ contextMenuItem.label || contextMenuItem.name }}</div>
+                                <div v-if="contextMenuItem.quantity > 1" class="text-emerald-300/80 text-[9px]">× {{ contextMenuItem.quantity }}</div>
+                            </div>
+                        </div>
+                        <div class="p-1.5 space-y-1">
+                            <button v-if="contextMenuItem.canUse" @click="useItemFromContext" class="w-full px-2 py-2.5 rounded-md bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-emerald-50 font-semibold text-[11px] transition-all">✅ Benutzen</button>
+                            <button @click="showItemInfo" class="w-full px-2 py-2.5 rounded-md bg-slate-700/80 hover:bg-slate-600 text-slate-100 font-semibold text-[11px] transition-all">📋 Details</button>
+                            <button @click="closeContextMenu" class="w-full px-2 py-2.5 rounded-md bg-red-600/70 hover:bg-red-500 text-red-50 font-semibold text-[11px] transition-all">❌ Abbrechen</button>
+                        </div>
+                    </div>
+
+                    <!-- Tactical Backpack Theme -->
+                    <div v-if="layoutKey === 'tacticalBackpack'" class="bg-gradient-to-br from-slate-900/95 to-slate-950/98 w-[140px] rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.9)] border-2 border-cyan-600/50">
+                        <div class="bg-gradient-to-r from-slate-800/90 to-slate-900/95 px-2 py-1.5 flex items-center gap-1.5 rounded-t-lg border-b border-cyan-500/30">
+                            <span class="text-lg">{{ contextMenuItem.emoji }}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-cyan-50 font-bold text-[11px] truncate">{{ contextMenuItem.label || contextMenuItem.name }}</div>
+                                <div v-if="contextMenuItem.quantity > 1" class="text-cyan-300/80 text-[9px]">× {{ contextMenuItem.quantity }}</div>
+                            </div>
+                        </div>
+                        <div class="p-1.5 space-y-1">
+                            <button v-if="contextMenuItem.canUse" @click="useItemFromContext" class="w-full px-2 py-2.5 rounded-md bg-gradient-to-r from-cyan-600 to-teal-700 hover:from-cyan-500 hover:to-teal-600 text-cyan-50 font-semibold text-[11px] transition-all">✅ Benutzen</button>
+                            <button @click="showItemInfo" class="w-full px-2 py-2.5 rounded-md bg-slate-700/80 hover:bg-slate-600 text-slate-100 font-semibold text-[11px] transition-all">📋 Details</button>
+                            <button @click="closeContextMenu" class="w-full px-2 py-2.5 rounded-md bg-red-600/70 hover:bg-red-500 text-red-50 font-semibold text-[11px] transition-all">❌ Abbrechen</button>
+                        </div>
+                    </div>
+
+                    <!-- Retro Drawer Theme -->
+                    <div v-if="layoutKey === 'retroDrawer'" class="bg-gradient-to-br from-orange-900/95 to-amber-950/98 w-[140px] rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.9)] border-2 border-orange-600/50">
+                        <div class="bg-gradient-to-r from-orange-800/80 to-amber-900/90 px-2 py-1.5 flex items-center gap-1.5 rounded-t-lg border-b border-orange-500/30">
+                            <span class="text-lg">{{ contextMenuItem.emoji }}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-orange-50 font-bold text-[11px] truncate">{{ contextMenuItem.label || contextMenuItem.name }}</div>
+                                <div v-if="contextMenuItem.quantity > 1" class="text-orange-300/80 text-[9px]">× {{ contextMenuItem.quantity }}</div>
+                            </div>
+                        </div>
+                        <div class="p-1.5 space-y-1">
+                            <button v-if="contextMenuItem.canUse" @click="useItemFromContext" class="w-full px-2 py-2.5 rounded-md bg-gradient-to-r from-orange-600 to-amber-700 hover:from-orange-500 hover:to-amber-600 text-orange-50 font-semibold text-[11px] transition-all">✅ Benutzen</button>
+                            <button @click="showItemInfo" class="w-full px-2 py-2.5 rounded-md bg-slate-700/80 hover:bg-slate-600 text-slate-100 font-semibold text-[11px] transition-all">📋 Details</button>
+                            <button @click="closeContextMenu" class="w-full px-2 py-2.5 rounded-md bg-red-600/70 hover:bg-red-500 text-red-50 font-semibold text-[11px] transition-all">❌ Abbrechen</button>
+                        </div>
+                    </div>
+
+                    <!-- Sci-Fi HUD Theme -->
+                    <div v-if="layoutKey === 'sciFiHud'" class="bg-gradient-to-br from-cyan-950/95 to-blue-950/98 w-[140px] rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.9)] border-2 border-cyan-400/60">
+                        <div class="bg-gradient-to-r from-cyan-900/80 to-blue-950/90 px-2 py-1.5 flex items-center gap-1.5 rounded-t-lg border-b border-cyan-400/40">
+                            <span class="text-lg">{{ contextMenuItem.emoji }}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-cyan-50 font-bold text-[11px] truncate">{{ contextMenuItem.label || contextMenuItem.name }}</div>
+                                <div v-if="contextMenuItem.quantity > 1" class="text-cyan-300/80 text-[9px]">× {{ contextMenuItem.quantity }}</div>
+                            </div>
+                        </div>
+                        <div class="p-1.5 space-y-1">
+                            <button v-if="contextMenuItem.canUse" @click="useItemFromContext" class="w-full px-2 py-2.5 rounded-md bg-gradient-to-r from-cyan-600 to-blue-700 hover:from-cyan-500 hover:to-blue-600 text-cyan-50 font-semibold text-[11px] transition-all">✅ Benutzen</button>
+                            <button @click="showItemInfo" class="w-full px-2 py-2.5 rounded-md bg-slate-700/80 hover:bg-slate-600 text-slate-100 font-semibold text-[11px] transition-all">📋 Details</button>
+                            <button @click="closeContextMenu" class="w-full px-2 py-2.5 rounded-md bg-red-600/70 hover:bg-red-500 text-red-50 font-semibold text-[11px] transition-all">❌ Abbrechen</button>
+                        </div>
+                    </div>
+
+                    <!-- Briefcase Theme -->
+                    <div v-if="layoutKey === 'briefcase'" class="bg-gradient-to-br from-amber-900/95 to-yellow-950/98 w-[140px] rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.9)] border-2 border-yellow-600/50">
+                        <div class="bg-gradient-to-r from-amber-800/80 to-yellow-900/90 px-2 py-1.5 flex items-center gap-1.5 rounded-t-lg border-b border-yellow-500/30">
+                            <span class="text-lg">{{ contextMenuItem.emoji }}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-yellow-50 font-bold text-[11px] truncate">{{ contextMenuItem.label || contextMenuItem.name }}</div>
+                                <div v-if="contextMenuItem.quantity > 1" class="text-yellow-300/80 text-[9px]">× {{ contextMenuItem.quantity }}</div>
+                            </div>
+                        </div>
+                        <div class="p-1.5 space-y-1">
+                            <button v-if="contextMenuItem.canUse" @click="useItemFromContext" class="w-full px-2 py-2.5 rounded-md bg-gradient-to-r from-yellow-600 to-amber-700 hover:from-yellow-500 hover:to-amber-600 text-yellow-50 font-semibold text-[11px] transition-all">✅ Benutzen</button>
+                            <button @click="showItemInfo" class="w-full px-2 py-2.5 rounded-md bg-slate-700/80 hover:bg-slate-600 text-slate-100 font-semibold text-[11px] transition-all">📋 Details</button>
+                            <button @click="closeContextMenu" class="w-full px-2 py-2.5 rounded-md bg-red-600/70 hover:bg-red-500 text-red-50 font-semibold text-[11px] transition-all">❌ Abbrechen</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Transition>
+
         <!-- Main Inventar Content -->
         <div class="w-[62vw] h-[64vh] flex items-center justify-center">
             <!-- Dynamic Design Component - Only renders the active template -->
             <component :is="currentDesignComponent" :key="layoutKey"></component>
+        </div>
         </div>
     </div>
     `

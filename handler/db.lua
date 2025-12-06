@@ -45,11 +45,11 @@ function FW.DB.SetupTables()
     ]]
 
     MySQL.query(createPlayersTableQuery, {}, function(result)
-        print('[FW] - Spieler Tabelle wurde erstellt oder existiert bereits.')
+        FW.Debug('Database', 'Players table created or exists')
     end)
 
     MySQL.query(createJobsTableQuery, {}, function(result)
-        print('[FW] - Jobs Tabelle wurde erstellt oder existiert bereits.')
+        FW.Debug('Database', 'Jobs table created or exists')
     end)
 end
 
@@ -69,7 +69,7 @@ function FW.DB.LoadPlayer(source, identifier, cb)
             if row then
                 -- AUTO-MIGRATION: Convert old inventory to inventory_slots if needed
                 if (not row.inventory_slots or row.inventory_slots == '') and row.inventory and row.inventory ~= '{}' then
-                    print('[FW] Auto-migrating inventory to slot-based format for:', row.identifier)
+                    FW.Debug('Database', 'Auto-migrating inventory for', row.identifier)
                     
                     local oldInv = {}
                     local ok, decoded = pcall(json.decode, row.inventory)
@@ -102,7 +102,7 @@ function FW.DB.LoadPlayer(source, identifier, cb)
                     MySQL.update('UPDATE players SET inventory_slots = ? WHERE identifier = ?',
                         { row.inventory_slots, row.identifier },
                         function()
-                            print('[FW] ✅ Inventory migrated to slots for:', row.identifier)
+                            FW.Debug('Database', 'Inventory migrated to slots', row.identifier)
                         end
                     )
                 elseif not row.inventory_slots or row.inventory_slots == '' then
@@ -150,7 +150,7 @@ function FW.DB.InsertPlayer(row, cb)
 end
 
 function FW.DB.SavePlayer(row, cb)
-    print('Speichere Spieler: ' .. json.encode(row))
+    FW.Debug('Database', 'Saving player', row.identifier or 'unknown')
     MySQL.query(
         [[
             UPDATE players SET

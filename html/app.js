@@ -79,10 +79,11 @@ const App = {
             }
 
             // 3. LIVE UPDATES (wenn UI schon offen ist)
-            if (action === 'updateSlots' || action === 'updateGroundItems') {
+            if (action === 'updateSlots' || action === 'updateGroundItems' || action === 'updateInventory') {
                 // Merged die neuen Daten in die bestehenden routeData
                 if (activeRoute.value === 'inventory') {
                     routeData.value = { ...routeData.value, ...eventData };
+                    console.log('[App] Updated inventory with equipment:', eventData.equipment ? 'YES' : 'NO');
                 }
             }
 

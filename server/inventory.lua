@@ -390,8 +390,38 @@ FW.RegisterServerCallback('fw:inventory:getInventoryData', function(source, cb)
         end
     end
     
-    FW.Debug('Inventory', 'Sending items', itemCount)
-    cb({ inventory = inventoryObject })
+    -- Get equipment slots
+    local equipment = Player.getEquipment()
+    local equipmentData = {
+        vest = nil,
+        weapon = nil,
+        bag1 = nil,
+        bag2 = nil
+    }
+    
+    -- Convert equipment to client format
+    for slot, item in pairs(equipment) do
+        if item and item.name then
+            local itemData = FW.Inventory.List[item.name]
+            equipmentData[slot] = {
+                name = item.name,
+                label = item.label or (itemData and itemData.label) or item.name,
+                emoji = item.emoji or (itemData and itemData.emoji) or '📦',
+                quantity = item.quantity or 1,
+                itemweight = item.itemweight or (itemData and itemData.itemweight) or 0,
+                type = item.type or (itemData and itemData.type) or 'item',
+                canUse = item.canUse or (itemData and itemData.canUse) or false,
+                metadata = item.metadata or {},
+                equipmentId = item.equipmentId -- Important for storage bags
+            }
+        end
+    end
+    
+    FW.Debug('Inventory', 'Sending items', itemCount, '+ equipment')
+    cb({ 
+        inventory = inventoryObject,
+        equipment = equipmentData
+    })
 end)
 
 -- Callback: Ground Items in der Nähe abrufen
@@ -686,29 +716,41 @@ end)
 -- Event: Item zwischen Slots verschieben (Modern Inventory - Name-basiert)
 RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
     local src = source
-    -- Frontend sendet 0-basiert, Lua nutzt 1-basiert
-    fromSlot = tonumber(fromSlot)
-    toSlot = tonumber(toSlot)
     
-    if not fromSlot or not toSlot then
-        print('[FW] moveItem: fromSlot oder toSlot ist nil')
-        return
+    -- Equipment slots are strings ('vest', 'weapon', 'bag1', 'bag2')
+    -- Normal slots are numbers (0-49 from frontend)
+    local fromIsEquip = type(fromSlot) == 'string'
+    local toIsEquip = type(toSlot) == 'string'
+    
+    -- Convert numeric slots to 1-based for Lua
+    if not fromIsEquip then
+        fromSlot = tonumber(fromSlot)
+        if fromSlot then fromSlot = fromSlot + 1 end
+    end
+    if not toIsEquip then
+        toSlot = tonumber(toSlot)
+        if toSlot then toSlot = toSlot + 1 end
     end
     
-    fromSlot = fromSlot + 1
-    toSlot = toSlot + 1
-    
-    print(('[FW Core] Player %d moving item: slot %d (0-based: %d) -> slot %d (0-based: %d)'):format(src, fromSlot, fromSlot-1, toSlot, toSlot-1))
-
     if not fromSlot or not toSlot or fromSlot == toSlot then
         print('[FW] moveItem: ungültige Slots')
         return
     end
-
-    if fromSlot < 1 or fromSlot > 50 or toSlot < 1 or toSlot > 50 then
-        print('[FW] moveItem: Slots außerhalb des Bereichs (1-50)')
+    
+    -- Validate numeric slot ranges
+    if not fromIsEquip and (fromSlot < 1 or fromSlot > 50) then
+        print('[FW] moveItem: fromSlot außerhalb des Bereichs (1-50)')
         return
     end
+    if not toIsEquip and (toSlot < 1 or toSlot > 50) then
+        print('[FW] moveItem: toSlot außerhalb des Bereichs (1-50)')
+        return
+    end
+    
+    print(('[FW Equipment] Move: %s → %s'):format(
+        fromIsEquip and fromSlot or ('slot' .. (fromSlot-1)),
+        toIsEquip and toSlot or ('slot' .. (toSlot-1))
+    ))
 
     local Player = FW.GetPlayer(src)
     if not Player then
@@ -716,11 +758,11 @@ RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
         return
     end
 
-    -- Get current inventory - this returns a reference to the internal table
+    -- Get current inventory and equipment
     local slots = Player.getInventory()
+    local equipment = Player.getEquipment()
     
-    -- Create a deep copy to avoid corrupting state during async save
-    -- Filter out json.null() values which are functions/userdata
+    -- Create copies
     local slotsCopy = {}
     for i = 1, 50 do
         local slot = slots[i]
@@ -731,13 +773,39 @@ RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
         end
     end
     
-    local fromItem = slotsCopy[fromSlot]
-    local toItem = slotsCopy[toSlot]
+    local equipmentCopy = {
+        vest = equipment.vest,
+        weapon = equipment.weapon,
+        bag1 = equipment.bag1,
+        bag2 = equipment.bag2
+    }
+    
+    -- Get items from their locations
+    local fromItem = nil
+    if fromIsEquip then
+        fromItem = equipmentCopy[fromSlot]
+    else
+        fromItem = slotsCopy[fromSlot]
+    end
+    
+    local toItem = nil
+    if toIsEquip then
+        toItem = equipmentCopy[toSlot]
+    else
+        toItem = slotsCopy[toSlot]
+    end
 
     if not fromItem then
-        print(('[FW Core] No item in source slot: %d'):format(fromSlot))
+        print(('[FW Equipment] No item in source slot'):format())
         return
     end
+
+    -- DEBUG: Print full item data
+    print(('[FW Equipment] DEBUG fromItem: name=%s, label=%s, type=%s'):format(
+        tostring(fromItem.name), 
+        tostring(fromItem.label), 
+        tostring(fromItem.type)
+    ))
 
     -- Money darf nicht verschoben werden
     if fromItem.name == 'money' or (toItem and type(toItem) == 'table' and toItem.name == 'money') then
@@ -745,57 +813,95 @@ RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
         return
     end
 
-    print(('[FW] moveItem: Verschiebe %s von Slot %d zu Slot %d'):format(fromItem.name, fromSlot, toSlot))
-
-    -- Items stacken, tauschen oder verschieben
-    if toItem and type(toItem) == 'table' then
-        -- Prüfe ob gleicher Item-Typ → Stack
-        if fromItem.name == toItem.name then
-            -- Stack: Addiere Mengen zusammen
-            local totalQuantity = (fromItem.quantity or 1) + (toItem.quantity or 1)
-            toItem.quantity = totalQuantity
-            slotsCopy[toSlot] = toItem
-            slotsCopy[fromSlot] = nil
-            print(('[FW] Stack: %s (%d + %d = %d) → Slot %d'):format(
-                fromItem.name, 
-                fromItem.quantity or 1, 
-                (toItem.quantity or 1) - (fromItem.quantity or 1), 
-                totalQuantity, 
-                toSlot
+    -- Validate equipment slot compatibility
+    if toIsEquip then
+        local itemData = FW.Equipment.GetItemData(fromItem.name)
+        print(('[FW Equipment] DEBUG GetItemData result: %s'):format(itemData and 'FOUND' or 'NOT FOUND'))
+        if itemData then
+            print(('[FW Equipment] DEBUG itemData.equipSlot=%s, target=%s'):format(
+                tostring(itemData.equipSlot), 
+                tostring(toSlot)
             ))
-        else
-            -- Swap: Unterschiedliche Items tauschen
-            slotsCopy[fromSlot] = toItem
-            slotsCopy[toSlot] = fromItem
-            print(('[FW] Swap: %s ↔ %s'):format(fromItem.name, toItem.name))
         end
-    else
-        -- Move: Verschiebe zu leerem Slot
-        slotsCopy[toSlot] = fromItem
-        slotsCopy[fromSlot] = nil
-        print(('[FW] Move: %s → Slot %d'):format(fromItem.name, toSlot))
+        
+        if not itemData or itemData.equipSlot ~= toSlot then
+            print(('[FW Equipment] Item %s cannot be equipped to %s slot'):format(fromItem.name, toSlot))
+            TriggerClientEvent('fw:client:notify', src, 'Ungültiges Item für diesen Slot', 'error')
+            return
+        end
     end
 
-    -- Update Player Cache with modified copy
-    Player.setInventory(slotsCopy)
+    print(('[FW Equipment] Moving %s'):format(fromItem.name))
 
-    -- In DB speichern
-    SaveInventory(src, slotsCopy, function()
-        print(('[FW] Slots aktualisiert für Spieler %s'):format(src))
+    -- Handle the move/swap
+    if toItem and type(toItem) == 'table' then
+        -- Both slots occupied - check if can stack
+        if fromItem.name == toItem.name and not toIsEquip then
+            -- Stack items (only in inventory, not equipment)
+            local totalQuantity = (fromItem.quantity or 1) + (toItem.quantity or 1)
+            toItem.quantity = totalQuantity
+            
+            if fromIsEquip then
+                equipmentCopy[fromSlot] = nil
+            else
+                slotsCopy[fromSlot] = nil
+            end
+            
+            slotsCopy[toSlot] = toItem
+            print(('[FW Equipment] Stacked to total: %d'):format(totalQuantity))
+        else
+            -- Swap items
+            if fromIsEquip then
+                equipmentCopy[fromSlot] = toItem
+            else
+                slotsCopy[fromSlot] = toItem
+            end
+            
+            if toIsEquip then
+                equipmentCopy[toSlot] = fromItem
+            else
+                slotsCopy[toSlot] = fromItem
+            end
+            print('[FW Equipment] Swapped items')
+        end
+    else
+        -- Target slot empty - just move
+        if fromIsEquip then
+            equipmentCopy[fromSlot] = nil
+        else
+            slotsCopy[fromSlot] = nil
+        end
         
-        -- Sende aktualisiertes Inventar an Client
-        -- Frontend erwartet: { inventory: { itemname_slot0: {slot, label, emoji, amount} } }
+        if toIsEquip then
+            equipmentCopy[toSlot] = fromItem
+        else
+            slotsCopy[toSlot] = fromItem
+        end
+        print('[FW Equipment] Moved to empty slot')
+    end
+
+    -- Update player state
+    Player.setInventory(slotsCopy)
+    for slot, item in pairs(equipmentCopy) do
+        Player.setEquipment(slot, item)
+    end
+
+    -- Save to database
+    SaveInventory(src, slotsCopy, function()
+        print(('[FW Equipment] Inventory and equipment saved for player %s'):format(src))
+        
+        -- Send updated inventory to client
         local inventoryObject = {}
         for i = 1, 50 do
             local item = slotsCopy[i]
             if item and type(item) == 'table' and item.name and item.name ~= 'money' then
-                -- Unique key: itemname_slot0, itemname_slot1, etc.
                 local uniqueKey = item.name .. '_slot' .. (i - 1)
+                local itemData = FW.Inventory.List[item.name]
                 inventoryObject[uniqueKey] = {
-                    slot = i - 1, -- Frontend nutzt 0-basiert
+                    slot = i - 1,
                     name = item.name,
                     label = item.label,
-                    emoji = item.emoji or '📦',
+                    emoji = item.emoji or (itemData and itemData.emoji) or '📦',
                     amount = item.quantity or 1,
                     itemweight = item.itemweight,
                     type = item.type,
@@ -805,11 +911,35 @@ RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
             end
         end
         
-        -- Count object keys properly
+        -- Build equipment data for client
+        local equipmentData = {
+            vest = nil,
+            weapon = nil,
+            bag1 = nil,
+            bag2 = nil
+        }
+        
+        for slot, item in pairs(equipmentCopy) do
+            if item and item.name then
+                local itemData = FW.Inventory.List[item.name]
+                equipmentData[slot] = {
+                    name = item.name,
+                    label = item.label or (itemData and itemData.label) or item.name,
+                    emoji = item.emoji or (itemData and itemData.emoji) or '📦',
+                    quantity = item.quantity or 1,
+                    itemweight = item.itemweight or (itemData and itemData.itemweight) or 0,
+                    type = item.type or (itemData and itemData.type) or 'item',
+                    canUse = item.canUse or (itemData and itemData.canUse) or false,
+                    metadata = item.metadata or {},
+                    equipmentId = item.equipmentId
+                }
+            end
+        end
+        
         local itemCount = 0
         for _ in pairs(inventoryObject) do itemCount = itemCount + 1 end
-        print(('[FW] Sending %d items in refresh'):format(itemCount))
-        TriggerClientEvent('fw:inventory:refresh', src, inventoryObject)
+        print(('[FW Equipment] Sending %d items + equipment in refresh'):format(itemCount))
+        TriggerClientEvent('fw:inventory:refreshWithEquipment', src, inventoryObject, equipmentData)
     end)
 end)
 

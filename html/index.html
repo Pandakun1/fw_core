@@ -89,26 +89,9 @@
     opacity: 0;
 }
 
-/* Context Menu Fade Transition */
-.context-fade-enter-active,
-.context-fade-leave-active {
-    transition: opacity 0.2s ease;
-}
-
-.context-fade-enter-from,
-.context-fade-leave-to {
-    opacity: 0;
-}
-
-.context-fade-enter-active .context-menu,
-.context-fade-leave-active .context-menu {
-    transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.context-fade-enter-from .context-menu,
-.context-fade-leave-to .context-menu {
-    transform: scale(0.95) translateY(-10px);
-    opacity: 0;
+/* Context Menu - No transform/transition that could affect positioning */
+.context-menu {
+    transform: none !important;
 }
 </style>
 <head>

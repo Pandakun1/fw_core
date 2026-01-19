@@ -32,13 +32,10 @@ RegisterNUICallback('moveItem', function(data, cb)
     local fromSlot = data.fromSlot
     local toSlot = data.toSlot
     
-    print(string.format('[FW Core] Moving item from slot %d to slot %d', fromSlot, toSlot))
+    print('[FW Core] Moving item from slot', fromSlot, 'to slot', toSlot)
     
-    -- Trigger Server Event zum Item verschieben
-    TriggerServerEvent('fw:inventory:moveItem', {
-        fromSlot = fromSlot,
-        toSlot = toSlot
-    })
+    -- Trigger Server Event zum Item verschieben (two separate arguments, not table!)
+    TriggerServerEvent('fw:inventory:moveItem', fromSlot, toSlot)
     
     cb('ok')
 end)

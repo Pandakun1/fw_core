@@ -241,6 +241,33 @@ const InventoryModule = {
         inventoryItems.value = items;
         const loadedCount = items.filter(item => item !== null).length;
         FWDebug.log('Inventory', 'Total loaded', loadedCount, '/', maxSlots);
+        
+        // Load equipment data if provided
+        if (props.data?.equipment) {
+            console.log('[InventoryModule] Loading equipment data:', props.data.equipment);
+            
+            // Load each equipment slot
+            ['vest', 'weapon', 'bag1', 'bag2'].forEach(slotName => {
+                if (props.data.equipment[slotName]) {
+                    const equipItem = props.data.equipment[slotName];
+                    equipmentSlots.value[slotName] = {
+                        itemName: equipItem.name || slotName,
+                        name: equipItem.label || equipItem.name || 'Unbekannt',
+                        emoji: equipItem.emoji || '📦',
+                        quantity: equipItem.amount || 1,
+                        type: equipItem.type || 'item',
+                        equipSlot: slotName,
+                        hasStorage: equipItem.hasStorage || false,
+                        equipmentId: equipItem.equipmentId || null,
+                        itemweight: equipItem.itemweight || 0,
+                        canUse: equipItem.canUse || false
+                    };
+                    console.log(`[InventoryModule] ✅ Loaded equipment in ${slotName}:`, equipmentSlots.value[slotName].name);
+                }
+            });
+        } else {
+            console.log('[InventoryModule] ⚠️ No equipment data provided in props.data');
+        }
     };
     
     // Helper: Hole Emoji aus itemlist.json basierend auf itemName
@@ -1807,6 +1834,12 @@ const InventoryModule = {
                     equipmentSlots.value[fromEquipmentType] = oldEquipment;
                     
                     console.log('[Inventar] ✅ Equipment swapped:', fromEquipmentType, '↔', equipmentSlotType);
+                    
+                    // Send to server
+                    window.NUIBridge.send('moveItem', {
+                        fromSlot: fromEquipmentType,
+                        toSlot: equipmentSlotType
+                    });
                 } else if (isFromSecond) {
                     // Moving from second inventory to equipment
                     const item = secondInventoryItems.value[fromActualIndex];
@@ -1816,6 +1849,12 @@ const InventoryModule = {
                         secondInventoryItems.value[fromActualIndex] = oldEquipment;
                         
                         console.log('[Inventar] ✅ Item equipped from second inventory:', item.name, 'in slot', equipmentSlotType);
+                        
+                        // Send to server (second inventory uses special format)
+                        window.NUIBridge.send('moveItem', {
+                            fromSlot: 'second-' + fromActualIndex,
+                            toSlot: equipmentSlotType
+                        });
                     }
                 } else {
                     // Moving from main inventory to equipment
@@ -1831,6 +1870,12 @@ const InventoryModule = {
                         if (item.equipmentId) {
                             console.log('[Inventar] 🗃️ Equipment hat Storage-ID:', item.equipmentId);
                         }
+                        
+                        // Send to server
+                        window.NUIBridge.send('moveItem', {
+                            fromSlot: fromIndex,
+                            toSlot: equipmentSlotType
+                        });
                     }
                 }
             } else {
@@ -1858,6 +1903,12 @@ const InventoryModule = {
                         equipmentSlots.value[fromEquipmentType] = oldItem;
                         
                         console.log('[Inventar] ✅ Item unequipped to', isToSecond ? 'second' : 'main', 'inventory slot:', toIndex);
+                        
+                        // Send to server
+                        window.NUIBridge.send('moveItem', {
+                            fromSlot: fromEquipmentType,
+                            toSlot: isToSecond ? ('second-' + toIndex) : toIndex
+                        });
                     } else if (isFromSecond && isToSecond) {
                         // Moving within second inventory
                         if (fromActualIndex !== toIndex) {
@@ -2097,6 +2148,33 @@ const InventoryModule = {
             
             inventoryItems.value = items;
             console.log('[Inventar] ✅ Inventar vom Server aktualisiert:', loadedCount, 'Items');
+        }
+        
+        // Update equipment data if provided
+        if (data && data.equipment) {
+            console.log('[Inventar] 🔄 Server sent equipment update:', data.equipment);
+            
+            ['vest', 'weapon', 'bag1', 'bag2'].forEach(slotName => {
+                if (data.equipment[slotName]) {
+                    const equipItem = data.equipment[slotName];
+                    equipmentSlots.value[slotName] = {
+                        itemName: equipItem.name || slotName,
+                        name: equipItem.label || equipItem.name || 'Unbekannt',
+                        emoji: equipItem.emoji || '📦',
+                        quantity: equipItem.amount || 1,
+                        type: equipItem.type || 'item',
+                        equipSlot: slotName,
+                        hasStorage: equipItem.hasStorage || false,
+                        equipmentId: equipItem.equipmentId || null,
+                        itemweight: equipItem.itemweight || 0,
+                        canUse: equipItem.canUse || false
+                    };
+                    console.log(`[Inventar] ✅ Equipment updated in ${slotName}:`, equipmentSlots.value[slotName].name);
+                } else {
+                    // Clear slot if equipment data is null
+                    equipmentSlots.value[slotName] = null;
+                }
+            });
         }
     };
 
@@ -2360,11 +2438,18 @@ const InventoryModule = {
         handleDrop,
     };
 },
-    template: `<div :class="['fixed inset-0 flex items-center justify-center p-8', 'theme-' + themeKey]" :style="{ opacity: isDesignLoading ? 0 : 1, transition: 'opacity 0.2s ease-in' }">
+    template: `<div :class="['fixed inset-0 flex items-center justify-center p-8', 'theme-' + themeKey]" :style="{ opacity: isDesignLoading ? 0 : 1, transition: 'opacity 0.2s ease-in' }" style="z-index: 10000;">
         <div :class="['layout-' + layoutKey]" :style="{ transform: 'scale(' + inventoryScale + ')', transformOrigin: 'center' }">
-        <!-- Settings Menu -->
+        <!-- Main Inventar Content -->
+        <div class="w-[62vw] h-[64vh] flex items-center justify-center">
+            <!-- Dynamic Design Component - Only renders the active template -->
+            <component :is="currentDesignComponent" :key="layoutKey"></component>
+        </div>
+        </div>
+        
+        <!-- Settings Menu (Outside scaled container for proper z-index) -->
         <Transition name="settings-fade">
-            <div v-if="settingsOpen" class="fixed inset-0 flex items-center justify-center z-[9999] pointer-events-none">
+            <div v-if="settingsOpen" class="fixed inset-0 flex items-center justify-center pointer-events-none" style="z-index: 100000;">
                 <div class="pointer-events-auto bg-gradient-to-br from-slate-800 to-slate-900 w-[480px] max-h-[80vh] rounded-2xl shadow-[0_30px_60px_rgba(0,0,0,0.9)] border-2 border-slate-600/30">
                     <!-- Settings Header -->
                     <div class="bg-gradient-to-r from-slate-700 to-slate-800 px-4 py-3 flex justify-between items-center rounded-t-2xl border-b-2 border-sky-500/30">
@@ -2426,12 +2511,10 @@ const InventoryModule = {
                 </div>
             </div>
         </Transition>
-
-        <!-- Context Menu Modal -->
-        <Transition name="context-fade">
-            <div v-if="contextMenuOpen && contextMenuItem" class="fixed inset-0 z-[10000] pointer-events-none">
-                <div @click="closeContextMenu" class="absolute inset-0 pointer-events-auto"></div>
-                <div class="context-menu pointer-events-auto fixed" :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }">
+        
+        <!-- Context Menu Modal (Outside scaled container for proper positioning) -->
+        <div v-if="contextMenuOpen && contextMenuItem" @click.self="closeContextMenu" class="fixed inset-0 pointer-events-none" style="z-index: 100000;">
+            <div class="context-menu pointer-events-auto fixed" :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px', transform: 'none' }">
                     <!-- Forest Theme -->
                     <div v-if="layoutKey === 'forest'" class="bg-gradient-to-br from-emerald-900/95 to-green-950/98 w-[140px] rounded-lg shadow-[0_8px_32px_rgba(0,0,0,0.9)] border-2 border-emerald-600/50">
                         <div class="bg-gradient-to-r from-emerald-800/80 to-green-900/90 px-2 py-1.5 flex items-center gap-1.5 rounded-t-lg border-b border-emerald-500/30">
@@ -2513,7 +2596,7 @@ const InventoryModule = {
                     </div>
                 </div>
             </div>
-        </Transition>
+        </div>
 
         <!-- Main Inventar Content -->
         <div class="w-[62vw] h-[64vh] flex items-center justify-center">

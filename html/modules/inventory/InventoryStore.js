@@ -1,6 +1,12 @@
 window.useInventoryStore = Pinia.defineStore('inventory', {
     state: () => ({
         items: Array(50).fill(null),
+        equipment: {
+            vest: null,
+            weapon: null,
+            bag1: null,
+            bag2: null
+        },
         maxWeight: 50,
         currentWeight: 0,
         maxSlots: 50,
@@ -50,6 +56,18 @@ window.useInventoryStore = Pinia.defineStore('inventory', {
             
             this.items = newItems;
             this.maxWeight = data.maxWeight || 50;
+            
+            // Load equipment data if provided
+            if (data.equipment) {
+                console.log('[InventoryStore] Loading equipment:', data.equipment);
+                this.equipment = {
+                    vest: data.equipment.vest || null,
+                    weapon: data.equipment.weapon || null,
+                    bag1: data.equipment.bag1 || null,
+                    bag2: data.equipment.bag2 || null
+                };
+            }
+            
             this.recalculateWeight();
         },
         recalculateWeight() {

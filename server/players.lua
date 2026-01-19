@@ -120,6 +120,40 @@ function FW.CreatePlayer(src, data)
     self.metadata = self.data.metadata or {}
     self.ui_settings = data.ui_settings or '{}'
 
+    -- Equipment Slots
+    self.equipment = {
+        vest = nil,
+        weapon = nil,
+        bag1 = nil,
+        bag2 = nil
+    }
+    
+    -- Load equipment from database
+    if data.equipment_vest and data.equipment_vest ~= '' then
+        local success, decoded = pcall(json.decode, data.equipment_vest)
+        if success and type(decoded) == 'table' then
+            self.equipment.vest = decoded
+        end
+    end
+    if data.equipment_weapon and data.equipment_weapon ~= '' then
+        local success, decoded = pcall(json.decode, data.equipment_weapon)
+        if success and type(decoded) == 'table' then
+            self.equipment.weapon = decoded
+        end
+    end
+    if data.equipment_bag1 and data.equipment_bag1 ~= '' then
+        local success, decoded = pcall(json.decode, data.equipment_bag1)
+        if success and type(decoded) == 'table' then
+            self.equipment.bag1 = decoded
+        end
+    end
+    if data.equipment_bag2 and data.equipment_bag2 ~= '' then
+        local success, decoded = pcall(json.decode, data.equipment_bag2)
+        if success and type(decoded) == 'table' then
+            self.equipment.bag2 = decoded
+        end
+    end
+
     self.unsaved = false
 
     local function triggerMoneyChange(account, oldAmount, newAmount)
@@ -234,6 +268,42 @@ function FW.CreatePlayer(src, data)
         return total
     end
 
+    -- Equipment Management
+    function self.getEquipment()
+        return self.equipment or { vest = nil, weapon = nil, bag1 = nil, bag2 = nil }
+    end
+
+    function self.setEquipment(slot, itemData)
+        if not self.equipment then
+            self.equipment = { vest = nil, weapon = nil, bag1 = nil, bag2 = nil }
+        end
+        self.equipment[slot] = itemData
+        self.unsaved = true
+        print(('[FW Equipment] Set %s slot to %s'):format(slot, itemData and itemData.name or 'nil'))
+    end
+
+    function self.getEquipmentSlot(slot)
+        if not self.equipment then return nil end
+        return self.equipment[slot]
+    end
+
+    function self.removeEquipment(slot)
+        if not self.equipment then return end
+        self.equipment[slot] = nil
+        self.unsaved = true
+        print(('[FW Equipment] Removed item from %s slot'):format(slot))
+    end
+
+    function self.hasEquipped(itemName)
+        if not self.equipment then return false, nil end
+        for slot, item in pairs(self.equipment) do
+            if item and item.name == itemName then
+                return true, slot
+            end
+        end
+        return false, nil
+    end
+
     function self.saveClean()
         self.unsaved = false
     end
@@ -253,6 +323,9 @@ function FW.CreatePlayer(src, data)
             end
         end
         
+        -- Serialize equipment slots
+        local equipment = self.equipment or { vest = nil, weapon = nil, bag1 = nil, bag2 = nil }
+        
         return {
             identifier = self.identifier,
             license = self.license,
@@ -269,6 +342,10 @@ function FW.CreatePlayer(src, data)
             position_y = self.position.y,
             position_z = self.position.z,
             inventory = json.encode(cleanInventory),
+            equipment_vest = equipment.vest and json.encode(equipment.vest) or nil,
+            equipment_weapon = equipment.weapon and json.encode(equipment.weapon) or nil,
+            equipment_bag1 = equipment.bag1 and json.encode(equipment.bag1) or nil,
+            equipment_bag2 = equipment.bag2 and json.encode(equipment.bag2) or nil,
             ui_settings = self.ui_settings,
             daten = json.encode(self.data)
         }

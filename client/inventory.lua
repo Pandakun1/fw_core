@@ -14,31 +14,41 @@ function OpenInventory()
     FW.Debug('Inventory', 'Opening...')
     
     if FW and FW.TriggerCallback then
-        FW.TriggerCallback('fw:inventory:getInventoryData', function(inventory)
+        FW.TriggerCallback('fw:inventory:getInventoryData', function(response)
             FW.TriggerCallback('fw:inventory:getGroundItems', function(groundItems)
                 
                 -- Daten Aufbereiten
                 local groundArray = {}
                 for _, item in pairs(groundItems or {}) do table.insert(groundArray, item) end
                 
-                -- Server sends { inventory: { itemName_slotX: {...} } }
-                -- Extract the inventory object from the response
-                local inventoryData = inventory
-                if type(inventory) == 'table' and inventory.inventory then
-                    inventoryData = inventory.inventory
+                -- Server sends { inventory: {...}, equipment: {...} }
+                local inventoryData = {}
+                local equipmentData = {}
+                
+                if type(response) == 'table' then
+                    if response.inventory then
+                        inventoryData = response.inventory
+                    else
+                        inventoryData = response
+                    end
+                    
+                    if response.equipment then
+                        equipmentData = response.equipment
+                        FW.Debug('Inventory', 'Loaded equipment', json.encode(equipmentData))
+                    end
                 end
                 
                 FW.Debug('Inventory', 'Received inventory', type(inventoryData))
-                FW.DebugTable('Inventory', 'Inventory data', inventoryData)
                 
                 local playerPed = PlayerPedId()
                 local health = (GetEntityHealth(playerPed) - 100) / (GetEntityMaxHealth(playerPed) - 100) * 100
                 local armor = GetPedArmour(playerPed)
                 
-                -- NUI Nachricht (send inventory object directly)
+                -- NUI Nachricht with equipment
                 SendNUIMessage({
                     action = 'openInventory',
-                    inventory = inventoryData.inventory or inventoryData,  -- Extract inventory object
+                    inventory = inventoryData,
+                    equipment = equipmentData,
                     maxSlots = Config.Inventory.MaxSlots,
                     maxWeight = Config.Inventory.MaxWeight, 
                     cash = 0,       
@@ -173,6 +183,21 @@ RegisterNetEvent('fw:inventory:refresh', function(inventory)
         end
         FW.Debug('Inventory', 'Refresh', count, 'items')
         SendNUIMessage({ action = 'updateInventory', inventory = inventory or {} })
+    end
+end)
+
+RegisterNetEvent('fw:inventory:refreshWithEquipment', function(inventory, equipment)
+    if isInventoryOpen then
+        local count = 0
+        if inventory and type(inventory) == 'table' then
+            for _ in pairs(inventory) do count = count + 1 end
+        end
+        FW.Debug('Inventory', 'Refresh with equipment', count, 'items')
+        SendNUIMessage({ 
+            action = 'updateInventory', 
+            inventory = inventory or {},
+            equipment = equipment or {}
+        })
     end
 end)
 

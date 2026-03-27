@@ -92,7 +92,8 @@ RegisterNUICallback('createCharacterBase', function(data, cb)
     -- Speichere Identität temporär
     tempIdentity = data 
     
-    local model = (data.gender == 'm') and `mp_m_freemode_01` or `mp_f_freemode_01`
+    local isMale = data.gender == 'm' or data.gender == 'male'
+    local model = (isMale and 'mp_m_freemode_01' or 'mp_f_freemode_01')
     
     -- Modell setzen für Preview
     RequestModel(model)

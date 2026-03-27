@@ -113,9 +113,11 @@ AddEventHandler('charcreator:server:createCharacter', function(data)
         end
 
         -- Standard-Skin setzen mit strukturierten Daten für das Appearance-System
+        local gender = (data.identity.gender == 'male') and 'm' or data.identity.gender
+        local model = (gender == 'm') and 'mp_m_freemode_01' or 'mp_f_freemode_01'
         local skinData = {
-            sex = data.identity.gender,
-            model = data.identity.gender == 'mp_m_freemode_01' or 'mp_f_freemode_01'
+            sex = gender,
+            model = model
         }
         
         -- Wenn Skin-Daten vom Client kommen, übernehmen

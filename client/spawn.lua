@@ -16,7 +16,7 @@ CreateThread(function()
     SetEntityCoords(ped, 0.0, 0.0, -100.0, false, false, false, false)
 
     -- Multichar öffnen
-    TriggerEvent("fw:openMultichar")
+    TriggerEvent('fw:client:openMultichar')
 end)
 
 local firstSpawn = true

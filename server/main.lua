@@ -39,13 +39,14 @@ AddEventHandler('fw:playerReady', function(srcOverride)
     local player = FW.GetPlayer(src)
     if player and player.data and player.data.character then
         local char = player.data.character
+        local isMale = char.sex == 'm' or char.sex == 'male'
         spawnData = {
             x = player.position.x or Config.Firstspawn.x,
             y = player.position.y or Config.Firstspawn.y,
             z = player.position.z or Config.Firstspawn.z,
             heading = 0.0,
             skin = char.skin or nil,
-            model = (char.sex == 'male' and 'mp_m_freemode_01' or 'mp_f_freemode_01'),
+            model = (isMale and 'mp_m_freemode_01' or 'mp_f_freemode_01'),
             health = 200,
             armor = 0,
             hunger = 100,

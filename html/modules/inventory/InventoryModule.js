@@ -2597,13 +2597,6 @@ const InventoryModule = {
                 </div>
             </div>
         </div>
-
-        <!-- Main Inventar Content -->
-        <div class="w-[62vw] h-[64vh] flex items-center justify-center">
-            <!-- Dynamic Design Component - Only renders the active template -->
-            <component :is="currentDesignComponent" :key="layoutKey"></component>
-        </div>
-        </div>
     </div>
     `
 };

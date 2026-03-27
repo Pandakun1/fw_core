@@ -1,3 +1,24 @@
+CreateThread(function()
+    while not NetworkIsSessionStarted() do
+        Wait(0)
+    end
+
+    local ped = PlayerPedId()
+
+    -- Spieler komplett "neutralisieren"
+    SetEntityVisible(ped, false, false)
+    FreezeEntityPosition(ped, true)
+    SetEntityInvincible(ped, true)
+
+    DoScreenFadeOut(0)
+
+    -- Optional: weg teleportieren
+    SetEntityCoords(ped, 0.0, 0.0, -100.0, false, false, false, false)
+
+    -- Multichar öffnen
+    TriggerEvent("fw:openMultichar")
+end)
+
 local firstSpawn = true
 
 local spawned1 = false

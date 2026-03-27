@@ -114,8 +114,8 @@ AddEventHandler('charcreator:server:createCharacter', function(data)
 
         -- Standard-Skin setzen mit strukturierten Daten für das Appearance-System
         local skinData = {
-            sex = data.sex,
-            model = data.sex == 'male' and 'mp_m_freemode_01' or 'mp_f_freemode_01'
+            sex = data.identity.gender,
+            model = data.identity.gender == 'mp_m_freemode_01' or 'mp_f_freemode_01'
         }
         
         -- Wenn Skin-Daten vom Client kommen, übernehmen
@@ -126,7 +126,6 @@ AddEventHandler('charcreator:server:createCharacter', function(data)
         end
         
         local defaultSkin = json.encode(skinData)
-        local fullName = data.firstname .. ' ' .. data.lastname
         
         -- Deaktiviere alle anderen Charaktere für diesen Spieler
         MySQL.update('UPDATE players SET is_active = 0 WHERE license = ?', {license})
@@ -135,7 +134,7 @@ AddEventHandler('charcreator:server:createCharacter', function(data)
         MySQL.insert([[INSERT INTO players 
             (license, firstname, lastname, dateofbirth, sex, height, skin, is_active, identifier, money_cash, money_bank, inventory, job_name, job_grade, position_x, position_y, position_z, daten) 
             VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'temp', 5000, 25000, '{}', 'unemployed', 0, ?, ?, ?, '{}')]], 
-        {license, data.firstname, data.lastname, data.dateofbirth, data.sex, data.height, defaultSkin, Config.Firstspawn.x, Config.Firstspawn.y, Config.Firstspawn.z}, 
+        {license, data.identity.firstname, data.identity.lastname, data.identity.birthdate, data.identity.gender, 180, defaultSkin, Config.Firstspawn.x, Config.Firstspawn.y, Config.Firstspawn.z}, 
         function(charId)
             if not charId then
                 TriggerClientEvent('charcreator:client:notify', src, "Fehler beim Erstellen des Charakters.", "error")
@@ -149,7 +148,7 @@ AddEventHandler('charcreator:server:createCharacter', function(data)
             print('[FW] Created character ID: ' .. charId .. ' for license: ' .. license)
             
             -- Lade den neuen Charakter
-            TriggerEvent('fw:loadCharacter', src, charId)
+            --TriggerEvent('fw:loadCharacter', src, charId)
         end)
     end)
 end)

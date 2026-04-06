@@ -1,7 +1,5 @@
--- ============================================
--- FW Core: Character NUI Integration
--- Verwaltet Multichar, Creator und Appearance NUI Callbacks
--- ============================================
+FW = FW or {}
+FW.Client = FW.Client or {}
 
 local inCharSelection = false
 local tempIdentity = {} -- Temporärer Speicher für Vorname/Nachname während der Erstellung
@@ -65,11 +63,10 @@ end)
 
 -- 2. Multichar: Neuen Charakter erstellen (Klick auf "+"-Karte)
 RegisterNUICallback('openCharCreator', function(data, cb)
-    -- Wechselt intern die Route von Multichar -> Creator
     SendNUIMessage({
         action = 'open',
         data = {
-            route = 'creator', 
+            route = 'creator',
             data = {} 
         }
     })
@@ -90,23 +87,27 @@ end)
 -- 4. CharCreator: Basisdaten erhalten -> Öffne Appearance
 RegisterNUICallback('createCharacterBase', function(data, cb)
     -- Speichere Identität temporär
-    tempIdentity = data 
+    tempIdentity = data
     
     local isMale = data.gender == 'm' or data.gender == 'male'
     local model = (isMale and 'mp_m_freemode_01' or 'mp_f_freemode_01')
     
+    SetEntityCoords(PlayerPedId(), Config.AppearanceSpawn.x, Config.AppearanceSpawn.y, Config.AppearanceSpawn.z, false, false, false, false)
+    SetEntityHeading(PlayerPedId(), Config.AppearanceSpawn.w)
+
     -- Modell setzen für Preview
     RequestModel(model)
     while not HasModelLoaded(model) do Wait(0) end
     SetPlayerModel(PlayerId(), model)
     SetModelAsNoLongerNeeded(model)
-    
+    SetEntityVisible(PlayerPedId(), true, false)
+    FW.CreateAppearanceCamera()
     -- Wechselt UI zu Appearance
     SendNUIMessage({
         action = 'open',
         data = {
             route = 'appearance',
-            data = {} 
+            data = {}
         }
     })
     cb('ok')
@@ -117,8 +118,7 @@ RegisterNUICallback('previewAppearance', function(data, cb)
     local ped = PlayerPedId()
     local component = data.component
     local val = data.value
-    
-    -- Vereinfachtes Mapping (muss erweitert werden)
+
     if component == 'hair' then
         SetPedComponentVariation(ped, 2, val, 0, 2)
     elseif component == 'tshirt' then
@@ -129,7 +129,7 @@ RegisterNUICallback('previewAppearance', function(data, cb)
     elseif component == 'shoes' then
         SetPedComponentVariation(ped, 6, val, 0, 2)
     end
-    
+
     cb('ok')
 end)
 
@@ -147,18 +147,49 @@ end)
 
 -- 7. Appearance: Final Speichern
 RegisterNUICallback('saveAppearance', function(skinData, cb)
-    
+
+    local ped = PlayerPedId()
     local fullCharacterData = {
-        identity = tempIdentity or {}, 
+        identity = tempIdentity or {},
         skin = skinData
     }
-    
-    -- Server speichert in DB und triggert Spawn
+
     TriggerServerEvent('charcreator:server:createCharacter', fullCharacterData)
-    
-    -- Schließt UI nach Speichern
-    exports['fw_core']:RegisterUIClose('multichar') 
+
+    exports['fw_core']:RegisterUIClose('multichar')
     SendNUIMessage({ action = 'closeUI' })
-    
+
+    FreezeEntityPosition(ped, false)
+    FW.DestroyAppearanceCamera()
     cb('ok')
 end)
+
+--Cam Create und Destroy Funktion für Appearance Preview
+
+local cam = nil
+
+function FW.CreateAppearanceCamera()
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)+20
+    local distance = 1.5
+    local offsetX = math.cos(math.rad(heading)) * distance
+    local offsetY = math.sin(math.rad(heading)) * distance
+
+    local camX = coords.x + offsetX
+    local camY = coords.y - offsetY
+    local camZ = coords.z + 0.4
+    cam = CreateCam("DEFAULT_SCRIPTED_CAMERA", true)
+    SetCamCoord(cam, camX, camY, camZ)
+    PointCamAtEntity(cam, ped, 0.0, 0.0, 0.8, true)
+    SetCamActive(cam, true)
+    RenderScriptCams(true, true, 500, true, true)
+end
+
+function FW.DestroyAppearanceCamera()
+    if cam then
+        RenderScriptCams(false, true, 500, true, true)
+        DestroyCam(cam, false)
+        cam = nil
+    end
+end

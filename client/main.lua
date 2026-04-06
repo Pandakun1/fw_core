@@ -22,7 +22,7 @@ AddEventHandler('onClientResourceStart', function(resName)
         -- TriggerServerEvent('fw:loadPlayer', ...) -- Je nach Framework Logik
         
         -- NEU: Multicharacter über das neue Modul öffnen
-        TriggerEvent('fw:client:openMultichar') 
+        TriggerEvent('fw:client:openMultichar')
     end
 end)
 

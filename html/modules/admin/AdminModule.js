@@ -1,5 +1,5 @@
 // WICHTIG: Vue Destructuring
-const { ref, computed, onMounted, onUnmounted } = Vue;
+const { ref, computed, watch, onMounted, onUnmounted } = Vue;
 const useNUI = window.useNUI;
 
 const AdminModule = {
@@ -12,6 +12,21 @@ const AdminModule = {
         const currentCategoryIndex = ref(0);
         const currentItemIndex = ref(0);
         const focusPanel = ref('categories'); // 'categories' oder 'items'
+        const localInputVisible = ref(false);
+        const inputTitle = ref('');
+        const inputPlaceholder = ref('');
+        const inputCallbackId = ref(null);
+        const inputValue = ref('');
+
+        watch(() => props.data, (value) => {
+            if (value?.inputVisible) {
+                localInputVisible.value = true;
+                inputTitle.value = value.title || '';
+                inputPlaceholder.value = value.placeholder || '';
+                inputCallbackId.value = value.callbackId || null;
+                inputValue.value = '';
+            }
+        });
         
         const currentCategory = computed(() => {
             return categories.value[currentCategoryIndex.value] || null;
@@ -34,6 +49,24 @@ const AdminModule = {
                 item: item.id
             });
         };
+
+        const confirmInput = async () => {
+            if (!inputCallbackId.value) {
+                return;
+            }
+
+            await send('inputAction', {
+                action: inputCallbackId.value,
+                input: inputValue.value || ''
+            });
+            localInputVisible.value = false;
+            inputValue.value = '';
+        };
+
+        const cancelInput = () => {
+            localInputVisible.value = false;
+            inputValue.value = '';
+        };
         
         const close = () => {
             send('closeMenu');
@@ -43,10 +76,18 @@ const AdminModule = {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
+                if (localInputVisible.value) {
+                    cancelInput();
+                    return;
+                }
                 close();
                 return;
             }
             
+            if (localInputVisible.value) {
+                return;
+            }
+
             if (e.key === 'Tab') {
                 e.preventDefault();
                 focusPanel.value = focusPanel.value === 'categories' ? 'items' : 'categories';
@@ -95,7 +136,9 @@ const AdminModule = {
         return { 
             categories, currentCategory, currentItems,
             currentCategoryIndex, currentItemIndex, focusPanel,
-            selectCategory, executeAction, close
+            selectCategory, executeAction, close,
+            localInputVisible, inputTitle, inputPlaceholder, inputValue,
+            confirmInput, cancelInput
         };
     },
     template: `
@@ -141,6 +184,23 @@ const AdminModule = {
                     >
                         {{ item.label }}
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="localInputVisible" class="absolute inset-0 flex items-center justify-center bg-black/70">
+            <div class="w-[560px] rounded-2xl bg-[#111217] border border-[#2a2b36] p-6 shadow-2xl">
+                <div class="text-xl font-bold text-white mb-4">{{ inputTitle }}</div>
+                <input
+                    v-model="inputValue"
+                    :placeholder="inputPlaceholder"
+                    @keydown.enter.prevent="confirmInput"
+                    class="w-full rounded-lg border border-[#2a2b36] bg-[#181b23] px-4 py-3 text-white outline-none focus:border-cyan-500"
+                    type="text"
+                />
+                <div class="mt-4 flex justify-end gap-3">
+                    <button @click="cancelInput" class="rounded bg-[#2a2b36] px-4 py-2 text-white hover:bg-[#323646]">Abbrechen</button>
+                    <button @click="confirmInput" class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-500">Senden</button>
                 </div>
             </div>
         </div>

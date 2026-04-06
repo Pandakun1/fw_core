@@ -25,6 +25,15 @@ function FW.CreatePlayer(src, data)
         z = data.position_z or 75.0
     }
 
+    local sexValue = data.sex or data.gender or 'male'
+    if sexValue == 'male' then sexValue = 'm' end
+    if sexValue == 'female' then sexValue = 'f' end
+
+    self.dateofbirth = data.dateofbirth or data.birthdate or '01.01.1990'
+    self.sex = sexValue
+    self.height = data.height or 180
+    self.skin = type(data.skin) == 'table' and json.encode(data.skin) or data.skin or '{}'
+
     local daten = {}
     if data.daten and data.daten ~= '' and data.daten ~= 'filler' then
         if type(data.daten) == 'string' then

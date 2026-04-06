@@ -46,6 +46,17 @@ AddEventHandler('fw:loadCharacter', function(src, charId)
         if playerRow.skin and playerRow.skin ~= '' then
             skinData = json.decode(playerRow.skin) or {}
         end
+
+        local normalizedSex = playerRow.sex or 'male'
+        if normalizedSex == 'male' then normalizedSex = 'm' end
+        if normalizedSex == 'female' then normalizedSex = 'f' end
+        local fallbackModel = (normalizedSex == 'm') and 'mp_m_freemode_01' or 'mp_f_freemode_01'
+        if not skinData.model or skinData.model == '' then
+            skinData.model = fallbackModel
+        end
+        if not skinData.sex or skinData.sex == '' then
+            skinData.sex = normalizedSex
+        end
         
         -- Set active character
         ActiveCharacters[src] = charId

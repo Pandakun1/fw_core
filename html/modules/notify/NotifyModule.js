@@ -5,12 +5,10 @@ const NotifyModule = {
     setup() {
         const notifications = ref([]);
         let idCounter = 0;
-
-        window.addEventListener('notification', (e) => {
+        const handleNotification = (e) => {
             const { message, type, duration } = e.detail;
             const id = idCounter++;
             
-            // Type Styling
             let colors = 'bg-blue-600';
             if (type === 'error') colors = 'bg-red-600';
             if (type === 'success') colors = 'bg-green-600';
@@ -20,6 +18,14 @@ const NotifyModule = {
             setTimeout(() => {
                 notifications.value = notifications.value.filter(n => n.id !== id);
             }, duration || 3000);
+        };
+
+        onMounted(() => {
+            window.addEventListener('notification', handleNotification);
+        });
+
+        onUnmounted(() => {
+            window.removeEventListener('notification', handleNotification);
         });
 
         return { notifications };

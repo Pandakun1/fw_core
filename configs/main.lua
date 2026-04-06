@@ -5,9 +5,11 @@ Config.Debug = false -- Wird beim Resource-Start aus main.json geladen
 
 Config.AutoSaveInterval = 1 -- in Minuten
 
-Config.Firstspawn = vector4(-183.0, -498.0, 35.0, 70.0) -- x, y, z, heading
+Config.AppearanceSpawn = vector4(-811.89, 175.12, 75.75, 119.41)
 
-Config.Resetspawn = vector4(-183.0, -498.0, 35.0, 70.0) -- x, y, z, heading
+Config.Firstspawn = vector4(-610.40, -713.61, 874.97, 274.17)
+
+Config.Resetspawn = vector4(-183.0, -498.0, 35.0, 70.0)
 
 Config.MaxCharacters = 5 -- Maximum number of characters per player
 

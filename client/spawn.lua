@@ -12,8 +12,10 @@ CreateThread(function()
 
     DoScreenFadeOut(0)
 
-    -- Optional: weg teleportieren
-    SetEntityCoords(ped, 0.0, 0.0, -100.0, false, false, false, false)
+    local x = Config.Firstspawn.x or 0.0
+    local y = Config.Firstspawn.y or 0.0
+    local z = Config.Firstspawn.z or -100.0
+    SetEntityCoords(ped, x, y, z, false, false, false, false)
 
     -- Multichar öffnen
     TriggerEvent('fw:client:openMultichar')

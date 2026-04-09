@@ -2,8 +2,14 @@ FW = FW or {}
 FW.Interaction = FW.Interaction or {}
 
 local CFG = {
-    holdDurationMs = 320,
-    mouseSensitivity = 0.35,
+    holdDurationMs = 50,
+    mouseSensitivity = 0.5,
+    listRepeatDelayMs = 120,
+    pointOnlyTickMs = 33,
+    pointOnlyHintIntervalMs = 33,
+    listVisualTickMs = 33,
+    listHintIntervalMs = 33,
+    listPosIntervalMs = 33,
 }
 
 local entities = {}
@@ -17,20 +23,75 @@ local radialMX = 0.0
 local radialMY = 0.0
 local coordIdCounter = 0
 local lastHintState = nil
+local lastHintSentAt = 0
 local lastListPosX = nil
 local lastListPosY = nil
+local lastListPosSentAt = 0
+local lastListMoveAt = 0
+local lastListRepeatAt = 0
 local blockedReopenTarget = nil
 local globalPaused = false
 local GetTargetCoords
 local pendingPauseStates = {}
+local pendingListDelta = 0
+local pendingListSelect = false
+local interactionCache = {
+    targetCount = 0,
+    entityCount = 0,
+    coordKeys = {},
+    maxViewDistance = 15.0,
+}
+
+local function RefreshInteractionCache()
+    local coordKeys = {}
+    local targetCount = 0
+    local entityCount = 0
+    local maxViewDistance = 15.0
+
+    for key, cfg in pairs(entities) do
+        targetCount = targetCount + 1
+
+        if cfg.kind == 'coord' then
+            coordKeys[#coordKeys + 1] = key
+        elseif not cfg.paused then
+            entityCount = entityCount + 1
+        end
+
+        if not cfg.paused and cfg.viewDistance and cfg.viewDistance > maxViewDistance then
+            maxViewDistance = cfg.viewDistance
+        end
+    end
+
+    interactionCache.targetCount = targetCount
+    interactionCache.entityCount = entityCount
+    interactionCache.coordKeys = coordKeys
+    interactionCache.maxViewDistance = maxViewDistance
+end
+
+local function SetRadialFocus(enabled)
+    if SetNuiFocusKeepInput then
+        SetNuiFocusKeepInput(false)
+    end
+
+    if enabled then
+        SetNuiFocus(true, true)
+    else
+        SetNuiFocus(false, false)
+    end
+end
 
 local function NUI(event, data)
     SendNUIMessage({ type = event, data = data or {} })
 end
 
-local function CloseMenu()
+local function CloseMenu(immediate)
+    local wasRadial = menuMode == 'radial'
     if isMenuOpen then
-        NUI('closeMenu', {})
+        NUI('closeMenu', { immediate = immediate == true })
+    end
+
+    if wasRadial then
+        SetRadialFocus(false)
     end
 
     isMenuOpen = false
@@ -38,10 +99,16 @@ local function CloseMenu()
     menuTarget = nil
     holdStartAt = 0
     listIndex = 1
+    lastListMoveAt = 0
     radialMX = 0.0
     radialMY = 0.0
     lastListPosX = nil
     lastListPosY = nil
+    lastListPosSentAt = 0
+    lastHintSentAt = 0
+    pendingListDelta = 0
+    pendingListSelect = false
+    lastListRepeatAt = 0
 end
 
 local function ClearActiveTarget()
@@ -62,10 +129,9 @@ local function GetCamForward()
     )
 end
 
-local function Raycast(maxDist)
+local function Raycast(origin, forward, maxDist)
     local ped = PlayerPedId()
-    local origin = GetGameplayCamCoord()
-    local dest = origin + GetCamForward() * maxDist
+    local dest = origin + forward * maxDist
     local ray = StartShapeTestRay(
         origin.x, origin.y, origin.z,
         dest.x, dest.y, dest.z,
@@ -101,16 +167,40 @@ local function CoordsText(coords)
     return ('%.2f, %.2f, %.2f'):format(coords.x, coords.y, coords.z)
 end
 
+local function ResolveControlKey(config)
+    local rawKey = config.key
+    if rawKey == nil and type(config.keyLabel) == 'string' and FW.Keys and FW.Keys.Has(config.keyLabel) then
+        rawKey = config.keyLabel
+    end
+
+    if FW.Keys then
+        local resolved = FW.Keys.Get(rawKey)
+        if resolved ~= nil then
+            local label = config.keyLabel
+            if type(rawKey) == 'string' and (label == nil or label == '') then
+                label = FW.Keys.Name(rawKey)
+            elseif (label == nil or label == '') and type(resolved) == 'number' then
+                label = FW.Keys.Name(resolved)
+            end
+
+            return resolved, label
+        end
+    end
+
+    return rawKey or 38, config.keyLabel
+end
+
 local function MakeConfig(config)
     local syncId = config.syncId or config.id
+    local resolvedKey, resolvedKeyLabel = ResolveControlKey(config)
 
     return {
         distance = config.distance or 2.5,
         viewDistance = config.viewDistance or 15.0,
         mode = config.mode or 'list',
         listPosition = config.listPosition or 'right',
-        key = config.key or 38,
-        keyLabel = config.keyLabel or 'E',
+        key = resolvedKey,
+        keyLabel = resolvedKeyLabel or 'E',
         options = config.options or {},
         heightOffset = config.heightOffset or 0.2,
         focusRadius = config.focusRadius or 0.0325,
@@ -215,14 +305,49 @@ local function DistancePointToSegment(point, a, b)
 end
 
 local function SendHintState(payload)
+    local now = GetGameTimer()
+    local pointOnly = payload.visible and not payload.inRange and not isMenuOpen
+    local listVisual = payload.visible and payload.inRange and isMenuOpen and menuMode == 'list'
+    local minInterval = 0
+    if pointOnly then
+        minInterval = CFG.pointOnlyHintIntervalMs
+    elseif listVisual then
+        minInterval = CFG.listHintIntervalMs
+    end
+
+    if minInterval > 0 and (now - lastHintSentAt) < minInterval then
+        return
+    end
+
+    local xPrecision = 0.001
+    local yPrecision = 0.001
+    local scalePrecision = 0.015
+    local morphPrecision = 0.02
+
+    if pointOnly then
+        xPrecision = 0.0025
+        yPrecision = 0.0025
+        scalePrecision = 0.035
+        morphPrecision = 0.05
+    elseif listVisual then
+        xPrecision = 0.0018
+        yPrecision = 0.0018
+        scalePrecision = 0.025
+        morphPrecision = 0.03
+    end
+
+    local function quantize(value, precision)
+        return math.floor(((value or 0.0) / precision) + 0.5) * precision
+    end
+
     local signature = table.concat({
         payload.visible and '1' or '0',
-        ('%.4f'):format(payload.x or 0.0),
-        ('%.4f'):format(payload.y or 0.0),
+        ('%.4f'):format(quantize(payload.x, xPrecision)),
+        ('%.4f'):format(quantize(payload.y, yPrecision)),
         payload.key or '',
         payload.inRange and '1' or '0',
-        ('%.3f'):format(payload.scale or 1.0),
-        ('%.3f'):format(payload.morph or 0.0),
+        ('%.3f'):format(quantize(payload.scale, scalePrecision)),
+        ('%.3f'):format(quantize(payload.morph, morphPrecision)),
     }, '|')
 
     if signature == lastHintState then
@@ -230,31 +355,30 @@ local function SendHintState(payload)
     end
 
     lastHintState = signature
+    lastHintSentAt = now
     NUI('keyHint', payload)
 end
 
 local function SendListPosition(x, y)
+    local now = GetGameTimer()
+    if (now - lastListPosSentAt) < CFG.listPosIntervalMs then
+        return
+    end
+
     if lastListPosX and lastListPosY then
-        if math.abs(lastListPosX - x) < 0.00045 and math.abs(lastListPosY - y) < 0.00045 then
+        if math.abs(lastListPosX - x) < 0.0015 and math.abs(lastListPosY - y) < 0.0015 then
             return
         end
     end
 
     lastListPosX = x
     lastListPosY = y
+    lastListPosSentAt = now
     NUI('updatePos', { x = x, y = y })
 end
 
 local function GetMaxViewDistance()
-    local maxDist = 15.0
-
-    for _, cfg in pairs(entities) do
-        if not cfg.paused and cfg.viewDistance and cfg.viewDistance > maxDist then
-            maxDist = cfg.viewDistance
-        end
-    end
-
-    return maxDist
+    return interactionCache.maxViewDistance
 end
 
 GetTargetCoords = function(target, cfg)
@@ -273,32 +397,83 @@ GetTargetCoords = function(target, cfg)
     return GetEntityCoords(target)
 end
 
-local function FindCoordTarget(playerCoords)
+local function FindCoordTarget(playerCoords, camOrigin, camForward)
     local bestTarget = nil
     local bestScore = nil
+    local candidates = {}
+    local candidateCount = 0
 
-    for key, cfg in pairs(entities) do
-        if not cfg.paused and cfg.kind == 'coord' then
+    for _, key in ipairs(interactionCache.coordKeys) do
+        local cfg = entities[key]
+        if cfg and not cfg.paused and cfg.kind == 'coord' then
             local worldPoint = vector3(cfg.coords.x, cfg.coords.y, cfg.coords.z + cfg.heightOffset)
-            local dist = #(playerCoords - cfg.coords)
-            if dist <= cfg.viewDistance then
-                local visible, sx, sy = WorldToScreen(
-                    worldPoint.x,
-                    worldPoint.y,
-                    worldPoint.z
-                )
+            local dx = playerCoords.x - cfg.coords.x
+            local dy = playerCoords.y - cfg.coords.y
+            local dz = playerCoords.z - cfg.coords.z
+            local distSq = (dx * dx) + (dy * dy) + (dz * dz)
+            local viewDistSq = (cfg.viewDistance or 15.0) * (cfg.viewDistance or 15.0)
 
-                if visible and IsScreenPointVisible(sx, sy) then
-                    local dx = sx - 0.5
-                    local dy = sy - 0.5
-                    local centerScore = (dx * dx) + (dy * dy)
-                    local score = dist + (centerScore * 2.5)
+            if distSq <= viewDistSq then
+                local toPoint = worldPoint - camOrigin
+                local forwardDot =
+                    (toPoint.x * camForward.x) +
+                    (toPoint.y * camForward.y) +
+                    (toPoint.z * camForward.z)
 
-                    if not bestScore or score < bestScore then
-                        bestScore = score
-                        bestTarget = key
+                if forwardDot > 0.1 then
+                    local candidateScore = distSq - (forwardDot * 0.45)
+
+                    if candidateCount < 3 then
+                        candidateCount = candidateCount + 1
+                        candidates[candidateCount] = {
+                            key = key,
+                            cfg = cfg,
+                            worldPoint = worldPoint,
+                            dist = math.sqrt(distSq),
+                            candidateScore = candidateScore,
+                        }
+                    else
+                        local replaceIndex = 1
+                        local replaceScore = candidates[1].candidateScore
+                        for index = 2, candidateCount do
+                            if candidates[index].candidateScore > replaceScore then
+                                replaceIndex = index
+                                replaceScore = candidates[index].candidateScore
+                            end
+                        end
+
+                        if candidateScore < replaceScore then
+                            candidates[replaceIndex] = {
+                                key = key,
+                                cfg = cfg,
+                                worldPoint = worldPoint,
+                                dist = math.sqrt(distSq),
+                                candidateScore = candidateScore,
+                            }
+                        end
                     end
                 end
+            end
+        end
+    end
+
+    for index = 1, candidateCount do
+        local candidate = candidates[index]
+        local visible, sx, sy = WorldToScreen(
+            candidate.worldPoint.x,
+            candidate.worldPoint.y,
+            candidate.worldPoint.z
+        )
+
+        if visible and IsScreenPointVisible(sx, sy) then
+            local dx = sx - 0.5
+            local dy = sy - 0.5
+            local centerScore = (dx * dx) + (dy * dy)
+            local score = candidate.dist + (centerScore * 2.5)
+
+            if not bestScore or score < bestScore then
+                bestScore = score
+                bestTarget = candidate.key
             end
         end
     end
@@ -360,6 +535,7 @@ function FW.Interaction.Register(entityOrCoords, config)
             entities[entityOrCoords].paused = pendingPauseStates[entities[entityOrCoords].syncId] == true
             pendingPauseStates[entities[entityOrCoords].syncId] = nil
         end
+        RefreshInteractionCache()
         return entityOrCoords
     end
 
@@ -378,6 +554,7 @@ function FW.Interaction.Register(entityOrCoords, config)
         pendingPauseStates[entities[id].syncId] = nil
     end
 
+    RefreshInteractionCache()
     return id
 end
 
@@ -385,11 +562,46 @@ function FW.Interaction.RegisterCoords(coords, config)
     return FW.Interaction.Register(coords, config)
 end
 
-function FW.Interaction.Unregister(targetId)
-    entities[targetId] = nil
-    if activeTarget == targetId then
-        ClearActiveTarget()
+function FW.Interaction.Get(targetId)
+    local resolvedId = targetId
+    if entities[resolvedId] == nil then
+        local matches = CollectMatchingTargetKeys(targetId)
+        resolvedId = matches[1]
     end
+
+    local cfg = resolvedId and entities[resolvedId]
+    if not cfg then
+        return nil
+    end
+
+    local data = {}
+    for key, value in pairs(cfg) do
+        data[key] = value
+    end
+
+    if cfg.coords then
+        data.coords = vector3(cfg.coords.x, cfg.coords.y, cfg.coords.z)
+    end
+
+    data.id = resolvedId
+    return data
+end
+
+function FW.Interaction.Unregister(targetId)
+    local matches = CollectMatchingTargetKeys(targetId)
+    if #matches == 0 then
+        return false
+    end
+
+    for _, matchId in ipairs(matches) do
+        entities[matchId] = nil
+        if activeTarget == matchId then
+            ClearActiveTarget()
+        end
+    end
+
+    RefreshInteractionCache()
+    return true
 end
 
 function FW.Interaction.SetPaused(targetId, paused)
@@ -414,6 +626,7 @@ function FW.Interaction.SetPaused(targetId, paused)
         end
     end
 
+    RefreshInteractionCache()
     return true
 end
 
@@ -440,6 +653,109 @@ function FW.Interaction.ResumeAll()
     FW.Interaction.SetGlobalPaused(false)
 end
 
+function FW.Interaction.Handle(request, config)
+    if request == nil then
+        return nil
+    end
+
+    if type(request) ~= 'table' then
+        return FW.Interaction.Register(request, config or {})
+    end
+
+    local action = request.action or request.type or request.op or 'register'
+
+    if action == 'register' or action == 'create' then
+        local target = request.target or request.entity or request.coords or request.position
+        local registrationConfig = request.config or request
+        return FW.Interaction.Register(target, registrationConfig)
+    end
+
+    if action == 'update' then
+        local targetId = request.id or request.targetId or request.target or request.syncId
+        assert(targetId ~= nil, 'FW.Interaction.Handle(update): targetId fehlt')
+
+        local existing = FW.Interaction.Get(targetId)
+        if not existing then
+            return nil
+        end
+
+        local merged = {}
+        for key, value in pairs(existing) do
+            if key ~= 'id' and key ~= 'kind' then
+                merged[key] = value
+            end
+        end
+
+        local patch = request.config or request.data or request.patch or {}
+        for key, value in pairs(patch) do
+            merged[key] = value
+        end
+
+        local target = request.target or request.entity or request.coords or request.position
+        if target == nil then
+            if existing.kind == 'coord' and existing.coords then
+                target = existing.coords
+            else
+                target = targetId
+            end
+        end
+
+        if type(targetId) == 'string' and existing.kind == 'coord' then
+            merged.id = targetId
+        end
+
+        FW.Interaction.Unregister(targetId)
+        return FW.Interaction.Register(target, merged)
+    end
+
+    if action == 'remove' or action == 'delete' or action == 'unregister' then
+        local targetId = request.id or request.targetId or request.target or request.syncId
+        FW.Interaction.Unregister(targetId)
+        return true
+    end
+
+    if action == 'pause' then
+        local targetId = request.id or request.targetId or request.target or request.syncId
+        return FW.Interaction.SetPaused(targetId, true)
+    end
+
+    if action == 'resume' then
+        local targetId = request.id or request.targetId or request.target or request.syncId
+        return FW.Interaction.SetPaused(targetId, false)
+    end
+
+    if action == 'setPaused' then
+        local targetId = request.id or request.targetId or request.target or request.syncId
+        return FW.Interaction.SetPaused(targetId, request.paused == true)
+    end
+
+    if action == 'get' then
+        local targetId = request.id or request.targetId or request.target or request.syncId
+        return FW.Interaction.Get(targetId)
+    end
+
+    if action == 'pauseAll' then
+        FW.Interaction.PauseAll()
+        return true
+    end
+
+    if action == 'resumeAll' then
+        FW.Interaction.ResumeAll()
+        return true
+    end
+
+    if action == 'setGlobalPaused' then
+        FW.Interaction.SetGlobalPaused(request.paused == true)
+        return true
+    end
+
+    error(('FW.Interaction.Handle: unbekannte action "%s"'):format(tostring(action)))
+end
+
+exports('Interaction', function(request, config)
+    return FW.Interaction.Handle(request, config)
+end)
+
 RegisterNetEvent('fw:interaction:setPaused', function(targetId, paused)
     FW.Interaction.SetPaused(targetId, paused == true)
 end)
@@ -462,20 +778,32 @@ CreateThread(function()
 end)
 
 local function ProcessInteractionTick(playerCoords)
-    if globalPaused then
+    if globalPaused or interactionCache.targetCount == 0 then
         if activeTarget or isMenuOpen then
             ClearActiveTarget()
         end
         return 250
     end
 
-    local rawTarget = Raycast(GetMaxViewDistance())
     local target = nil
-    if rawTarget and entities[rawTarget] and not entities[rawTarget].paused then
-        target = rawTarget
-    end
-    if not target then
-        target = FindCoordTarget(playerCoords)
+    local camOrigin = GetGameplayCamCoord()
+    local camForward = GetCamForward()
+
+    if isMenuOpen and menuMode == 'list' and menuTarget and entities[menuTarget] and not entities[menuTarget].paused then
+        target = menuTarget
+    else
+        local rawTarget = nil
+        if interactionCache.entityCount > 0 then
+            rawTarget = Raycast(camOrigin, camForward, GetMaxViewDistance())
+        end
+
+        if rawTarget and entities[rawTarget] and not entities[rawTarget].paused then
+            target = rawTarget
+        end
+
+        if not target then
+            target = FindCoordTarget(playerCoords, camOrigin, camForward)
+        end
     end
 
     local cfg = target and entities[target]
@@ -499,8 +827,6 @@ local function ProcessInteractionTick(playerCoords)
         return 100
     end
 
-    local camOrigin = GetGameplayCamCoord()
-    local camForward = GetCamForward()
     local hintWorldPoint = vector3(targetCoords.x, targetCoords.y, targetCoords.z + cfg.heightOffset)
     local toHint = hintWorldPoint - camOrigin
     local forwardDot =
@@ -527,8 +853,9 @@ local function ProcessInteractionTick(playerCoords)
     hintMorph = SmoothStep(hintMorph)
     local hintScale = 0.42 + (hintMorph * 0.58)
 
+    local radialOpen = isMenuOpen and menuMode == 'radial'
     SendHintState({
-        visible = true,
+        visible = not radialOpen,
         x = sx,
         y = sy,
         key = cfg.keyLabel,
@@ -538,17 +865,19 @@ local function ProcessInteractionTick(playerCoords)
         morph = hintMorph,
     })
 
+    local passiveHintOnly = not inRange and not isMenuOpen
+
     if cfg.mode == 'radial' then
         if blockedReopenTarget == activeTarget and not IsControlPressed(0, cfg.key) then
             blockedReopenTarget = nil
         end
 
         if switchedTarget and isMenuOpen then
-            CloseMenu()
+            CloseMenu(true)
         end
 
         if menuMode == 'list' then
-            CloseMenu()
+            CloseMenu(true)
         end
 
         if not inRange then
@@ -556,7 +885,7 @@ local function ProcessInteractionTick(playerCoords)
             if isMenuOpen then
                 CloseMenu()
             end
-            return 16
+            return CFG.pointOnlyTickMs
         end
 
         if not isMenuOpen then
@@ -575,6 +904,10 @@ local function ProcessInteractionTick(playerCoords)
                     menuTarget = activeTarget
                     radialMX = 0.0
                     radialMY = 0.0
+                    SetRadialFocus(true)
+                    if SetCursorLocation then
+                        SetCursorLocation(0.5, 0.5)
+                    end
                     NUI('openRadial', { options = SerializeOptions(cfg.options) })
                 end
             else
@@ -586,10 +919,8 @@ local function ProcessInteractionTick(playerCoords)
 
         DisableControlAction(0, 1, true)
         DisableControlAction(0, 2, true)
-
-        radialMX = radialMX + (GetDisabledControlNormal(0, 239) * CFG.mouseSensitivity)
-        radialMY = radialMY + (GetDisabledControlNormal(0, 240) * CFG.mouseSensitivity)
-        NUI('radialMouse', { x = radialMX, y = radialMY })
+        DisableControlAction(0, 24, true)
+        DisableControlAction(0, 25, true)
 
         if IsDisabledControlJustReleased(0, cfg.key) then
             NUI('selectRadial', {})
@@ -600,7 +931,7 @@ local function ProcessInteractionTick(playerCoords)
             radialMY = 0.0
         end
 
-        return 0
+        return 16
     end
 
     holdStartAt = 0
@@ -613,7 +944,7 @@ local function ProcessInteractionTick(playerCoords)
         if isMenuOpen then
             CloseMenu()
         end
-        return 16
+        return CFG.pointOnlyTickMs
     end
 
     if switchedTarget then
@@ -628,6 +959,9 @@ local function ProcessInteractionTick(playerCoords)
         menuTarget = activeTarget
         lastListPosX = sx
         lastListPosY = sy
+        pendingListDelta = 0
+        pendingListSelect = false
+        lastListRepeatAt = GetGameTimer()
         NUI('openList', {
             options = SerializeOptions(cfg.options),
             position = cfg.listPosition,
@@ -649,6 +983,9 @@ local function ProcessInteractionTick(playerCoords)
         listIndex = 1
         lastListPosX = sx
         lastListPosY = sy
+        pendingListDelta = 0
+        pendingListSelect = false
+        lastListRepeatAt = GetGameTimer()
         NUI('openList', {
             options = SerializeOptions(cfg.options),
             position = cfg.listPosition,
@@ -661,36 +998,30 @@ local function ProcessInteractionTick(playerCoords)
 
     SendListPosition(sx, sy)
 
-    DisableControlAction(0, 241, true)
-    DisableControlAction(0, 242, true)
-    DisableControlAction(0, 172, true)
-    DisableControlAction(0, 173, true)
-
-    local scrollUp =
-        IsDisabledControlJustPressed(0, 241) or
-        IsDisabledControlJustPressed(0, 172) or
-        IsControlJustPressed(0, 241) or
-        IsControlJustPressed(0, 172)
-
-    local scrollDown =
-        IsDisabledControlJustPressed(0, 242) or
-        IsDisabledControlJustPressed(0, 173) or
-        IsControlJustPressed(0, 242) or
-        IsControlJustPressed(0, 173)
-
-    if scrollUp and listIndex > 1 then
-        listIndex = listIndex - 1
-        NUI('listScroll', { index = listIndex })
-    elseif scrollDown and listIndex < #cfg.options then
-        listIndex = listIndex + 1
-        NUI('listScroll', { index = listIndex })
+    if pendingListDelta ~= 0 then
+        local previousIndex = listIndex
+        listIndex = math.max(1, math.min(#cfg.options, listIndex + pendingListDelta))
+        pendingListDelta = 0
+        if listIndex ~= previousIndex then
+            lastListMoveAt = GetGameTimer()
+            NUI('listScroll', { index = listIndex })
+        end
     end
 
-    if IsControlJustReleased(0, cfg.key) then
+    if pendingListSelect then
+        pendingListSelect = false
         NUI('selectList', { index = listIndex })
     end
 
-    return 0
+    if passiveHintOnly then
+        return CFG.pointOnlyTickMs
+    end
+
+    if isMenuOpen and menuMode == 'list' then
+        return CFG.listVisualTickMs
+    end
+
+    return 16
 end
 
 CreateThread(function()
@@ -699,6 +1030,74 @@ CreateThread(function()
     end
 
     FW.Client.RegisterNearbyTick('interaction', ProcessInteractionTick)
+end)
+
+CreateThread(function()
+    while true do
+        if not (isMenuOpen and menuMode == 'list' and menuTarget) then
+            Wait(120)
+        else
+            local cfg = entities[menuTarget]
+            if not cfg or cfg.paused then
+                Wait(50)
+            else
+                DisableControlAction(0, 241, true)
+                DisableControlAction(0, 242, true)
+                DisableControlAction(0, 172, true)
+                DisableControlAction(0, 173, true)
+
+                local now = GetGameTimer()
+                local moved = false
+
+                local scrollUpTap =
+                    IsDisabledControlJustPressed(0, 241) or
+                    IsControlJustPressed(0, 241) or
+                    IsDisabledControlJustPressed(0, 172) or
+                    IsControlJustPressed(0, 172)
+
+                local scrollDownTap =
+                    IsDisabledControlJustPressed(0, 242) or
+                    IsControlJustPressed(0, 242) or
+                    IsDisabledControlJustPressed(0, 173) or
+                    IsControlJustPressed(0, 173)
+
+                if scrollUpTap then
+                    pendingListDelta = pendingListDelta - 1
+                    lastListRepeatAt = now
+                    moved = true
+                elseif scrollDownTap then
+                    pendingListDelta = pendingListDelta + 1
+                    lastListRepeatAt = now
+                    moved = true
+                elseif (now - lastListRepeatAt) >= CFG.listRepeatDelayMs then
+                    if (IsDisabledControlPressed(0, 172) or IsControlPressed(0, 172)) then
+                        pendingListDelta = pendingListDelta - 1
+                        lastListRepeatAt = now
+                        moved = true
+                    elseif (IsDisabledControlPressed(0, 173) or IsControlPressed(0, 173)) then
+                        pendingListDelta = pendingListDelta + 1
+                        lastListRepeatAt = now
+                        moved = true
+                    end
+                end
+
+                if moved and pendingListDelta > 2 then
+                    pendingListDelta = 2
+                elseif moved and pendingListDelta < -2 then
+                    pendingListDelta = -2
+                end
+
+                if
+                    IsDisabledControlJustReleased(0, cfg.key) or
+                    IsControlJustReleased(0, cfg.key)
+                then
+                    pendingListSelect = true
+                end
+
+                Wait(0)
+            end
+        end
+    end
 end)
 
 RegisterNUICallback('selectOption', function(data, cb)

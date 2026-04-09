@@ -4,17 +4,18 @@ const useNUI = window.useNUI;
 const CANVAS_SIZE = 340;
 const CX = CANVAS_SIZE / 2;
 const CY = CANVAS_SIZE / 2;
-const RADIUS_INNER = 58;
+const RADIUS_INNER = 60;
 const RADIUS_OUTER = 148;
 const SEG_GAP = 0.045;
 const LIST_CLOSE_MS = 300;
+const MOUSE_RADIUS_SCALE = 140;
 
 const CLR = {
     segBase: 'rgba(6, 10, 22, 0.88)',
     segHover: 'rgba(20, 58, 110, 0.92)',
     borderBase: 'rgba(80, 200, 255, 0.18)',
     borderHover: 'rgba(80, 200, 255, 0.9)',
-    textBase: 'rgba(180, 200, 230, 0.55)',
+    textBase: 'rgba(180, 200, 230, 0.38)',
     textHover: '#e8f0ff',
     innerFill: 'rgba(4, 8, 18, 0.95)',
     innerBorder: 'rgba(80, 200, 255, 0.35)',
@@ -32,7 +33,6 @@ const InteractionModule = {
         const radialOverlayRef = ref(null);
         const radialCanvasRef = ref(null);
         const radialLabelRef = ref(null);
-        const radialCrosshairRef = ref(null);
 
         const state = reactive({
             visible: false,
@@ -41,10 +41,14 @@ const InteractionModule = {
             hintVisible: false,
             hintX: 0.5,
             hintY: 0.5,
+            hintRenderX: 0.5,
+            hintRenderY: 0.5,
             keyLabel: 'E',
             inRange: false,
             hintScale: 1,
+            hintRenderScale: 1,
             hintMorph: 0,
+            hintRenderMorph: 0,
 
             options: [],
             listPosition: 'right',
@@ -55,16 +59,19 @@ const InteractionModule = {
             radialMX: 0,
             radialMY: 0,
             radialLabel: '',
+            radialArmed: false,
         });
 
         let ctx = null;
         let listCloseTimer = null;
+        let hintAnimFrame = null;
+        let hintLastFrameAt = 0;
 
         const keyHintStyle = computed(() => ({
-            left: `${state.hintX * 100}%`,
-            top: `${state.hintY * 100}%`,
-            transform: `translate(-50%, -50%) scale(${state.hintScale})`,
-            '--hint-morph': state.hintMorph,
+            left: `${state.hintRenderX * 100}%`,
+            top: `${state.hintRenderY * 100}%`,
+            transform: `translate(-50%, -50%) scale(${state.hintRenderScale})`,
+            '--hint-morph': state.hintRenderMorph,
         }));
 
         const listMenuClasses = computed(() => {
@@ -92,13 +99,14 @@ const InteractionModule = {
         const positionedListStyle = computed(() => {
             const vw = window.innerWidth;
             const vh = window.innerHeight;
-            const bx = state.hintX * vw;
-            const by = state.hintY * vh;
+            const bx = state.hintRenderX * vw;
+            const by = state.hintRenderY * vh;
 
             const BADGE_HALF = 23;
             const GAP = 14;
             const OFFSET = BADGE_HALF + GAP;
             const ITEM_H = 43;
+            const BOTTOM_X_SHIFT = 65;
 
             const style = {
                 position: 'absolute'
@@ -112,8 +120,9 @@ const InteractionModule = {
                 style.top = `${by - state.listIndex * ITEM_H - ITEM_H / 2}px`;
             } else if (state.listPosition === 'bottom') {
                 style.top = `${by + OFFSET}px`;
-                style.left = `${bx}px`;
-                style.transform = 'translateX(-50%)';
+                style.left = `${bx - BOTTOM_X_SHIFT}px`;
+                style.transform = `translateX(calc(-50% - ${BOTTOM_X_SHIFT}px))`;
+                style.width = 'max-content';
             }
 
             return style;
@@ -134,6 +143,66 @@ const InteractionModule = {
                 clearTimeout(listCloseTimer);
                 listCloseTimer = null;
             }
+        };
+
+        const stepHintAnimation = (timestamp) => {
+            if (!hintLastFrameAt) {
+                hintLastFrameAt = timestamp;
+            }
+
+            const dt = Math.min((timestamp - hintLastFrameAt) / 16.6667, 2.0);
+            hintLastFrameAt = timestamp;
+            const smoothing = 1 - Math.pow(0.48, dt);
+
+            const dx = state.hintX - state.hintRenderX;
+            const dy = state.hintY - state.hintRenderY;
+            const dScale = state.hintScale - state.hintRenderScale;
+            const dMorph = state.hintMorph - state.hintRenderMorph;
+
+            if (Math.abs(dx) < 0.0007) {
+                state.hintRenderX = state.hintX;
+            } else {
+                state.hintRenderX += dx * smoothing;
+            }
+
+            if (Math.abs(dy) < 0.0007) {
+                state.hintRenderY = state.hintY;
+            } else {
+                state.hintRenderY += dy * smoothing;
+            }
+
+            if (Math.abs(dScale) < 0.01) {
+                state.hintRenderScale = state.hintScale;
+            } else {
+                state.hintRenderScale += dScale * smoothing;
+            }
+
+            if (Math.abs(dMorph) < 0.01) {
+                state.hintRenderMorph = state.hintMorph;
+            } else {
+                state.hintRenderMorph += dMorph * smoothing;
+            }
+
+            const moving =
+                Math.abs(state.hintRenderX - state.hintX) > 0.00015 ||
+                Math.abs(state.hintRenderY - state.hintY) > 0.00015 ||
+                Math.abs(state.hintRenderScale - state.hintScale) > 0.002 ||
+                Math.abs(state.hintRenderMorph - state.hintMorph) > 0.002;
+
+            if (state.hintVisible || moving) {
+                hintAnimFrame = window.requestAnimationFrame(stepHintAnimation);
+            } else {
+                hintAnimFrame = null;
+                hintLastFrameAt = 0;
+            }
+        };
+
+        const ensureHintAnimation = () => {
+            if (hintAnimFrame !== null) {
+                return;
+            }
+
+            hintAnimFrame = window.requestAnimationFrame(stepHintAnimation);
         };
 
         const finishListClose = () => {
@@ -165,6 +234,7 @@ const InteractionModule = {
             state.hintVisible = false;
             state.listClosing = false;
             state.hintScale = 1;
+            state.hintRenderScale = state.hintRenderScale || 1;
             state.hintMorph = 0;
             state.options = [];
             state.listIndex = 0;
@@ -172,6 +242,7 @@ const InteractionModule = {
             state.radialMX = 0;
             state.radialMY = 0;
             state.radialLabel = '';
+            state.radialArmed = false;
 
             if (ctx) {
                 ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
@@ -184,23 +255,7 @@ const InteractionModule = {
             state.inRange = false;
             state.hintScale = 1;
             state.hintMorph = 0;
-        };
-
-        const updateCrosshair = (dx, dy) => {
-            if (!radialCrosshairRef.value || !radialOverlayRef.value) return;
-
-            const SCALE = 90;
-            const clamp = (v) => Math.max(-1, Math.min(1, v));
-
-            const cx = CX + clamp(dx) * SCALE;
-            const cy = CY + clamp(dy) * SCALE;
-
-            const rect = radialOverlayRef.value.getBoundingClientRect();
-            const canvasLeft = rect.width / 2 - CX;
-            const canvasTop = rect.height / 2 - CY;
-
-            radialCrosshairRef.value.style.left = `${canvasLeft + cx}px`;
-            radialCrosshairRef.value.style.top = `${canvasTop + cy}px`;
+            ensureHintAnimation();
         };
 
         const drawWrappedText = (ctx2, text, x, y, maxWidth, lineHeight) => {
@@ -281,8 +336,8 @@ const InteractionModule = {
 
                 ctx.save();
                 ctx.font = isActive
-                    ? 'bold 14px Rajdhani, sans-serif'
-                    : '500 13px Rajdhani, sans-serif';
+                    ? '600 15px Rajdhani, sans-serif'
+                    : '500 15px Rajdhani, sans-serif';
                 ctx.fillStyle = isActive ? CLR.textHover : CLR.textBase;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -331,6 +386,7 @@ const InteractionModule = {
         const onKeyHint = ({ visible, x, y, key, inRange, scale, morph }) => {
             if (!visible) {
                 state.hintVisible = false;
+                ensureHintAnimation();
                 return;
             }
 
@@ -341,6 +397,7 @@ const InteractionModule = {
             state.inRange = !!inRange;
             state.hintScale = scale ?? 1;
             state.hintMorph = morph ?? (inRange ? 1 : 0);
+            ensureHintAnimation();
         };
 
         const onOpenList = async ({ options, position, x, y, index }) => {
@@ -353,6 +410,7 @@ const InteractionModule = {
             state.hintY = y ?? state.hintY;
             state.visible = true;
             state.mode = 'list';
+            ensureHintAnimation();
 
             await nextTick();
         };
@@ -364,6 +422,7 @@ const InteractionModule = {
         const onUpdatePos = ({ x, y }) => {
             state.hintX = x ?? state.hintX;
             state.hintY = y ?? state.hintY;
+            ensureHintAnimation();
         };
 
         const onSelectList = ({ index }) => {
@@ -381,9 +440,9 @@ const InteractionModule = {
             state.radialMX = 0;
             state.radialMY = 0;
             state.radialLabel = '';
+            state.radialArmed = false;
 
             await nextTick();
-            updateCrosshair(0, 0);
             drawRadial();
         };
 
@@ -392,9 +451,15 @@ const InteractionModule = {
             state.radialMY = y || 0;
 
             const len = Math.sqrt(state.radialMX * state.radialMX + state.radialMY * state.radialMY);
-            const DEAD = 0.12;
+            const DEAD = RADIUS_INNER / MOUSE_RADIUS_SCALE;
 
-            if (len < DEAD) {
+            if (!state.radialArmed) {
+                if (len < DEAD) {
+                    state.radialArmed = true;
+                }
+                state.radialActive = -1;
+                state.radialLabel = '';
+            } else if (len < DEAD) {
                 state.radialActive = -1;
                 state.radialLabel = '';
             } else {
@@ -411,8 +476,6 @@ const InteractionModule = {
                     state.radialLabel = state.options[seg]?.label || '';
                 }
             }
-
-            updateCrosshair(state.radialMX, state.radialMY);
             drawRadial();
         };
 
@@ -422,6 +485,22 @@ const InteractionModule = {
             } else {
                 closeMenuRequest();
             }
+        };
+
+        const handleMouseMove = (event) => {
+            if (!(state.visible && state.mode === 'radial')) {
+                return;
+            }
+
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            const dx = (event.clientX - cx) / MOUSE_RADIUS_SCALE;
+            const dy = (event.clientY - cy) / MOUSE_RADIUS_SCALE;
+
+            onRadialMouse({
+                x: Math.max(-1, Math.min(1, dx)),
+                y: Math.max(-1, Math.min(1, dy))
+            });
         };
 
         const handleMessage = (event) => {
@@ -456,7 +535,7 @@ const InteractionModule = {
                     onSelectRadial();
                     break;
                 case 'closeMenu':
-                    closeMenuLocal();
+                    closeMenuLocal({ animateList: !d.immediate });
                     break;
                 case 'hide':
                     hideAll();
@@ -471,6 +550,17 @@ const InteractionModule = {
             }
         };
 
+        const handleKeyUp = (e) => {
+            if (!(state.visible && state.mode === 'radial')) {
+                return;
+            }
+
+            if (e.key === 'e' || e.key === 'E') {
+                e.preventDefault();
+                onSelectRadial();
+            }
+        };
+
         onMounted(() => {
             if (radialCanvasRef.value) {
                 radialCanvasRef.value.width = CANVAS_SIZE;
@@ -478,14 +568,27 @@ const InteractionModule = {
                 ctx = radialCanvasRef.value.getContext('2d');
             }
 
+            state.hintRenderX = state.hintX;
+            state.hintRenderY = state.hintY;
+            state.hintRenderScale = state.hintScale;
+            state.hintRenderMorph = state.hintMorph;
+
             window.addEventListener('message', handleMessage);
             window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            window.addEventListener('mousemove', handleMouseMove);
         });
 
         onUnmounted(() => {
             clearListCloseTimer();
+            if (hintAnimFrame !== null) {
+                window.cancelAnimationFrame(hintAnimFrame);
+                hintAnimFrame = null;
+            }
             window.removeEventListener('message', handleMessage);
             window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+            window.removeEventListener('mousemove', handleMouseMove);
         });
 
         return {
@@ -496,7 +599,6 @@ const InteractionModule = {
             radialOverlayRef,
             radialCanvasRef,
             radialLabelRef,
-            radialCrosshairRef,
             keyHintStyle,
             keyHintClasses,
             listMenuClasses,
@@ -559,11 +661,6 @@ const InteractionModule = {
             >
                 {{ state.radialLabel }}
             </div>
-            <div
-                ref="radialCrosshairRef"
-                id="radial-crosshair"
-                class="radial-crosshair"
-            ></div>
         </div>
     </div>
     `

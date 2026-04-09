@@ -110,7 +110,7 @@ local function BuildOptions(mode)
     }
 end
 
-local function RegisterTestPoint(mode)
+local function RegisterTestPoint(mode, pos, ids, keylabel)
     if not FW.Interaction or not FW.Interaction.RegisterCoords then
         Notify('Interaction-System ist noch nicht verfuegbar.')
         return
@@ -120,27 +120,26 @@ local function RegisterTestPoint(mode)
 
     local coords = GetPointInFront(2.0)
     local id = FW.Interaction.RegisterCoords(coords, {
-        id = ('test:%s'):format(mode),
+        id = ('%s:%s'):format(mode, tostring(ids)),
         mode = mode,
-        distance = 6.0,
-        viewDistance = 20.0,
-        listPosition = 'right',
-        key = 38,
-        keyLabel = 'E',
+        distance = 2.5,
+        viewDistance = 10.0,
+        listPosition = pos,
+        keyLabel = keylabel or 'E',
         heightOffset = 0.0,
         options = BuildOptions(mode),
     })
 
     testTargets[mode] = id
-    Notify(('Testpunkt fuer %s erstellt. Punkt liegt vor deiner Kamera. Geh in die Naehe und druecke E.'):format(mode))
+    Notify(('Testpunkt fuer %s erstellt. Punkt liegt vor deiner Kamera. Geh in die Naehe und druecke %s.'):format(mode, keylabel or 'E'))
 end
 
-RegisterCommand('testinteraction_list', function()
-    RegisterTestPoint('list')
+RegisterCommand('testinteraction_list', function(source, args)
+    RegisterTestPoint('list', args[1], args[2], args[3])
 end, false)
 
-RegisterCommand('testinteraction_radial', function()
-    RegisterTestPoint('radial')
+RegisterCommand('testinteraction_radial', function(source, args)
+    RegisterTestPoint('radial', args[1], args[2], args[3])
 end, false)
 
 RegisterCommand('testinteraction_clear', function()

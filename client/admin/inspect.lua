@@ -131,7 +131,7 @@ local function ApplyOutline(entity)
         end
 
         SafeNativeCall(SetEntityDrawOutlineShader, 1)
-        SetEntityDrawOutlineColor(70, 210, 255, 120)
+        SetEntityDrawOutlineColor(70, 210, 255, 255)
         SetEntityDrawOutline(entity, true)
         outlinedTarget = entity
     end

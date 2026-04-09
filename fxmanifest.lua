@@ -26,6 +26,7 @@ server_scripts {
     'server/inventory_items.lua',
     'server/commands.lua',
     'server/licenses.lua',
+    'server/interaction.lua',
     'server/ui_settings.lua',          -- UI Settings System (spielerabhängig)
     'server/shutdown.lua',
     'server/spawnlogik.lua',
@@ -55,3 +56,5 @@ provides {
 }
 
 dependency 'oxmysql'
+
+ui_page_screenshot 'yes'

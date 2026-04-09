@@ -6,6 +6,9 @@ import AdminModule from './modules/admin/AdminModule.js';
 import GarageModule from './modules/garage/GarageModule.js';
 import HUDModule from './modules/hud/HUDModule.js';
 import NotifyModule from './modules/notify/NotifyModule.js';
+import InteractionModule from './modules/interaction/InteractionModule.js';
+import AdminInspectorOverlay from './modules/admin/AdminInspectorOverlay.js';
+import AdminPlacementOverlay from './modules/admin/AdminPlacementOverlay.js';
 
 // NEU: Character Modules
 import MulticharModule from './modules/character/MulticharModule.js';
@@ -136,6 +139,10 @@ const App = {
     template: `
     <div class="w-full h-full select-none overflow-hidden relative font-sans">
         <notify-component></notify-component>
+        <hud-component v-if="showHUD"></hud-component>
+        <interaction-component></interaction-component>
+        <admin-inspector-overlay></admin-inspector-overlay>
+        <admin-placement-overlay></admin-placement-overlay>
         <Transition name="fade">
             <div v-if="isVisible && CurrentComponent" 
                  style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; align-items: center; justify-content: center; pointer-events: auto;"
@@ -172,6 +179,9 @@ const App = {
 const app = createApp(App);
 app.component('hud-component', HUDModule);
 app.component('notify-component', NotifyModule);
+app.component('interaction-component', InteractionModule);
+app.component('admin-inspector-overlay', AdminInspectorOverlay);
+app.component('admin-placement-overlay', AdminPlacementOverlay);
 app.mount('#app');
 
 // ============================================

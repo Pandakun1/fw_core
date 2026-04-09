@@ -12,6 +12,7 @@ const MulticharModule = {
         const selectChar = (charid) => {
             FWDebug.log('Multichar', 'Selecting character', charid);
             send('selectCharacter', { charid });
+            send('showHUD')
         };
 
         const createNew = () => {

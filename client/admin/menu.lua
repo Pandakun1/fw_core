@@ -1,5 +1,8 @@
 local menuOpen = false
 
+FW = FW or {}
+FW.Admin = FW.Admin or {}
+
 -- REMOVED: Command registration - now handled in nui.lua
 -- RegisterCommand('admin', function()
 --     ToggleAdminMenu()
@@ -45,6 +48,13 @@ function GetAdminMenuData()
                     }
                 },
                 {
+                    id = "debug",
+                    label = "Debug",
+                    items = {
+                        { id = "toggle_inspector_mode", label = "Objekt-Inspektor an/aus" },
+                    }
+                },
+                {
                     id = "licenses",
                     label = "Lizenzen",
                     items = {
@@ -76,6 +86,10 @@ function CloseAdminMenu()
     menuOpen = false
     SetNuiFocus(false, false)
     SendNUIMessage({ action = "closeAdminMenu" })
+end
+
+function FW.Admin.IsMenuOpen()
+    return menuOpen
 end
 
 RegisterNUICallback('closeMenu', function(_, cb)
@@ -127,6 +141,8 @@ RegisterNUICallback('adminAction', function(data, cb)
         FW.Admin.FixCurrentVehicle()
     elseif cat == "vehicles" and item == "delete_car" then
         FW.Admin.DeleteVehicle()
+    elseif cat == "debug" and item == "toggle_inspector_mode" then
+        FW.Admin.ToggleInspectorMode()
     elseif cat == "server" and item == "reload_itemlist" then
         FW.Admin.ReloadItemList()
     elseif cat == "licenses" and item == "list_licenses" then

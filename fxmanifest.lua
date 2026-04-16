@@ -30,6 +30,7 @@ server_scripts {
     'server/ui_settings.lua',          -- UI Settings System (spielerabhängig)
     'server/shutdown.lua',
     'server/spawnlogik.lua',
+    'server/garage.lua',
     'server/Abfragepunkte.lua'
 }
 

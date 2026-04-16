@@ -1,4 +1,5 @@
 local trackedGarageVehicles = {}
+local isGarageOpen = false
 
 local function findVehicleByPlate(plate)
     local pool = GetGamePool('CVehicle')
@@ -12,14 +13,21 @@ local function findVehicleByPlate(plate)
 end
 
 local function OpenGarage()
+    if isGarageOpen then return end
+    if exports['fw_core']:IsAnyUIOpen() then return end
+
+    isGarageOpen = true
     SendNUIMessage({
         action = 'openGarage'
     })
-    SetNuiFocus(true, true)
+    exports['fw_core']:RegisterUIOpen('garage', true)
 end
 
 local function CloseGarage()
-    SetNuiFocus(false, false)
+    if not isGarageOpen then return end
+    isGarageOpen = false
+    SendNUIMessage({ action = 'closeUI' })
+    exports['fw_core']:RegisterUIClose('garage')
 end
 
 local function storeCurrentVehicle(targetPlate)
@@ -62,13 +70,11 @@ end
 
 RegisterNUICallback('closeGarage', function(_, cb)
     CloseGarage()
-    SendNUIMessage({ action = 'closeUI' })
     cb({ ok = true })
 end)
 
 RegisterNUICallback('closeUI', function(_, cb)
     CloseGarage()
-    SendNUIMessage({ action = 'closeUI' })
     cb({ ok = true })
 end)
 
@@ -169,6 +175,10 @@ RegisterCommand('garage', function()
     print('[FW.Garage][Client] /garage invoked')
     OpenGarage()
 end, false)
+
+RegisterNetEvent('fw:client:closeGarage', function()
+    CloseGarage()
+end)
 
 RegisterCommand('parkvehicle', function(_, args)
     local success = storeCurrentVehicle(args[1])

@@ -97,35 +97,91 @@ RegisterNUICallback('garage:storeVehicle', function(data, cb)
     cb(success and 'ok' or 'error')
 end)
 
-RegisterNetEvent('fw:garage:spawnVehicleClient', function(data)
-    if type(data) ~= 'table' then return end
+local DEFAULT_TIMEOUT_MS = 5000
 
-    local model = type(data.model) == 'number' and data.model or joaat(data.model)
-    if not IsModelInCdimage(model) then
-        TriggerEvent('FW:Notify', 'Fahrzeugmodell ist ungültig.', 'error')
-        return
-    end
+local function loadVehicleModel(modelHash, timeoutMs)
+    timeoutMs = timeoutMs or DEFAULT_TIMEOUT_MS
+    local startedAt = GetGameTimer()
 
-    RequestModel(model)
-    while not HasModelLoaded(model) do
+    RequestModel(modelHash)
+    while not HasModelLoaded(modelHash) do
+        if GetGameTimer() - startedAt > timeoutMs then
+            return false
+        end
         Wait(0)
     end
 
-    local coords = data.coords or {}
-    local x = coords.x or -42.25
-    local y = coords.y or -1098.88
-    local z = coords.z or 26.42
-    local heading = data.heading or coords.heading or 90.0
+    return true
+end
 
-    local vehicle = CreateVehicle(model, x, y, z, heading, true, false)
-    if vehicle == 0 then
-        TriggerEvent('FW:Notify', 'Fahrzeug konnte nicht gespawnt werden.', 'error')
-        SetModelAsNoLongerNeeded(model)
+local function ensureGroundedVehicle(vehicle)
+    local attempts = 0
+    while attempts < 100 do
+        if DoesEntityExist(vehicle) and HasCollisionLoadedAroundEntity(vehicle) then
+            return true
+        end
+        Wait(50)
+        attempts = attempts + 1
+    end
+    return DoesEntityExist(vehicle)
+end
+
+RegisterNetEvent('fw:garage:spawnVehicleClient', function(data)
+    if type(data) ~= 'table' then return end
+
+    local ped = PlayerPedId()
+    if ped == 0 then return end
+
+    local modelName = tostring(data.model or 'adder')
+    local modelHash = type(data.model) == 'number' and data.model or joaat(modelName)
+
+    if not IsModelInCdimage(modelHash) or not IsModelAVehicle(modelHash) then
+        TriggerEvent('FW:Notify', ('Ungültiges Fahrzeugmodell: %s'):format(modelName), 'error')
+        return
+    end
+
+    if not loadVehicleModel(modelHash, DEFAULT_TIMEOUT_MS) then
+        TriggerEvent('FW:Notify', ('Modell konnte nicht geladen werden: %s'):format(modelName), 'error')
+        return
+    end
+
+    local coords = data.coords or {}
+    local x = tonumber(coords.x) or -42.25
+    local y = tonumber(coords.y) or -1098.88
+    local z = tonumber(coords.z) or 26.42
+    local heading = tonumber(data.heading) or tonumber(coords.w) or tonumber(coords.heading) or GetEntityHeading(ped)
+
+    local spawnX = x
+    local spawnY = y
+    local spawnZ = z
+
+    if not coords.x or not coords.y or not coords.z then
+        local pedCoords = GetEntityCoords(ped)
+        local forward = GetEntityForwardVector(ped)
+        spawnX = pedCoords.x + (forward.x * 4.0)
+        spawnY = pedCoords.y + (forward.y * 4.0)
+        spawnZ = pedCoords.z + 1.0
+    end
+
+    local vehicle = CreateVehicle(modelHash, spawnX, spawnY, spawnZ, heading, true, false)
+    if not DoesEntityExist(vehicle) then
+        SetModelAsNoLongerNeeded(modelHash)
+        TriggerEvent('FW:Notify', 'Fahrzeug konnte nicht erstellt werden.', 'error')
         return
     end
 
     SetVehicleOnGroundProperly(vehicle)
-    SetPedIntoVehicle(PlayerPedId(), vehicle, -1)
+    SetEntityAsMissionEntity(vehicle, true, true)
+    SetVehicleHasBeenOwnedByPlayer(vehicle, true)
+    SetVehRadioStation(vehicle, 'OFF')
+    SetVehicleEngineOn(vehicle, true, true, false)
+    SetVehicleDoorsLocked(vehicle, 1)
+
+    ensureGroundedVehicle(vehicle)
+
+    local netId = NetworkGetNetworkIdFromEntity(vehicle)
+    SetNetworkIdCanMigrate(netId, true)
+    SetNetworkIdExistsOnAllMachines(netId, true)
 
     if data.props then
         SetVehicleNumberPlateText(vehicle, data.props.plate or data.plate)
@@ -137,7 +193,16 @@ RegisterNetEvent('fw:garage:spawnVehicleClient', function(data)
         SetVehicleNumberPlateText(vehicle, data.plate)
     end
 
-    local netId = NetworkGetNetworkIdFromEntity(vehicle)
+    TaskWarpPedIntoVehicle(ped, vehicle, -1)
+    local startedAt = GetGameTimer()
+    while GetVehiclePedIsIn(ped, false) ~= vehicle and (GetGameTimer() - startedAt) < 2000 do
+        TaskWarpPedIntoVehicle(ped, vehicle, -1)
+        Wait(50)
+    end
+    if GetVehiclePedIsIn(ped, false) ~= vehicle then
+        SetPedIntoVehicle(ped, vehicle, -1)
+    end
+
     local vehicleCoords = GetEntityCoords(vehicle)
     trackedGarageVehicles[string.upper(data.plate)] = netId
 
@@ -155,7 +220,7 @@ RegisterNetEvent('fw:garage:spawnVehicleClient', function(data)
         heading = GetEntityHeading(vehicle)
     })
 
-    SetModelAsNoLongerNeeded(model)
+    SetModelAsNoLongerNeeded(modelHash)
 end)
 
 RegisterNetEvent('fw:garage:storedVehicle', function(plate)

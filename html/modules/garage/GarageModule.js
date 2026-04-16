@@ -17,17 +17,14 @@ const GarageModule = {
         const filteredVehicles = computed(() => {
             const query = String(searchQuery.value || '').toLowerCase().trim();
             const ownedVehicles = (vehicles.value || []).filter((vehicle) => vehicle.owned);
+            if (!query) return ownedVehicles;
 
-            if (!query) {
-                return ownedVehicles;
-            }
-
-            return ownedVehicles.filter((vehicle) => {
-                return String(vehicle.model || '').toLowerCase().includes(query)
-                    || String(vehicle.plate || '').toLowerCase().includes(query)
-                    || String(vehicle.state || '').toLowerCase().includes(query)
-                    || String(vehicle.owner_identifier || '').toLowerCase().includes(query);
-            });
+            return ownedVehicles.filter((vehicle) =>
+                String(vehicle.model || '').toLowerCase().includes(query) ||
+                String(vehicle.plate || '').toLowerCase().includes(query) ||
+                String(vehicle.state || '').toLowerCase().includes(query) ||
+                String(vehicle.owner_identifier || '').toLowerCase().includes(query)
+            );
         });
 
         const selectedVehicle = computed(() => {
@@ -41,6 +38,7 @@ const GarageModule = {
             isLoading.value = true;
             try {
                 const result = await window.NUIBridge.send('garage:getVehicles');
+                console.log('[FW.Garage][UI] Loaded vehicles payload', result);
                 vehicles.value = Array.isArray(result?.vehicles) ? result.vehicles : [];
                 if (vehicles.value.length > 0 && !selectedPlate.value) {
                     selectedPlate.value = vehicles.value[0].plate;
@@ -70,27 +68,18 @@ const GarageModule = {
 
         const handleSpawn = async () => {
             if (!selectedVehicle.value) return;
-            try {
-                await window.NUIBridge.send('garage:spawnVehicle', { plate: selectedVehicle.value.plate });
-                isOpen.value = false;
-            } catch (error) {
-                console.error('[GarageModule] Error spawning vehicle:', error);
-            }
+            await window.NUIBridge.send('garage:spawnVehicle', { plate: selectedVehicle.value.plate });
+            isOpen.value = false;
         };
 
         const handleStore = async () => {
             if (!selectedVehicle.value) return;
-            try {
-                await window.NUIBridge.send('garage:storeVehicle', { plate: selectedVehicle.value.plate });
-                await loadVehicles();
-            } catch (error) {
-                console.error('[GarageModule] Error storing vehicle:', error);
-            }
+            await window.NUIBridge.send('garage:storeVehicle', { plate: selectedVehicle.value.plate });
+            await loadVehicles();
         };
 
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
-                console.log('[FW.Garage][UI] ESC detected');
                 e.preventDefault();
                 e.stopPropagation();
                 closeUi();
@@ -107,7 +96,6 @@ const GarageModule = {
             window.removeEventListener('keydown', handleKeyDown, true);
         });
 
-
         return {
             isOpen,
             isLoading,
@@ -123,137 +111,118 @@ const GarageModule = {
     },
 
     template: `
-    <div v-if="isOpen" class="w-full h-full flex items-center justify-center font-sans text-white pointer-events-auto">
-        <div class="w-[1180px] h-[760px] rounded-[28px] border border-[#22314a] bg-[#0a0f15]/96 shadow-[0_30px_80px_rgba(0,0,0,0.55)] overflow-hidden flex backdrop-blur-xl">
-            <div class="w-[420px] border-r border-[#1f2b3f] bg-[#0d131d] flex flex-col">
-                <div class="p-6 border-b border-[#1f2b3f]">
-                    <div class="text-xs uppercase tracking-[0.28em] text-slate-500 mb-2">Owned Vehicles</div>
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-3xl font-bold text-white">Garage</h2>
-                        <div class="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 text-cyan-300 text-sm font-semibold">
-                            {{ filteredVehicles.length }}
-                        </div>
+    <div v-if="isOpen" style="position:fixed; inset:0; z-index:999999; background:rgba(0,0,0,0.72); display:flex; align-items:center; justify-content:center; color:white; font-family:Arial, sans-serif; pointer-events:auto;">
+        <div style="width:1200px; height:760px; background:#0f1720; border:2px solid #2d425f; border-radius:18px; display:flex; overflow:hidden; box-shadow:0 20px 80px rgba(0,0,0,0.6);">
+            <div style="width:420px; border-right:1px solid #26384f; background:#121b26; display:flex; flex-direction:column;">
+                <div style="padding:20px; border-bottom:1px solid #26384f;">
+                    <div style="font-size:12px; letter-spacing:3px; color:#7f93ab; text-transform:uppercase; margin-bottom:8px;">Owned Vehicles</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                        <div style="font-size:32px; font-weight:700;">Garage</div>
+                        <div style="padding:6px 12px; border-radius:999px; background:#163247; color:#7dd3fc; font-weight:700;">{{ filteredVehicles.length }}</div>
                     </div>
                     <input
                         v-model="searchQuery"
                         type="text"
                         placeholder="Suche Modell, Kennzeichen oder Status"
-                        class="w-full rounded-2xl border border-[#233148] bg-[#0b1017] px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-cyan-500"
-                    >
+                        style="width:100%; padding:12px 14px; border-radius:12px; border:1px solid #304761; background:#0b1219; color:white; outline:none;"
+                    />
                 </div>
 
-                <div class="flex-1 overflow-y-auto p-4 space-y-3">
-                    <div v-if="isLoading" class="h-full flex items-center justify-center text-slate-400">
-                        Lade Fahrzeuge...
-                    </div>
+                <div style="flex:1; overflow:auto; padding:14px;">
+                    <div v-if="isLoading" style="padding:20px; color:#94a3b8;">Lade Fahrzeuge...</div>
+                    <div v-else-if="filteredVehicles.length === 0" style="padding:20px; color:#94a3b8;">Keine Fahrzeuge gefunden</div>
 
-                    <div v-else-if="filteredVehicles.length === 0" class="h-full flex items-center justify-center text-center px-6">
-                        <div>
-                            <div class="text-5xl mb-4">Fahrzeuge</div>
-                            <div class="text-xl font-semibold text-white mb-2">Keine Fahrzeuge gefunden</div>
-                            <div class="text-sm text-slate-400">Prüfe die DB-Einträge oder erstelle ein Testfahrzeug mit /giveownedvehicle adder</div>
-                        </div>
-                    </div>
-
-                    <button
+                    <div
                         v-for="vehicle in filteredVehicles"
                         :key="vehicle.plate"
                         @click="handleSelectVehicle(vehicle)"
-                        class="w-full text-left rounded-2xl border p-4 transition-all duration-150"
-                        :class="selectedVehicle?.plate === vehicle.plate
-                            ? 'border-cyan-500 bg-[#152132] shadow-[0_0_0_1px_rgba(34,211,238,0.2)]'
-                            : 'border-[#223048] bg-[#101722] hover:bg-[#141d2a]'"
+                        :style="{
+                            marginBottom: '10px',
+                            padding: '14px',
+                            borderRadius: '14px',
+                            cursor: 'pointer',
+                            border: selectedVehicle && selectedVehicle.plate === vehicle.plate ? '2px solid #22d3ee' : '1px solid #304761',
+                            background: selectedVehicle && selectedVehicle.plate === vehicle.plate ? '#172736' : '#101822'
+                        }"
                     >
-                        <div class="flex items-start justify-between gap-3">
+                        <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
                             <div>
-                                <div class="text-lg font-bold text-white leading-tight">{{ vehicle.model || 'Unbekannt' }}</div>
-                                <div class="text-sm text-slate-400 mt-1">{{ vehicle.plate }}</div>
+                                <div style="font-size:20px; font-weight:700;">{{ vehicle.model || 'Unbekannt' }}</div>
+                                <div style="font-size:13px; color:#94a3b8; margin-top:4px;">{{ vehicle.plate }}</div>
                             </div>
-                            <div
-                                class="px-3 py-1 rounded-full text-[11px] font-bold tracking-wide"
-                                :class="vehicle.stored
-                                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                                    : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'"
-                            >
-                                {{ vehicle.stored ? 'EINGEPARKT' : 'DRAUSSEN' }}
-                            </div>
+                            <div :style="{
+                                padding: '4px 10px',
+                                borderRadius: '999px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                background: vehicle.stored ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                                color: vehicle.stored ? '#6ee7b7' : '#fcd34d',
+                                border: vehicle.stored ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(245,158,11,0.35)'
+                            }">{{ vehicle.stored ? 'EINGEPARKT' : 'DRAUSSEN' }}</div>
                         </div>
-                        <div class="mt-4 flex items-center justify-between text-sm text-slate-400 gap-4">
+                        <div style="display:flex; justify-content:space-between; gap:12px; margin-top:12px; font-size:12px; color:#94a3b8;">
                             <span>Fuel {{ MathRef.round(vehicle.fuel || 0) }}%</span>
-                            <span class="truncate">{{ vehicle.owner_identifier }}</span>
+                            <span style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ vehicle.owner_identifier }}</span>
                         </div>
-                    </button>
+                    </div>
                 </div>
             </div>
 
-            <div class="flex-1 bg-gradient-to-br from-[#0b1016] to-[#0f1722] flex flex-col">
-                <div class="px-8 py-6 border-b border-[#1f2b3f] flex items-center justify-between">
+            <div style="flex:1; display:flex; flex-direction:column; background:#0d141c;">
+                <div style="padding:22px 28px; border-bottom:1px solid #26384f; display:flex; align-items:center; justify-content:space-between;">
                     <div>
-                        <div class="text-xs uppercase tracking-[0.28em] text-slate-500 mb-2">Vehicle Details</div>
-                        <h3 class="text-3xl font-bold text-white">{{ selectedVehicle ? selectedVehicle.model : 'Garage Übersicht' }}</h3>
+                        <div style="font-size:12px; letter-spacing:3px; color:#7f93ab; text-transform:uppercase; margin-bottom:8px;">Vehicle Details</div>
+                        <div style="font-size:30px; font-weight:700;">{{ selectedVehicle ? selectedVehicle.model : 'Garage Übersicht' }}</div>
                     </div>
-                    <button
-                        @click="closeUi"
-                        class="w-12 h-12 rounded-2xl bg-[#121b28] hover:bg-[#1a2636] border border-[#233148] text-slate-300 text-xl"
-                    >X</button>
+                    <button @click="closeUi" style="width:44px; height:44px; border:none; border-radius:12px; background:#1a2633; color:white; font-size:20px; cursor:pointer;">X</button>
                 </div>
 
-                <div class="flex-1 p-8 overflow-y-auto">
-                    <div v-if="!selectedVehicle" class="h-full flex items-center justify-center text-center">
-                        <div>
-                            <div class="text-2xl font-semibold text-white mb-2">Wähle links ein Fahrzeug</div>
-                            <div class="text-slate-400">Die Liste zeigt nur Fahrzeuge, die aktuell als owned erkannt werden.</div>
-                        </div>
-                    </div>
+                <div style="flex:1; padding:28px; overflow:auto;">
+                    <div v-if="!selectedVehicle" style="color:#94a3b8; font-size:18px;">Wähle links ein Fahrzeug aus.</div>
 
-                    <div v-else class="space-y-6">
-                        <div class="grid grid-cols-2 gap-5">
-                            <div class="rounded-3xl border border-[#223148] bg-[#111925] p-6">
-                                <div class="text-xs uppercase tracking-[0.2em] text-slate-500 mb-3">Kennzeichen</div>
-                                <div class="text-3xl font-bold text-white">{{ selectedVehicle.plate }}</div>
+                    <div v-else>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px;">
+                            <div style="background:#111c27; border:1px solid #26384f; border-radius:16px; padding:20px;">
+                                <div style="font-size:12px; color:#7f93ab; text-transform:uppercase; margin-bottom:8px;">Kennzeichen</div>
+                                <div style="font-size:28px; font-weight:700;">{{ selectedVehicle.plate }}</div>
                             </div>
-                            <div class="rounded-3xl border border-[#223148] bg-[#111925] p-6">
-                                <div class="text-xs uppercase tracking-[0.2em] text-slate-500 mb-3">Status</div>
-                                <div class="text-3xl font-bold" :class="selectedVehicle.stored ? 'text-emerald-400' : 'text-amber-300'">
-                                    {{ selectedVehicle.stored ? 'Eingeparkt' : 'Draußen' }}
-                                </div>
+                            <div style="background:#111c27; border:1px solid #26384f; border-radius:16px; padding:20px;">
+                                <div style="font-size:12px; color:#7f93ab; text-transform:uppercase; margin-bottom:8px;">Status</div>
+                                <div :style="{ fontSize:'28px', fontWeight:'700', color:selectedVehicle.stored ? '#6ee7b7' : '#fcd34d' }">{{ selectedVehicle.stored ? 'Eingeparkt' : 'Draußen' }}</div>
                             </div>
                         </div>
 
-                        <div class="rounded-3xl border border-[#223148] bg-[#111925] p-6">
-                            <div class="text-xs uppercase tracking-[0.2em] text-slate-500 mb-4">Fahrzeugdaten</div>
-                            <div class="grid grid-cols-2 gap-4 text-sm">
-                                <div class="rounded-2xl bg-[#0b1118] p-4 border border-[#1b2838]">
-                                    <div class="text-slate-500 mb-1">Modell</div>
-                                    <div class="text-white font-semibold">{{ selectedVehicle.vehicleModel || selectedVehicle.model }}</div>
+                        <div style="background:#111c27; border:1px solid #26384f; border-radius:16px; padding:20px; margin-bottom:18px;">
+                            <div style="font-size:12px; color:#7f93ab; text-transform:uppercase; margin-bottom:12px;">Fahrzeugdaten</div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                <div style="background:#0b1219; border:1px solid #223246; border-radius:12px; padding:14px;">
+                                    <div style="font-size:12px; color:#7f93ab; margin-bottom:6px;">Modell</div>
+                                    <div>{{ selectedVehicle.vehicleModel || selectedVehicle.model }}</div>
                                 </div>
-                                <div class="rounded-2xl bg-[#0b1118] p-4 border border-[#1b2838]">
-                                    <div class="text-slate-500 mb-1">Fuel</div>
-                                    <div class="text-white font-semibold">{{ MathRef.round(selectedVehicle.fuel || 0) }}%</div>
+                                <div style="background:#0b1219; border:1px solid #223246; border-radius:12px; padding:14px;">
+                                    <div style="font-size:12px; color:#7f93ab; margin-bottom:6px;">Fuel</div>
+                                    <div>{{ MathRef.round(selectedVehicle.fuel || 0) }}%</div>
                                 </div>
-                                <div class="rounded-2xl bg-[#0b1118] p-4 border border-[#1b2838] col-span-2">
-                                    <div class="text-slate-500 mb-1">Owner Identifier</div>
-                                    <div class="text-cyan-300 font-semibold break-all">{{ selectedVehicle.owner_identifier }}</div>
+                                <div style="background:#0b1219; border:1px solid #223246; border-radius:12px; padding:14px; grid-column:1 / span 2;">
+                                    <div style="font-size:12px; color:#7f93ab; margin-bottom:6px;">Owner Identifier</div>
+                                    <div style="color:#7dd3fc; word-break:break-all;">{{ selectedVehicle.owner_identifier }}</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="rounded-3xl border border-[#223148] bg-[#111925] p-6">
-                            <div class="text-xs uppercase tracking-[0.2em] text-slate-500 mb-4">Aktionen</div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <button
-                                    v-if="selectedVehicle.stored"
-                                    @click="handleSpawn"
-                                    class="rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white py-4 font-bold text-lg transition"
-                                >Ausparken</button>
-                                <button
-                                    v-else
-                                    @click="handleStore"
-                                    class="rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white py-4 font-bold text-lg transition"
-                                >Einparken</button>
-                                <div class="rounded-2xl border border-[#243249] bg-[#0b1118] px-4 py-4 text-slate-400 text-sm flex items-center justify-center text-center">
-                                    ESC oder X schließen die UI jetzt vollständig.
-                                </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                            <button
+                                v-if="selectedVehicle.stored"
+                                @click="handleSpawn"
+                                style="border:none; border-radius:16px; background:#0891b2; color:white; font-size:20px; font-weight:700; padding:18px; cursor:pointer;"
+                            >Ausparken</button>
+                            <button
+                                v-else
+                                @click="handleStore"
+                                style="border:none; border-radius:16px; background:#059669; color:white; font-size:20px; font-weight:700; padding:18px; cursor:pointer;"
+                            >Einparken</button>
+                            <div style="background:#111c27; border:1px solid #26384f; border-radius:16px; padding:18px; color:#94a3b8; display:flex; align-items:center; justify-content:center; text-align:center;">
+                                Diese UI ist absichtlich minimal gehalten, damit sie garantiert sichtbar ist.
                             </div>
                         </div>
                     </div>

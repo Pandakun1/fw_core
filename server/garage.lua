@@ -431,6 +431,40 @@ RegisterCommand('giveownedvehicle', function(source, args)
     end)
 end, false)
 
+RegisterCommand('garageowns_server', function(source, args)
+    local src = source
+    if src == 0 then
+        print('Benutzung: /garageowns_server [plate]')
+        return
+    end
+
+    local plate = args[1]
+    if not plate then
+        TriggerClientEvent('FW:Notify', src, 'Benutzung: /garageowns_server [plate]', 'error')
+        return
+    end
+
+    local player = FW.GetPlayer and FW.GetPlayer(src)
+    local normalizedPlate = tostring(plate):match('^%s*(.-)%s*$')
+
+    FW.Garage.GetVehicleByPlate(normalizedPlate, function(vehicle)
+        local owns = playerOwnsVehicle(src, vehicle)
+        print(('[FW.Garage] garageowns_server src=%s player.identifier=%s plate=%s vehicle.owner=%s owns=%s'):format(
+            src,
+            player and tostring(player.identifier) or 'nil',
+            normalizedPlate,
+            vehicle and tostring(vehicle.owner_identifier) or 'nil',
+            tostring(owns)
+        ))
+
+        if owns then
+            TriggerClientEvent('FW:Notify', src, ('Servercheck: Du besitzt %s.'):format(normalizedPlate), 'success')
+        else
+            TriggerClientEvent('FW:Notify', src, ('Servercheck: Du besitzt %s nicht.'):format(normalizedPlate), 'error')
+        end
+    end)
+end, false)
+
 RegisterCommand('removeownedvehicle', function(source, args)
     local src = source
     if src == 0 then

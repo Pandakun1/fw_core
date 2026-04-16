@@ -1,14 +1,37 @@
 local trackedGarageVehicles = {}
 local isGarageOpen = false
 
+local function normalizePlate(value)
+    return string.upper((tostring(value or ''):gsub('^%s*(.-)%s*$', '%1')))
+end
+
 local function findVehicleByPlate(plate)
+    local targetPlate = normalizePlate(plate)
+    local ped = PlayerPedId()
+    local pedCoords = GetEntityCoords(ped)
+    local closestVehicle = 0
+    local closestDistance = 9999.0
+
     local pool = GetGamePool('CVehicle')
     for i = 1, #pool do
         local vehicle = pool[i]
-        if DoesEntityExist(vehicle) and string.upper(GetVehicleNumberPlateText(vehicle) or '') == string.upper(plate or '') then
-            return vehicle
+        if DoesEntityExist(vehicle) then
+            local vehiclePlate = normalizePlate(GetVehicleNumberPlateText(vehicle))
+            if vehiclePlate == targetPlate then
+                local vehicleCoords = GetEntityCoords(vehicle)
+                local distance = #(pedCoords - vehicleCoords)
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestVehicle = vehicle
+                end
+            end
         end
     end
+
+    if closestVehicle ~= 0 and closestDistance <= 15.0 then
+        return closestVehicle
+    end
+
     return 0
 end
 
@@ -39,12 +62,12 @@ local function storeCurrentVehicle(targetPlate)
     end
 
     if vehicle == 0 then
-        TriggerEvent('FW:Notify', 'Kein passendes Fahrzeug gefunden.', 'error')
+        TriggerEvent('FW:Notify', 'Kein passendes Fahrzeug in deiner Nähe gefunden.', 'error')
         return false
     end
 
     local plate = GetVehicleNumberPlateText(vehicle)
-    if targetPlate and string.upper(plate or '') ~= string.upper(targetPlate) then
+    if targetPlate and normalizePlate(plate) ~= normalizePlate(targetPlate) then
         TriggerEvent('FW:Notify', 'Das gewählte Fahrzeug ist nicht in deiner Nähe.', 'error')
         return false
     end

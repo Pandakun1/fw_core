@@ -1,7 +1,5 @@
-import { useGarageStore } from './GarageStore.js';
-
 const useNUI = window.useNUI;
-const { computed, onMounted, onUnmounted, ref, watch } = Vue;
+const { computed, onMounted, onUnmounted, ref } = Vue;
 const MathRef = window.Math;
 
 const GarageModule = {
@@ -9,78 +7,126 @@ const GarageModule = {
     props: ['data'],
 
     setup() {
-        const garageStore = useGarageStore();
         const { send, onClose } = useNUI();
+        const isOpen = ref(true);
+        const isLoading = ref(false);
+        const vehicles = ref([]);
+        const selectedPlate = ref(null);
         const searchQuery = ref('');
 
-        const vehicles = computed(() => garageStore.filteredVehicles || []);
-        const selectedVehicle = computed(() => garageStore.selectedVehicleData);
-        const isLoading = computed(() => garageStore.isLoading);
+        const filteredVehicles = computed(() => {
+            const query = String(searchQuery.value || '').toLowerCase().trim();
+            const ownedVehicles = (vehicles.value || []).filter((vehicle) => vehicle.owned);
 
-        const syncSearch = (value) => {
-            garageStore.setSearch(value);
+            if (!query) {
+                return ownedVehicles;
+            }
+
+            return ownedVehicles.filter((vehicle) => {
+                return String(vehicle.model || '').toLowerCase().includes(query)
+                    || String(vehicle.plate || '').toLowerCase().includes(query)
+                    || String(vehicle.state || '').toLowerCase().includes(query)
+                    || String(vehicle.owner_identifier || '').toLowerCase().includes(query);
+            });
+        });
+
+        const selectedVehicle = computed(() => {
+            const list = filteredVehicles.value;
+            if (!list.length) return null;
+            if (!selectedPlate.value) return list[0];
+            return list.find((vehicle) => vehicle.plate === selectedPlate.value) || list[0];
+        });
+
+        const loadVehicles = async () => {
+            isLoading.value = true;
+            try {
+                const result = await window.NUIBridge.send('garage:getVehicles');
+                vehicles.value = Array.isArray(result?.vehicles) ? result.vehicles : [];
+                if (vehicles.value.length > 0 && !selectedPlate.value) {
+                    selectedPlate.value = vehicles.value[0].plate;
+                }
+            } catch (error) {
+                console.error('[GarageModule] Error loading vehicles:', error);
+                vehicles.value = [];
+            } finally {
+                isLoading.value = false;
+            }
         };
 
-        const handleClose = () => {
-            garageStore.close();
-            send('closeGarage');
+        const closeUi = async () => {
+            isOpen.value = false;
+            try {
+                await send('closeGarage');
+            } catch (error) {
+                console.error('[GarageModule] Error closing garage:', error);
+            }
+            try {
+                await send('closeUI');
+            } catch (error) {
+                console.error('[GarageModule] Error closing UI shell:', error);
+            }
         };
 
         const handleSelectVehicle = (vehicle) => {
             if (!vehicle) return;
-            garageStore.selectVehicle(vehicle.plate);
+            selectedPlate.value = vehicle.plate;
         };
 
         const handleSpawn = async () => {
             if (!selectedVehicle.value) return;
-            await garageStore.spawnVehicle(selectedVehicle.value.plate);
+            try {
+                await window.NUIBridge.send('garage:spawnVehicle', { plate: selectedVehicle.value.plate });
+                isOpen.value = false;
+            } catch (error) {
+                console.error('[GarageModule] Error spawning vehicle:', error);
+            }
         };
 
         const handleStore = async () => {
             if (!selectedVehicle.value) return;
-            await garageStore.storeVehicle(selectedVehicle.value.plate);
-            await garageStore.loadVehicles();
+            try {
+                await window.NUIBridge.send('garage:storeVehicle', { plate: selectedVehicle.value.plate });
+                await loadVehicles();
+            } catch (error) {
+                console.error('[GarageModule] Error storing vehicle:', error);
+            }
         };
 
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
-                handleClose();
+                e.stopPropagation();
+                closeUi();
             }
         };
 
-        watch(searchQuery, (value) => {
-            syncSearch(value);
-        });
-
         onMounted(async () => {
-            garageStore.open();
-            window.addEventListener('keydown', handleKeyDown);
-            await garageStore.loadVehicles();
+            window.addEventListener('keydown', handleKeyDown, true);
+            await loadVehicles();
         });
 
         onUnmounted(() => {
-            window.removeEventListener('keydown', handleKeyDown);
-            garageStore.close();
+            window.removeEventListener('keydown', handleKeyDown, true);
         });
 
-        onClose(handleClose);
+        onClose(closeUi);
 
         return {
-            vehicles,
-            selectedVehicle,
+            isOpen,
             isLoading,
             searchQuery,
-            handleClose,
+            filteredVehicles,
+            selectedVehicle,
             handleSelectVehicle,
             handleSpawn,
             handleStore,
+            closeUi,
             MathRef
         };
     },
 
     template: `
-    <div class="w-full h-full flex items-center justify-center font-sans text-white pointer-events-auto">
+    <div v-if="isOpen" class="w-full h-full flex items-center justify-center font-sans text-white pointer-events-auto">
         <div class="w-[1180px] h-[760px] rounded-[28px] border border-[#22314a] bg-[#0a0f15]/96 shadow-[0_30px_80px_rgba(0,0,0,0.55)] overflow-hidden flex backdrop-blur-xl">
             <div class="w-[420px] border-r border-[#1f2b3f] bg-[#0d131d] flex flex-col">
                 <div class="p-6 border-b border-[#1f2b3f]">
@@ -88,7 +134,7 @@ const GarageModule = {
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-3xl font-bold text-white">Garage</h2>
                         <div class="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 text-cyan-300 text-sm font-semibold">
-                            {{ vehicles.length }}
+                            {{ filteredVehicles.length }}
                         </div>
                     </div>
                     <input
@@ -104,17 +150,16 @@ const GarageModule = {
                         Lade Fahrzeuge...
                     </div>
 
-                    <div v-else-if="vehicles.length === 0" class="h-full flex items-center justify-center text-center px-6">
+                    <div v-else-if="filteredVehicles.length === 0" class="h-full flex items-center justify-center text-center px-6">
                         <div>
-                            <div class="text-5xl mb-4">🚗</div>
+                            <div class="text-5xl mb-4">Fahrzeuge</div>
                             <div class="text-xl font-semibold text-white mb-2">Keine Fahrzeuge gefunden</div>
-                            <div class="text-sm text-slate-400">Erstelle ein Testfahrzeug mit /giveownedvehicle adder</div>
+                            <div class="text-sm text-slate-400">Prüfe die DB-Einträge oder erstelle ein Testfahrzeug mit /giveownedvehicle adder</div>
                         </div>
                     </div>
 
                     <button
-                        v-else
-                        v-for="vehicle in vehicles"
+                        v-for="vehicle in filteredVehicles"
                         :key="vehicle.plate"
                         @click="handleSelectVehicle(vehicle)"
                         class="w-full text-left rounded-2xl border p-4 transition-all duration-150"
@@ -136,9 +181,9 @@ const GarageModule = {
                                 {{ vehicle.stored ? 'EINGEPARKT' : 'DRAUSSEN' }}
                             </div>
                         </div>
-                        <div class="mt-4 flex items-center justify-between text-sm text-slate-400">
+                        <div class="mt-4 flex items-center justify-between text-sm text-slate-400 gap-4">
                             <span>Fuel {{ MathRef.round(vehicle.fuel || 0) }}%</span>
-                            <span class="truncate max-w-[160px]">{{ vehicle.owner_identifier }}</span>
+                            <span class="truncate">{{ vehicle.owner_identifier }}</span>
                         </div>
                     </button>
                 </div>
@@ -151,17 +196,16 @@ const GarageModule = {
                         <h3 class="text-3xl font-bold text-white">{{ selectedVehicle ? selectedVehicle.model : 'Garage Übersicht' }}</h3>
                     </div>
                     <button
-                        @click="handleClose"
+                        @click="closeUi"
                         class="w-12 h-12 rounded-2xl bg-[#121b28] hover:bg-[#1a2636] border border-[#233148] text-slate-300 text-xl"
-                    >✕</button>
+                    >X</button>
                 </div>
 
                 <div class="flex-1 p-8 overflow-y-auto">
                     <div v-if="!selectedVehicle" class="h-full flex items-center justify-center text-center">
                         <div>
-                            <div class="text-6xl mb-5">🧰</div>
                             <div class="text-2xl font-semibold text-white mb-2">Wähle links ein Fahrzeug</div>
-                            <div class="text-slate-400">Die Liste zeigt nur Fahrzeuge, die dem Spieler gehören.</div>
+                            <div class="text-slate-400">Die Liste zeigt nur Fahrzeuge, die aktuell als owned erkannt werden.</div>
                         </div>
                     </div>
 
@@ -211,7 +255,7 @@ const GarageModule = {
                                     class="rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white py-4 font-bold text-lg transition"
                                 >Einparken</button>
                                 <div class="rounded-2xl border border-[#243249] bg-[#0b1118] px-4 py-4 text-slate-400 text-sm flex items-center justify-center text-center">
-                                    Links siehst du alle Fahrzeuge des Spielers mit ihrem aktuellen Zustand.
+                                    ESC oder X schließen die UI jetzt vollständig.
                                 </div>
                             </div>
                         </div>

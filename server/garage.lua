@@ -60,8 +60,27 @@ local function getPlayerIdentifiersForGarage(src)
 end
 
 local function getPrimaryPlayerIdentifier(src)
-    local identifiers = getPlayerIdentifiersForGarage(src)
-    return identifiers[1] or nil
+    local player = FW.GetPlayer and FW.GetPlayer(src)
+    if player then
+        if player.license and player.license ~= '' then
+            return player.license
+        end
+        if player.identifier and player.identifier ~= '' then
+            return player.identifier
+        end
+    end
+
+    local identifiers = GetPlayerIdentifiers(src)
+    if identifiers then
+        for _, identifier in ipairs(identifiers) do
+            if type(identifier) == 'string' and identifier:find('license:', 1, true) == 1 then
+                return identifier
+            end
+        end
+        return identifiers[1]
+    end
+
+    return nil
 end
 
 local function playerOwnsVehicle(src, vehicle)
@@ -229,7 +248,11 @@ function FW.Garage.DeleteVehicle(plate, identifier, cb)
 end
 
 FW.RegisterServerCallback('fw:garage:getVehicles', function(src, cb)
-    FW.Garage.GetVehiclesByOwnerIdentifiers(getPlayerIdentifiersForGarage(src), cb)
+    local identifiers = getPlayerIdentifiersForGarage(src)
+    FW.Garage.GetVehiclesByOwnerIdentifiers(identifiers, function(rows)
+        print(('[FW.Garage] getVehicles for %s -> %s identifiers, %s vehicles'):format(src, #identifiers, #(rows or {})))
+        cb(rows)
+    end)
 end)
 
 FW.RegisterServerCallback('fw:garage:ownsVehicle', function(src, cb, plate)
@@ -239,7 +262,13 @@ FW.RegisterServerCallback('fw:garage:ownsVehicle', function(src, cb, plate)
     end
 
     FW.Garage.GetVehicleByPlate(plate, function(vehicle)
-        cb(playerOwnsVehicle(src, vehicle))
+        local owns = playerOwnsVehicle(src, vehicle)
+        if vehicle then
+            print(('[FW.Garage] ownsVehicle src=%s plate=%s owner=%s owns=%s'):format(src, plate, tostring(vehicle.owner_identifier), tostring(owns)))
+        else
+            print(('[FW.Garage] ownsVehicle src=%s plate=%s vehicle=nil'):format(src, tostring(plate)))
+        end
+        cb(owns)
     end)
 end)
 

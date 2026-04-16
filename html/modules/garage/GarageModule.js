@@ -54,6 +54,7 @@ const GarageModule = {
         };
 
         const closeUi = async () => {
+            console.log('[FW.Garage][UI] closeUi called');
             isOpen.value = false;
             try {
                 await send('closeGarage');
@@ -89,6 +90,7 @@ const GarageModule = {
 
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
+                console.log('[FW.Garage][UI] ESC detected');
                 e.preventDefault();
                 e.stopPropagation();
                 closeUi();
@@ -96,6 +98,7 @@ const GarageModule = {
         };
 
         onMounted(async () => {
+            console.log('[FW.Garage][UI] GarageModule mounted');
             window.addEventListener('keydown', handleKeyDown, true);
             await loadVehicles();
         });

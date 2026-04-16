@@ -270,7 +270,9 @@ FW.RegisterServerCallback('fw:garage:ownsVehicle', function(src, cb, plate)
     FW.Garage.GetVehicleByPlate(normalizedPlate, function(vehicle)
         local owns = playerOwnsVehicle(src, vehicle)
         if vehicle then
+            local identifiers = getPlayerIdentifiersForGarage(src)
             print(('[FW.Garage] ownsVehicle src=%s plate=%s owner=%s owns=%s'):format(src, normalizedPlate, tostring(vehicle.owner_identifier), tostring(owns)))
+            print(('[FW.Garage] player identifiers: %s'):format(json.encode(identifiers)))
         else
             print(('[FW.Garage] ownsVehicle src=%s plate=%s vehicle=nil'):format(src, tostring(normalizedPlate)))
         end

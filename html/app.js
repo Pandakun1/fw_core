@@ -103,6 +103,7 @@ const App = {
             }
 
             if (action === 'openGarage') { // Falls du Garage nutzt
+                console.log('[FW.Garage][App] openGarage received', eventData);
                 activeRoute.value = 'garage';
                 routeData.value = eventData;
                 isVisible.value = true;

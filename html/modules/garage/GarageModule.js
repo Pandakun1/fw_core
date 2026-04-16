@@ -39,14 +39,15 @@ const GarageModule = {
             garageStore.selectVehicle(vehicle.plate);
         };
 
-        const handleSpawn = () => {
+        const handleSpawn = async () => {
             if (!selectedVehicle.value) return;
-            garageStore.spawnVehicle(selectedVehicle.value.plate);
+            await garageStore.spawnVehicle(selectedVehicle.value.plate);
         };
 
-        const handleStore = () => {
+        const handleStore = async () => {
             if (!selectedVehicle.value) return;
-            garageStore.storeVehicle(selectedVehicle.value.plate);
+            await garageStore.storeVehicle(selectedVehicle.value.plate);
+            await garageStore.loadVehicles();
         };
 
         const setFilter = (filter) => {

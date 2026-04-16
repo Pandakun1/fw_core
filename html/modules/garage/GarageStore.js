@@ -26,7 +26,6 @@ export const useGarageStore = defineStore('garage', {
     actions: {
         open() {
             this.isOpen = true;
-            this.loadVehicles();
         },
 
         close() {
@@ -68,7 +67,6 @@ export const useGarageStore = defineStore('garage', {
         async storeVehicle(plate) {
             try {
                 await window.NUIBridge.send('garage:storeVehicle', { plate });
-                await this.loadVehicles();
             } catch (error) {
                 console.error('[GarageStore] Error storing vehicle:', error);
             }

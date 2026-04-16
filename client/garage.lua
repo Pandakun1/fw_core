@@ -2,6 +2,9 @@ local trackedGarageVehicles = {}
 local isGarageOpen = false
 local hydratedOutsideVehicles = {}
 local outsideVehicleSync = {}
+local outsideVehicleLastSync = {}
+local OUTSIDE_SYNC_DISTANCE_THRESHOLD = 2.5
+local OUTSIDE_SYNC_HEADING_THRESHOLD = 12.5
 
 local function normalizePlate(value)
     return string.upper((tostring(value or ''):gsub('^%s*(.-)%s*$', '%1')))
@@ -250,6 +253,7 @@ local function spawnGarageVehicle(data, isHydration)
     outsideVehicleSync[plateKey] = vehicle
 
     local state = collectVehicleState(vehicle)
+    outsideVehicleLastSync[plateKey] = state.coords
 
     if not isHydration then
         TriggerServerEvent('fw:garage:vehicleSpawned', data.plate, netId, state.coords, state.props)
@@ -288,6 +292,7 @@ RegisterNetEvent('fw:garage:storedVehicle', function(plate)
     local plateKey = normalizePlate(plate)
     trackedGarageVehicles[plateKey] = nil
     outsideVehicleSync[plateKey] = nil
+    outsideVehicleLastSync[plateKey] = nil
 end)
 
 RegisterNetEvent('fw:garage:deleteSpawnedVehicle', function(plate)
@@ -299,6 +304,7 @@ RegisterNetEvent('fw:garage:deleteSpawnedVehicle', function(plate)
     local plateKey = normalizePlate(plate)
     trackedGarageVehicles[plateKey] = nil
     outsideVehicleSync[plateKey] = nil
+    outsideVehicleLastSync[plateKey] = nil
 end)
 
 RegisterCommand('garage', function()
@@ -357,15 +363,69 @@ RegisterNetEvent('FW:playerLoaded', function()
     TriggerServerEvent('fw:garage:requestOutsideVehicles')
 end)
 
+local function shouldSyncOutsideVehicle(plateKey, coords)
+    local last = outsideVehicleLastSync[plateKey]
+    if not last then return true end
+
+    local dx = (coords.x or 0.0) - (last.x or 0.0)
+    local dy = (coords.y or 0.0) - (last.y or 0.0)
+    local dz = (coords.z or 0.0) - (last.z or 0.0)
+    local distance = math.sqrt((dx * dx) + (dy * dy) + (dz * dz))
+    local headingDelta = math.abs((coords.heading or 0.0) - (last.heading or 0.0))
+
+    return distance >= OUTSIDE_SYNC_DISTANCE_THRESHOLD or headingDelta >= OUTSIDE_SYNC_HEADING_THRESHOLD
+end
+
+local function syncOutsideVehicleNow(plateKey, vehicle)
+    if not vehicle or not DoesEntityExist(vehicle) then
+        outsideVehicleSync[plateKey] = nil
+        outsideVehicleLastSync[plateKey] = nil
+        return
+    end
+
+    local state = collectVehicleState(vehicle)
+    outsideVehicleLastSync[plateKey] = state.coords
+    TriggerServerEvent('fw:garage:updateOutsideVehicleState', plateKey, state.coords, state.props)
+end
+
 CreateThread(function()
     while true do
         Wait(10000)
         for plateKey, vehicle in pairs(outsideVehicleSync) do
             if vehicle and DoesEntityExist(vehicle) then
                 local state = collectVehicleState(vehicle)
-                TriggerServerEvent('fw:garage:updateOutsideVehicleState', plateKey, state.coords, state.props)
+                if shouldSyncOutsideVehicle(plateKey, state.coords) then
+                    outsideVehicleLastSync[plateKey] = state.coords
+                    TriggerServerEvent('fw:garage:updateOutsideVehicleState', plateKey, state.coords, state.props)
+                end
             else
                 outsideVehicleSync[plateKey] = nil
+                outsideVehicleLastSync[plateKey] = nil
+            end
+        end
+    end
+end)
+
+AddEventHandler('onClientResourceStop', function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+    for plateKey, vehicle in pairs(outsideVehicleSync) do
+        syncOutsideVehicleNow(plateKey, vehicle)
+    end
+end)
+
+AddEventHandler('gameEventTriggered', function(name, args)
+    if name ~= 'CEventNetworkPlayerEnteredVehicle' and name ~= 'CEventNetworkPlayerExitedVehicle' then
+        return
+    end
+
+    local ped = PlayerPedId()
+    if not ped or ped == 0 then return end
+
+    for plateKey, vehicle in pairs(outsideVehicleSync) do
+        if vehicle and DoesEntityExist(vehicle) then
+            local driver = GetPedInVehicleSeat(vehicle, -1)
+            if driver == ped or #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) < 10.0 then
+                syncOutsideVehicleNow(plateKey, vehicle)
             end
         end
     end

@@ -320,10 +320,7 @@ RegisterNetEvent('fw:garage:spawnVehicle', function(plate)
         end
 
         local props = vehicle.props or {}
-        local spawnCoords = vehicle.position or {
-            x = DEFAULT_GARAGE_POSITION.x + DEFAULT_SPAWN_OFFSET.x,
-            y = DEFAULT_GARAGE_POSITION.y + DEFAULT_SPAWN_OFFSET.y,
-            z = DEFAULT_GARAGE_POSITION.z + DEFAULT_SPAWN_OFFSET.z,
+        local spawnCoords = {
             heading = props.heading or 90.0
         }
 

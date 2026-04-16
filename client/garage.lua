@@ -84,10 +84,6 @@ local function storeCurrentVehicle(targetPlate)
     }
 
     TriggerServerEvent('fw:garage:storeVehicle', plate, props)
-
-    SetEntityAsMissionEntity(vehicle, true, true)
-    DeleteVehicle(vehicle)
-    trackedGarageVehicles[string.upper(plate)] = nil
     return true
 end
 
@@ -247,6 +243,11 @@ RegisterNetEvent('fw:garage:spawnVehicleClient', function(data)
 end)
 
 RegisterNetEvent('fw:garage:storedVehicle', function(plate)
+    local vehicle = findVehicleByPlate(plate)
+    if vehicle ~= 0 then
+        SetEntityAsMissionEntity(vehicle, true, true)
+        DeleteVehicle(vehicle)
+    end
     trackedGarageVehicles[string.upper(plate)] = nil
 end)
 

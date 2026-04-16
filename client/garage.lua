@@ -73,7 +73,9 @@ RegisterNUICallback('closeUI', function(_, cb)
 end)
 
 RegisterNUICallback('garage:getVehicles', function(_, cb)
+    print('[FW.Garage][Client] NUI requested vehicles')
     FW.TriggerCallback('fw:garage:getVehicles', function(vehicles)
+        print(('[FW.Garage][Client] Callback returned %s vehicles'):format(type(vehicles) == 'table' and #vehicles or 0))
         cb({ vehicles = vehicles })
     end)
 end)
@@ -164,6 +166,7 @@ RegisterNetEvent('fw:garage:deleteSpawnedVehicle', function(plate)
 end)
 
 RegisterCommand('garage', function()
+    print('[FW.Garage][Client] /garage invoked')
     OpenGarage()
 end, false)
 
@@ -177,11 +180,23 @@ end, false)
 RegisterCommand('garageowns', function(_, args)
     local plate = args[1]
     if not plate then
+        local ped = PlayerPedId()
+        local vehicle = GetVehiclePedIsIn(ped, false)
+        if vehicle ~= 0 then
+            plate = GetVehicleNumberPlateText(vehicle)
+        end
+    end
+
+    if not plate then
         TriggerEvent('FW:Notify', 'Benutzung: /garageowns [plate]', 'error')
         return
     end
 
+    plate = tostring(plate):match('^%s*(.-)%s*$')
+    print(('[FW.Garage][Client] Checking ownership for plate "%s"'):format(plate))
+
     FW.TriggerCallback('fw:garage:ownsVehicle', function(owns)
+        print(('[FW.Garage][Client] Ownership callback for %s -> %s'):format(plate, tostring(owns)))
         if owns then
             TriggerEvent('FW:Notify', ('Du besitzt das Fahrzeug %s.'):format(plate), 'success')
         else

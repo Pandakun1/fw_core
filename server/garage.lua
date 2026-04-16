@@ -173,7 +173,8 @@ function FW.Garage.GetVehiclesByOwnerIdentifiers(identifiers, cb)
 end
 
 function FW.Garage.GetVehicleByPlate(plate, cb)
-    MySQL.single('SELECT * FROM player_vehicles WHERE plate = ? LIMIT 1', { plate }, function(row)
+    local normalizedPlate = tostring(plate or ''):match('^%s*(.-)%s*$')
+    MySQL.single('SELECT * FROM player_vehicles WHERE TRIM(plate) = TRIM(?) LIMIT 1', { normalizedPlate }, function(row)
         if row then
             row = decorateVehicleRow(row)
         end
@@ -262,12 +263,16 @@ FW.RegisterServerCallback('fw:garage:ownsVehicle', function(src, cb, plate)
         return
     end
 
-    FW.Garage.GetVehicleByPlate(plate, function(vehicle)
+    local normalizedPlate = tostring(plate):match('^%s*(.-)%s*$')
+    local player = FW.GetPlayer and FW.GetPlayer(src)
+    print(('[FW.Garage] ownsVehicle request src=%s plate=%s player.identifier=%s'):format(src, normalizedPlate, player and tostring(player.identifier) or 'nil'))
+
+    FW.Garage.GetVehicleByPlate(normalizedPlate, function(vehicle)
         local owns = playerOwnsVehicle(src, vehicle)
         if vehicle then
-            print(('[FW.Garage] ownsVehicle src=%s plate=%s owner=%s owns=%s'):format(src, plate, tostring(vehicle.owner_identifier), tostring(owns)))
+            print(('[FW.Garage] ownsVehicle src=%s plate=%s owner=%s owns=%s'):format(src, normalizedPlate, tostring(vehicle.owner_identifier), tostring(owns)))
         else
-            print(('[FW.Garage] ownsVehicle src=%s plate=%s vehicle=nil'):format(src, tostring(plate)))
+            print(('[FW.Garage] ownsVehicle src=%s plate=%s vehicle=nil'):format(src, tostring(normalizedPlate)))
         end
         cb(owns)
     end)
@@ -397,6 +402,7 @@ RegisterCommand('giveownedvehicle', function(source, args)
     end
 
     local identifier = getPrimaryPlayerIdentifier(src)
+    print(('[FW.Garage] giveownedvehicle src=%s identifier=%s'):format(src, tostring(identifier)))
     if not identifier then
         TriggerClientEvent('FW:Notify', src, 'Spieler konnte nicht identifiziert werden.', 'error')
         return

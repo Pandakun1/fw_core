@@ -389,6 +389,17 @@ RegisterNetEvent('fw:garage:requestOutsideVehicles', function()
     end)
 end)
 
+RegisterNetEvent('fw:garage:updateOutsideVehicleState', function(plate, coords, props)
+    local src = source
+    local normalizedPlate = tostring(plate or ''):match('^%s*(.-)%s*$')
+    if normalizedPlate == '' then return end
+
+    FW.Garage.GetVehicleByPlate(normalizedPlate, function(vehicle)
+        if not playerOwnsVehicle(src, vehicle) then return end
+        FW.Garage.UpdateVehicleState(normalizedPlate, 'outside', coords, props, vehicle.spawned_net_id, function() end)
+    end)
+end)
+
 RegisterNetEvent('fw:garage:test:createOwnedVehicle', function(model)
     local src = source
     local identifier = getPrimaryPlayerIdentifier(src)

@@ -1,9 +1,30 @@
 local trackedGarageVehicles = {}
 local isGarageOpen = false
 local hydratedOutsideVehicles = {}
+local outsideVehicleSync = {}
 
 local function normalizePlate(value)
     return string.upper((tostring(value or ''):gsub('^%s*(.-)%s*$', '%1')))
+end
+
+local function collectVehicleState(vehicle)
+    local coords = GetEntityCoords(vehicle)
+    return {
+        coords = {
+            x = coords.x,
+            y = coords.y,
+            z = coords.z,
+            heading = GetEntityHeading(vehicle)
+        },
+        props = {
+            plate = GetVehicleNumberPlateText(vehicle),
+            fuel = GetVehicleFuelLevel(vehicle),
+            engineHealth = GetVehicleEngineHealth(vehicle),
+            bodyHealth = GetVehicleBodyHealth(vehicle),
+            dirtLevel = GetVehicleDirtLevel(vehicle),
+            heading = GetEntityHeading(vehicle)
+        }
+    }
 end
 
 local function findVehicleByPlate(plate)
@@ -224,22 +245,14 @@ local function spawnGarageVehicle(data, isHydration)
     end
 
     local vehicleCoords = GetEntityCoords(vehicle)
-    trackedGarageVehicles[string.upper(data.plate)] = netId
+    local plateKey = normalizePlate(data.plate)
+    trackedGarageVehicles[plateKey] = netId
+    outsideVehicleSync[plateKey] = vehicle
+
+    local state = collectVehicleState(vehicle)
 
     if not isHydration then
-        TriggerServerEvent('fw:garage:vehicleSpawned', data.plate, netId, {
-            x = vehicleCoords.x,
-            y = vehicleCoords.y,
-            z = vehicleCoords.z,
-            heading = GetEntityHeading(vehicle)
-        }, {
-            plate = GetVehicleNumberPlateText(vehicle),
-            fuel = GetVehicleFuelLevel(vehicle),
-            engineHealth = GetVehicleEngineHealth(vehicle),
-            bodyHealth = GetVehicleBodyHealth(vehicle),
-            dirtLevel = GetVehicleDirtLevel(vehicle),
-            heading = GetEntityHeading(vehicle)
-        })
+        TriggerServerEvent('fw:garage:vehicleSpawned', data.plate, netId, state.coords, state.props)
     end
 
     SetModelAsNoLongerNeeded(modelHash)
@@ -272,7 +285,9 @@ RegisterNetEvent('fw:garage:storedVehicle', function(plate)
         SetEntityAsMissionEntity(vehicle, true, true)
         DeleteVehicle(vehicle)
     end
-    trackedGarageVehicles[string.upper(plate)] = nil
+    local plateKey = normalizePlate(plate)
+    trackedGarageVehicles[plateKey] = nil
+    outsideVehicleSync[plateKey] = nil
 end)
 
 RegisterNetEvent('fw:garage:deleteSpawnedVehicle', function(plate)
@@ -281,7 +296,9 @@ RegisterNetEvent('fw:garage:deleteSpawnedVehicle', function(plate)
         SetEntityAsMissionEntity(vehicle, true, true)
         DeleteVehicle(vehicle)
     end
-    trackedGarageVehicles[string.upper(plate)] = nil
+    local plateKey = normalizePlate(plate)
+    trackedGarageVehicles[plateKey] = nil
+    outsideVehicleSync[plateKey] = nil
 end)
 
 RegisterCommand('garage', function()
@@ -338,6 +355,20 @@ RegisterNetEvent('FW:playerLoaded', function()
     Wait(2000)
     hydratedOutsideVehicles = {}
     TriggerServerEvent('fw:garage:requestOutsideVehicles')
+end)
+
+CreateThread(function()
+    while true do
+        Wait(10000)
+        for plateKey, vehicle in pairs(outsideVehicleSync) do
+            if vehicle and DoesEntityExist(vehicle) then
+                local state = collectVehicleState(vehicle)
+                TriggerServerEvent('fw:garage:updateOutsideVehicleState', plateKey, state.coords, state.props)
+            else
+                outsideVehicleSync[plateKey] = nil
+            end
+        end
+    end
 end)
 
 exports('OpenGarage', OpenGarage)

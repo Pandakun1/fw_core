@@ -72,12 +72,6 @@ end
 local function playerOwnsVehicle(src, vehicle)
     if not vehicle then return false end
 
-    local owned = vehicle.owned == true or vehicle.owned == 1 or vehicle.owned == '1'
-    if not owned then
-        print(('[FW.Garage] playerOwnsVehicle: vehicle %s is not marked owned (%s)'):format(tostring(vehicle.plate), tostring(vehicle.owned)))
-        return false
-    end
-
     local player = FW.GetPlayer and FW.GetPlayer(src)
     if player and player.identifier and vehicle.owner_identifier == player.identifier then
         return true
@@ -107,7 +101,8 @@ local function getVehicleDisplayName(model)
 end
 
 local function decorateVehicleRow(row)
-    row.owned = row.owned == 1
+    local ownerValue = row.owner_identifier
+    row.owned = ownerValue ~= nil and ownerValue ~= ''
     row.stored = row.state == 'stored'
     row.fuel = 100
 

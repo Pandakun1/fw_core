@@ -60,11 +60,6 @@ const GarageModule = {
             } catch (error) {
                 console.error('[GarageModule] Error closing garage:', error);
             }
-            try {
-                await send('closeUI');
-            } catch (error) {
-                console.error('[GarageModule] Error closing UI shell:', error);
-            }
         };
 
         const handleSelectVehicle = (vehicle) => {

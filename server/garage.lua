@@ -61,50 +61,25 @@ end
 
 local function getPrimaryPlayerIdentifier(src)
     local player = FW.GetPlayer and FW.GetPlayer(src)
-    if player then
-        if player.license and player.license ~= '' then
-            return player.license
-        end
-        if player.identifier and player.identifier ~= '' then
-            return player.identifier
-        end
+    if player and player.identifier and player.identifier ~= '' then
+        return player.identifier
     end
 
-    local identifiers = GetPlayerIdentifiers(src)
-    if identifiers then
-        for _, identifier in ipairs(identifiers) do
-            if type(identifier) == 'string' and identifier:find('license:', 1, true) == 1 then
-                return identifier
-            end
-        end
-        return identifiers[1]
-    end
-
-    return nil
-end
-
-local function normalizeIdentifier(value)
-    if type(value) ~= 'string' or value == '' then return nil end
-    local normalized = value:lower()
-
-    local licensePart = normalized:match('license:[%w]+')
-    if licensePart then
-        return normalized, licensePart
-    end
-
-    return normalized, normalized
+    local identifiers = getPlayerIdentifiersForGarage(src)
+    return identifiers[1] or nil
 end
 
 local function playerOwnsVehicle(src, vehicle)
     if not vehicle or vehicle.owned ~= true then return false end
 
-    local vehicleFull, vehicleLicense = normalizeIdentifier(vehicle.owner_identifier)
-    if not vehicleFull then return false end
+    local player = FW.GetPlayer and FW.GetPlayer(src)
+    if player and player.identifier and vehicle.owner_identifier == player.identifier then
+        return true
+    end
 
     local identifiers = getPlayerIdentifiersForGarage(src)
     for _, identifier in ipairs(identifiers) do
-        local currentFull, currentLicense = normalizeIdentifier(identifier)
-        if currentFull and (vehicleFull == currentFull or (vehicleLicense and currentLicense and vehicleLicense == currentLicense)) then
+        if vehicle.owner_identifier == identifier then
             return true
         end
     end
@@ -266,7 +241,15 @@ function FW.Garage.DeleteVehicle(plate, identifier, cb)
 end
 
 FW.RegisterServerCallback('fw:garage:getVehicles', function(src, cb)
-    local identifiers = getPlayerIdentifiersForGarage(src)
+    local player = FW.GetPlayer and FW.GetPlayer(src)
+    local identifiers = {}
+
+    if player and player.identifier and player.identifier ~= '' then
+        identifiers = { player.identifier }
+    else
+        identifiers = getPlayerIdentifiersForGarage(src)
+    end
+
     FW.Garage.GetVehiclesByOwnerIdentifiers(identifiers, function(rows)
         print(('[FW.Garage] getVehicles for %s -> %s identifiers, %s vehicles'):format(src, #identifiers, #(rows or {})))
         cb(rows)

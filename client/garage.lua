@@ -20,7 +20,6 @@ end
 
 local function CloseGarage()
     SetNuiFocus(false, false)
-    SendNUIMessage({ action = 'closeUI' })
 end
 
 local function storeCurrentVehicle(targetPlate)
@@ -63,11 +62,13 @@ end
 
 RegisterNUICallback('closeGarage', function(_, cb)
     CloseGarage()
+    SendNUIMessage({ action = 'closeUI' })
     cb({ ok = true })
 end)
 
 RegisterNUICallback('closeUI', function(_, cb)
     CloseGarage()
+    SendNUIMessage({ action = 'closeUI' })
     cb({ ok = true })
 end)
 

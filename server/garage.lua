@@ -28,27 +28,51 @@ local function encodeJson(value)
     return '{}'
 end
 
-local function getPlayerIdentifier(src)
+local function getPlayerIdentifiersForGarage(src)
+    local candidates = {}
+    local seen = {}
+
+    local function add(value)
+        if type(value) ~= 'string' or value == '' or seen[value] then return end
+        seen[value] = true
+        table.insert(candidates, value)
+    end
+
     local player = FW.GetPlayer and FW.GetPlayer(src)
     if player then
-        if player.identifier and player.identifier ~= '' then
-            return player.identifier
-        end
-        if player.license and player.license ~= '' then
-            return player.license
-        end
+        add(player.identifier)
+        add(player.license)
     end
 
     local identifiers = GetPlayerIdentifiers(src)
-    if not identifiers then return nil end
-
-    for _, identifier in ipairs(identifiers) do
-        if type(identifier) == 'string' and identifier:find('license:', 1, true) == 1 then
-            return identifier
+    if identifiers then
+        for _, identifier in ipairs(identifiers) do
+            if type(identifier) == 'string' and identifier:find('license:', 1, true) == 1 then
+                add(identifier)
+            end
+        end
+        for _, identifier in ipairs(identifiers) do
+            add(identifier)
         end
     end
 
+    return candidates
+end
+
+local function getPrimaryPlayerIdentifier(src)
+    local identifiers = getPlayerIdentifiersForGarage(src)
     return identifiers[1] or nil
+end
+
+local function playerOwnsVehicle(src, vehicle)
+    if not vehicle then return false end
+    local identifiers = getPlayerIdentifiersForGarage(src)
+    for _, identifier in ipairs(identifiers) do
+        if vehicle.owner_identifier == identifier and vehicle.owned == true then
+            return true
+        end
+    end
+    return false
 end
 
 local function getVehicleDisplayName(model)
@@ -64,56 +88,20 @@ local function getVehicleDisplayName(model)
     return normalized
 end
 
-local function getVehicleProperties(entity)
-    if not entity or entity == 0 or not DoesEntityExist(entity) then return nil end
+local function decorateVehicleRow(row)
+    row.owned = row.owned == 1
+    row.stored = row.state == 'stored'
+    row.fuel = 100
 
-    local coords = GetEntityCoords(entity)
-    return {
-        model = GetEntityModel(entity),
-        plate = GetVehicleNumberPlateText(entity),
-        fuel = round(GetVehicleFuelLevel(entity), 1),
-        engineHealth = round(GetVehicleEngineHealth(entity), 1),
-        bodyHealth = round(GetVehicleBodyHealth(entity), 1),
-        dirtLevel = round(GetVehicleDirtLevel(entity), 1),
-        heading = round(GetEntityHeading(entity), 2),
-        coords = {
-            x = round(coords.x, 3),
-            y = round(coords.y, 3),
-            z = round(coords.z, 3)
-        },
-        colors = {
-            primary = select(1, GetVehicleColours(entity)),
-            secondary = select(2, GetVehicleColours(entity))
-        }
-    }
-end
+    local props = decodeJson(row.vehicle_props, {})
+    local coords = decodeJson(row.last_coords, nil)
 
-local function applyVehicleProperties(entity, props)
-    if not entity or entity == 0 or not DoesEntityExist(entity) or type(props) ~= 'table' then return end
-
-    if props.plate then
-        SetVehicleNumberPlateText(entity, props.plate)
-    end
-
-    if props.fuel then
-        SetVehicleFuelLevel(entity, props.fuel + 0.0)
-    end
-
-    if props.engineHealth then
-        SetVehicleEngineHealth(entity, props.engineHealth + 0.0)
-    end
-
-    if props.bodyHealth then
-        SetVehicleBodyHealth(entity, props.bodyHealth + 0.0)
-    end
-
-    if props.dirtLevel then
-        SetVehicleDirtLevel(entity, props.dirtLevel + 0.0)
-    end
-
-    if props.colors then
-        SetVehicleColours(entity, props.colors.primary or 0, props.colors.secondary or 0)
-    end
+    row.props = props
+    row.position = coords
+    row.model = row.vehicle_label or getVehicleDisplayName(row.vehicle_model)
+    row.vehicleModel = row.vehicle_model
+    row.fuel = props.fuel or row.fuel
+    return row
 end
 
 function FW.Garage.SetupTables()
@@ -145,34 +133,37 @@ AddEventHandler('onResourceStart', function(resourceName)
     FW.Garage.SetupTables()
 end)
 
-function FW.Garage.GetVehiclesByOwner(identifier, cb)
-    MySQL.query('SELECT * FROM player_vehicles WHERE owner_identifier = ? ORDER BY updated_at DESC', { identifier }, function(rows)
+function FW.Garage.GetVehiclesByOwnerIdentifiers(identifiers, cb)
+    if type(identifiers) ~= 'table' or #identifiers == 0 then
+        cb({})
+        return
+    end
+
+    local placeholders = {}
+    for _ = 1, #identifiers do
+        table.insert(placeholders, '?')
+    end
+
+    MySQL.query(('SELECT * FROM player_vehicles WHERE owner_identifier IN (%s) ORDER BY updated_at DESC'):format(table.concat(placeholders, ',')), identifiers, function(rows)
         rows = rows or {}
+        local normalized = {}
+        local seenPlates = {}
+
         for _, row in ipairs(rows) do
-            row.owned = row.owned == 1
-            row.stored = row.state == 'stored'
-            row.fuel = 100
-
-            local props = decodeJson(row.vehicle_props, {})
-            local coords = decodeJson(row.last_coords, nil)
-
-            row.props = props
-            row.position = coords
-            row.model = row.vehicle_label or getVehicleDisplayName(row.vehicle_model)
-            row.vehicleModel = row.vehicle_model
-            row.fuel = props.fuel or row.fuel
+            if row.plate and not seenPlates[row.plate] then
+                seenPlates[row.plate] = true
+                table.insert(normalized, decorateVehicleRow(row))
+            end
         end
-        cb(rows)
+
+        cb(normalized)
     end)
 end
 
 function FW.Garage.GetVehicleByPlate(plate, cb)
     MySQL.single('SELECT * FROM player_vehicles WHERE plate = ? LIMIT 1', { plate }, function(row)
         if row then
-            row.owned = row.owned == 1
-            row.stored = row.state == 'stored'
-            row.props = decodeJson(row.vehicle_props, {})
-            row.position = decodeJson(row.last_coords, nil)
+            row = decorateVehicleRow(row)
         end
         cb(row)
     end)
@@ -238,34 +229,27 @@ function FW.Garage.DeleteVehicle(plate, identifier, cb)
 end
 
 FW.RegisterServerCallback('fw:garage:getVehicles', function(src, cb)
-    local identifier = getPlayerIdentifier(src)
-    if not identifier then
-        cb({})
-        return
-    end
-
-    FW.Garage.GetVehiclesByOwner(identifier, cb)
+    FW.Garage.GetVehiclesByOwnerIdentifiers(getPlayerIdentifiersForGarage(src), cb)
 end)
 
 FW.RegisterServerCallback('fw:garage:ownsVehicle', function(src, cb, plate)
-    local identifier = getPlayerIdentifier(src)
-    if not identifier or not plate then
+    if not plate then
         cb(false)
         return
     end
 
     FW.Garage.GetVehicleByPlate(plate, function(vehicle)
-        cb(vehicle ~= nil and vehicle.owner_identifier == identifier and vehicle.owned == true)
+        cb(playerOwnsVehicle(src, vehicle))
     end)
 end)
 
 RegisterNetEvent('fw:garage:storeVehicle', function(plate, props)
     local src = source
-    local identifier = getPlayerIdentifier(src)
+    local identifier = getPrimaryPlayerIdentifier(src)
     if not identifier or not plate then return end
 
     FW.Garage.GetVehicleByPlate(plate, function(vehicle)
-        if not vehicle or vehicle.owner_identifier ~= identifier then
+        if not playerOwnsVehicle(src, vehicle) then
             TriggerClientEvent('FW:Notify', src, 'Dieses Fahrzeug gehört dir nicht.', 'error')
             return
         end
@@ -283,11 +267,11 @@ end)
 
 RegisterNetEvent('fw:garage:spawnVehicle', function(plate)
     local src = source
-    local identifier = getPlayerIdentifier(src)
+    local identifier = getPrimaryPlayerIdentifier(src)
     if not identifier or not plate then return end
 
     FW.Garage.GetVehicleByPlate(plate, function(vehicle)
-        if not vehicle or vehicle.owner_identifier ~= identifier then
+        if not playerOwnsVehicle(src, vehicle) then
             TriggerClientEvent('FW:Notify', src, 'Dieses Fahrzeug gehört dir nicht.', 'error')
             return
         end
@@ -317,11 +301,11 @@ end)
 
 RegisterNetEvent('fw:garage:vehicleSpawned', function(plate, netId, coords, props)
     local src = source
-    local identifier = getPlayerIdentifier(src)
+    local identifier = getPrimaryPlayerIdentifier(src)
     if not identifier or not plate then return end
 
     FW.Garage.GetVehicleByPlate(plate, function(vehicle)
-        if not vehicle or vehicle.owner_identifier ~= identifier then return end
+        if not playerOwnsVehicle(src, vehicle) then return end
         FW.Garage.UpdateVehicleState(plate, 'outside', coords, props, netId, function() end)
         TriggerClientEvent('FW:Notify', src, ('Fahrzeug %s wurde ausgeparkt.'):format(plate), 'success')
     end)
@@ -329,7 +313,7 @@ end)
 
 RegisterNetEvent('fw:garage:test:createOwnedVehicle', function(model)
     local src = source
-    local identifier = getPlayerIdentifier(src)
+    local identifier = getPrimaryPlayerIdentifier(src)
     if not identifier then return end
 
     local modelName = tostring(model or 'adder')
@@ -355,16 +339,16 @@ end)
 
 RegisterNetEvent('fw:garage:test:removeOwnedVehicle', function(plate)
     local src = source
-    local identifier = getPlayerIdentifier(src)
+    local identifier = getPrimaryPlayerIdentifier(src)
     if not identifier or not plate then return end
 
     FW.Garage.GetVehicleByPlate(plate, function(vehicle)
-        if not vehicle or vehicle.owner_identifier ~= identifier then
+        if not playerOwnsVehicle(src, vehicle) then
             TriggerClientEvent('FW:Notify', src, 'Testfahrzeug nicht gefunden.', 'error')
             return
         end
 
-        FW.Garage.DeleteVehicle(plate, identifier, function(affectedRows)
+        FW.Garage.DeleteVehicle(plate, vehicle.owner_identifier, function(affectedRows)
             if affectedRows > 0 then
                 TriggerClientEvent('fw:garage:deleteSpawnedVehicle', src, plate)
                 TriggerClientEvent('FW:Notify', src, ('Fahrzeug %s entfernt.'):format(plate), 'success')
@@ -382,7 +366,7 @@ RegisterCommand('giveownedvehicle', function(source, args)
         return
     end
 
-    local identifier = getPlayerIdentifier(src)
+    local identifier = getPrimaryPlayerIdentifier(src)
     if not identifier then
         TriggerClientEvent('FW:Notify', src, 'Spieler konnte nicht identifiziert werden.', 'error')
         return
@@ -422,19 +406,19 @@ RegisterCommand('removeownedvehicle', function(source, args)
         return
     end
 
-    local identifier = getPlayerIdentifier(src)
+    local identifier = getPrimaryPlayerIdentifier(src)
     if not identifier then
         TriggerClientEvent('FW:Notify', src, 'Spieler konnte nicht identifiziert werden.', 'error')
         return
     end
 
     FW.Garage.GetVehicleByPlate(plate, function(vehicle)
-        if not vehicle or vehicle.owner_identifier ~= identifier then
+        if not playerOwnsVehicle(src, vehicle) then
             TriggerClientEvent('FW:Notify', src, 'Testfahrzeug nicht gefunden.', 'error')
             return
         end
 
-        FW.Garage.DeleteVehicle(plate, identifier, function(affectedRows)
+        FW.Garage.DeleteVehicle(plate, vehicle.owner_identifier, function(affectedRows)
             if affectedRows > 0 then
                 TriggerClientEvent('fw:garage:deleteSpawnedVehicle', src, plate)
                 TriggerClientEvent('FW:Notify', src, ('Fahrzeug %s entfernt.'):format(plate), 'success')

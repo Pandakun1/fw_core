@@ -5,21 +5,32 @@ export const useGarageStore = defineStore('garage', {
         isOpen: false,
         vehicles: [],
         selectedVehicle: null,
-        filter: 'all',
-        isLoading: false
+        isLoading: false,
+        search: ''
     }),
 
     getters: {
-        filteredVehicles: (state) => {
-            if (state.filter === 'all') return state.vehicles;
-            if (state.filter === 'owned') return state.vehicles.filter(v => v.owned);
-            if (state.filter === 'stored') return state.vehicles.filter(v => v.stored);
-            return state.vehicles;
+        ownedVehicles: (state) => {
+            return (state.vehicles || []).filter((vehicle) => vehicle.owned);
         },
 
-        selectedVehicleData: (state) => {
-            if (!state.selectedVehicle) return null;
-            return state.vehicles.find(v => v.plate === state.selectedVehicle) || null;
+        filteredVehicles: (state, getters) => {
+            const query = String(state.search || '').toLowerCase().trim();
+            if (!query) return getters.ownedVehicles || [];
+
+            return (getters.ownedVehicles || []).filter((vehicle) => {
+                return String(vehicle.model || '').toLowerCase().includes(query)
+                    || String(vehicle.plate || '').toLowerCase().includes(query)
+                    || String(vehicle.state || '').toLowerCase().includes(query);
+            });
+        },
+
+        selectedVehicleData: (state, getters) => {
+            const list = getters.ownedVehicles || [];
+            if (!state.selectedVehicle) {
+                return list[0] || null;
+            }
+            return list.find((v) => v.plate === state.selectedVehicle) || list[0] || null;
         }
     },
 
@@ -31,14 +42,17 @@ export const useGarageStore = defineStore('garage', {
         close() {
             this.isOpen = false;
             this.selectedVehicle = null;
-            this.filter = 'all';
+            this.search = '';
         },
 
         async loadVehicles() {
             this.isLoading = true;
             try {
                 const result = await window.NUIBridge.send('garage:getVehicles');
-                this.vehicles = result.vehicles || [];
+                this.vehicles = Array.isArray(result?.vehicles) ? result.vehicles : [];
+                if (!this.selectedVehicle && this.vehicles.length > 0) {
+                    this.selectedVehicle = this.vehicles[0].plate;
+                }
             } catch (error) {
                 console.error('[GarageStore] Error loading vehicles:', error);
                 this.vehicles = [];
@@ -51,14 +65,14 @@ export const useGarageStore = defineStore('garage', {
             this.selectedVehicle = plate;
         },
 
-        setFilter(filter) {
-            this.filter = filter;
+        setSearch(value) {
+            this.search = value || '';
         },
 
         async spawnVehicle(plate) {
             try {
                 await window.NUIBridge.send('garage:spawnVehicle', { plate });
-                this.close();
+                this.isOpen = false;
             } catch (error) {
                 console.error('[GarageStore] Error spawning vehicle:', error);
             }

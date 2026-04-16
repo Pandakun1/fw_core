@@ -218,20 +218,22 @@ function FW.Garage.SaveVehicle(identifier, data, cb)
 end
 
 function FW.Garage.UpdateVehicleState(plate, state, coords, props, netId, cb)
+    local normalizedPlate = tostring(plate or ''):match('^%s*(.-)%s*$')
     MySQL.update([[ 
         UPDATE player_vehicles
         SET state = ?,
             last_coords = ?,
             vehicle_props = ?,
             spawned_net_id = ?
-        WHERE plate = ?
+        WHERE TRIM(plate) = TRIM(?)
     ]], {
         state,
         coords and encodeJson(coords) or nil,
         encodeJson(props or {}),
         netId,
-        plate
+        normalizedPlate
     }, function(affectedRows)
+        print(('[FW.Garage] UpdateVehicleState plate=%s state=%s affectedRows=%s'):format(normalizedPlate, tostring(state), tostring(affectedRows)))
         if cb then cb(affectedRows or 0) end
     end)
 end

@@ -39,16 +39,16 @@ local function getPlayerIdentifier(src)
 end
 
 local function getVehicleDisplayName(model)
-    if not model or model == '' then return 'Unbekannt' end
-    local label = GetDisplayNameFromVehicleModel(type(model) == 'number' and model or joaat(model))
-    if label and label ~= 'NULL' and label ~= '' then
-        local text = GetLabelText(label)
-        if text and text ~= 'NULL' and text ~= '' then
-            return text
-        end
-        return label
+    if not model or model == '' then
+        return 'Unbekannt'
     end
-    return tostring(model)
+
+    if type(model) == 'number' then
+        return tostring(model)
+    end
+
+    local normalized = tostring(model):gsub('^%l', string.upper)
+    return normalized
 end
 
 local function getVehicleProperties(entity)

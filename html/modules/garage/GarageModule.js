@@ -7,7 +7,7 @@ const GarageModule = {
     props: ['data'],
 
     setup() {
-        const { send, onClose } = useNUI();
+        const { send } = useNUI();
         const isOpen = ref(true);
         const isLoading = ref(false);
         const vehicles = ref([]);
@@ -109,7 +109,6 @@ const GarageModule = {
             window.removeEventListener('keydown', handleKeyDown, true);
         });
 
-        onClose(closeUi);
 
         return {
             isOpen,

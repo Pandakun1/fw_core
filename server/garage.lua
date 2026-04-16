@@ -83,14 +83,32 @@ local function getPrimaryPlayerIdentifier(src)
     return nil
 end
 
+local function normalizeIdentifier(value)
+    if type(value) ~= 'string' or value == '' then return nil end
+    local normalized = value:lower()
+
+    local licensePart = normalized:match('license:[%w]+')
+    if licensePart then
+        return normalized, licensePart
+    end
+
+    return normalized, normalized
+end
+
 local function playerOwnsVehicle(src, vehicle)
-    if not vehicle then return false end
+    if not vehicle or vehicle.owned ~= true then return false end
+
+    local vehicleFull, vehicleLicense = normalizeIdentifier(vehicle.owner_identifier)
+    if not vehicleFull then return false end
+
     local identifiers = getPlayerIdentifiersForGarage(src)
     for _, identifier in ipairs(identifiers) do
-        if vehicle.owner_identifier == identifier and vehicle.owned == true then
+        local currentFull, currentLicense = normalizeIdentifier(identifier)
+        if currentFull and (vehicleFull == currentFull or (vehicleLicense and currentLicense and vehicleLicense == currentLicense)) then
             return true
         end
     end
+
     return false
 end
 

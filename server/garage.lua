@@ -30,12 +30,25 @@ end
 
 local function getPlayerIdentifier(src)
     local player = FW.GetPlayer and FW.GetPlayer(src)
-    if player and player.identifier and player.identifier ~= '' then
-        return player.identifier
+    if player then
+        if player.identifier and player.identifier ~= '' then
+            return player.identifier
+        end
+        if player.license and player.license ~= '' then
+            return player.license
+        end
     end
 
     local identifiers = GetPlayerIdentifiers(src)
-    return identifiers and identifiers[1] or nil
+    if not identifiers then return nil end
+
+    for _, identifier in ipairs(identifiers) do
+        if type(identifier) == 'string' and identifier:find('license:', 1, true) == 1 then
+            return identifier
+        end
+    end
+
+    return identifiers[1] or nil
 end
 
 local function getVehicleDisplayName(model)

@@ -1,16 +1,12 @@
 import { useGarageStore } from './GarageStore.js';
 
 const useNUI = window.useNUI;
-const { ref, computed, watch } = Vue;
+const { ref, computed, watch, onMounted, onUnmounted } = Vue;
+const MathRef = window.Math;
 
 const GarageModule = {
     name: 'GarageModule',
-    props: {
-        data: {
-            type: Object,
-            default: () => ({})
-        }
-    },
+    props: ['data'],
 
     setup() {
         const garageStore = useGarageStore();
@@ -22,7 +18,7 @@ const GarageModule = {
             const filtered = garageStore.filteredVehicles || [];
             if (!searchQuery.value) return filtered;
 
-            return filtered.filter(v =>
+            return filtered.filter((v) =>
                 String(v.model || '').toLowerCase().includes(searchQuery.value.toLowerCase()) ||
                 String(v.plate || '').toLowerCase().includes(searchQuery.value.toLowerCase())
             );
@@ -54,13 +50,29 @@ const GarageModule = {
             garageStore.setFilter(filter);
         };
 
-        watch(isOpen, (value) => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                handleClose();
+            }
+        };
+
+        watch(isOpen, async (value) => {
             if (value) {
-                garageStore.loadVehicles();
+                await garageStore.loadVehicles();
             }
         }, { immediate: true });
 
-        garageStore.open();
+        onMounted(() => {
+            garageStore.open();
+            window.addEventListener('keydown', handleKeyDown);
+        });
+
+        onUnmounted(() => {
+            window.removeEventListener('keydown', handleKeyDown);
+            garageStore.close();
+        });
+
         onClose(handleClose);
 
         return {
@@ -74,175 +86,160 @@ const GarageModule = {
             handleSelectVehicle,
             handleSpawn,
             handleStore,
-            setFilter
+            setFilter,
+            MathRef
         };
     },
 
     template: `
-        <Transition name="fade">
-            <div v-if="isOpen" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                <div class="bg-gray-900/95 rounded-2xl shadow-2xl border border-blue-500/50 w-[900px] h-[600px] flex overflow-hidden">
-                    <div class="w-2/3 border-r border-gray-700 flex flex-col">
-                        <div class="bg-gray-800/50 border-b border-gray-700 p-4">
-                            <h2 class="text-xl font-bold text-white mb-2">🚗 Garage</h2>
-                            <input 
-                                v-model="searchQuery"
-                                type="text"
-                                placeholder="Fahrzeug oder Kennzeichen suchen..."
-                                class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-                            >
+    <div class="w-full h-full flex items-center justify-center font-sans text-white pointer-events-auto">
+        <div v-if="isOpen" class="w-[1100px] min-h-[680px] max-h-[86vh] bg-[#10141c]/95 rounded-3xl flex shadow-2xl overflow-hidden border border-[#233048] backdrop-blur-md">
+            <div class="w-[62%] border-r border-[#233048] flex flex-col bg-gradient-to-b from-[#131a25] to-[#0d1218]">
+                <div class="p-6 border-b border-[#233048]">
+                    <div class="flex items-center justify-between gap-4 mb-4">
+                        <div>
+                            <div class="text-xs uppercase tracking-[0.3em] text-slate-400 mb-2">Vehicle Storage</div>
+                            <h2 class="text-3xl font-bold text-white">Garage</h2>
                         </div>
-
-                        <div class="flex border-b border-gray-700">
-                            <button 
-                                @click="setFilter('all')"
-                                class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
-                                :class="garageStore.filter === 'all' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'"
-                            >
-                                Alle
-                            </button>
-                            <button 
-                                @click="setFilter('stored')"
-                                class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
-                                :class="garageStore.filter === 'stored' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'"
-                            >
-                                Eingelagert
-                            </button>
-                            <button 
-                                @click="setFilter('owned')"
-                                class="flex-1 px-4 py-3 text-sm font-medium transition-colors"
-                                :class="garageStore.filter === 'owned' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'"
-                            >
-                                Im Besitz
-                            </button>
+                        <div class="px-4 py-2 rounded-xl bg-[#182131] border border-[#2b3d5a] text-slate-300 text-sm">
+                            {{ vehicles.length }} Fahrzeuge
                         </div>
+                    </div>
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="Suche nach Modell oder Kennzeichen..."
+                        class="w-full px-4 py-3 rounded-2xl bg-[#0c1118] border border-[#2a3952] text-white placeholder-slate-500 outline-none focus:border-cyan-500"
+                    >
+                </div>
 
-                        <div class="flex-1 overflow-y-auto p-4">
-                            <div v-if="isLoading" class="text-center text-gray-500 mt-8">
-                                Lade Fahrzeuge...
-                            </div>
+                <div class="flex gap-2 px-6 py-4 border-b border-[#233048] bg-[#0f1620]">
+                    <button
+                        @click="setFilter('all')"
+                        class="px-4 py-2 rounded-xl text-sm font-semibold transition"
+                        :class="garageStore.filter === 'all' ? 'bg-cyan-600 text-white' : 'bg-[#172131] text-slate-300 hover:bg-[#1d2a3d]'"
+                    >Alle</button>
+                    <button
+                        @click="setFilter('stored')"
+                        class="px-4 py-2 rounded-xl text-sm font-semibold transition"
+                        :class="garageStore.filter === 'stored' ? 'bg-emerald-600 text-white' : 'bg-[#172131] text-slate-300 hover:bg-[#1d2a3d]'"
+                    >Eingeparkt</button>
+                    <button
+                        @click="setFilter('owned')"
+                        class="px-4 py-2 rounded-xl text-sm font-semibold transition"
+                        :class="garageStore.filter === 'owned' ? 'bg-amber-500 text-black' : 'bg-[#172131] text-slate-300 hover:bg-[#1d2a3d]'"
+                    >Owned</button>
+                </div>
 
-                            <div v-else-if="vehicles.length === 0" class="text-center text-gray-500 mt-8">
-                                Keine Fahrzeuge gefunden
-                            </div>
+                <div class="flex-1 overflow-y-auto p-5 space-y-3">
+                    <div v-if="isLoading" class="h-full flex items-center justify-center text-slate-400 text-lg">
+                        Lade Fahrzeuge...
+                    </div>
 
-                            <div v-else class="space-y-2">
-                                <div 
-                                    v-for="vehicle in vehicles"
-                                    :key="vehicle.plate"
-                                    @click="handleSelectVehicle(vehicle)"
-                                    class="bg-gray-800/70 border-2 rounded-lg p-4 cursor-pointer transition-all hover:bg-gray-800"
-                                    :class="selectedVehicle?.plate === vehicle.plate ? 'border-blue-500 ring-2 ring-blue-400/50' : 'border-gray-700'"
-                                >
-                                    <div class="flex items-center justify-between">
-                                        <div>
-                                            <div class="text-white font-semibold text-lg">
-                                                {{ vehicle.model }}
-                                            </div>
-                                            <div class="text-gray-400 text-sm">
-                                                {{ vehicle.plate }}
-                                            </div>
-                                        </div>
-
-                                        <div class="flex items-center gap-3">
-                                            <div class="text-right">
-                                                <div class="text-xs text-gray-400">Benzin</div>
-                                                <div class="text-sm font-semibold" :class="vehicle.fuel > 20 ? 'text-green-400' : 'text-red-400'">
-                                                    {{ vehicle.fuel }}%
-                                                </div>
-                                            </div>
-
-                                            <div 
-                                                class="px-2 py-1 rounded text-xs font-medium"
-                                                :class="vehicle.stored ? 'bg-green-600/20 text-green-400 border border-green-500/30' : 'bg-yellow-600/20 text-yellow-400 border border-yellow-500/30'"
-                                            >
-                                                {{ vehicle.stored ? '🅿️ Eingelagert' : '🚗 Draußen' }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    <div v-else-if="vehicles.length === 0" class="h-full flex items-center justify-center">
+                        <div class="text-center text-slate-400">
+                            <div class="text-5xl mb-4">🚘</div>
+                            <div class="text-xl font-semibold text-white mb-2">Keine Fahrzeuge gefunden</div>
+                            <div class="text-sm text-slate-400">Erstelle testweise ein Fahrzeug mit /giveownedvehicle adder</div>
                         </div>
                     </div>
 
-                    <div class="w-1/3 flex flex-col">
-                        <div class="bg-gray-800/50 border-b border-gray-700 p-4 flex justify-between items-center">
-                            <h3 class="text-lg font-semibold text-white">Details</h3>
-                            <button 
-                                @click="handleClose"
-                                class="text-gray-400 hover:text-white transition-colors"
-                            >
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
+                    <button
+                        v-else
+                        v-for="vehicle in vehicles"
+                        :key="vehicle.plate"
+                        @click="handleSelectVehicle(vehicle)"
+                        class="w-full text-left rounded-2xl border p-4 transition-all"
+                        :class="selectedVehicle?.plate === vehicle.plate
+                            ? 'border-cyan-500 bg-[#162131] shadow-[0_0_0_1px_rgba(34,211,238,0.25)]'
+                            : 'border-[#253449] bg-[#111822] hover:bg-[#16202c]'"
+                    >
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <div class="text-lg font-bold text-white">{{ vehicle.model || 'Unbekannt' }}</div>
+                                <div class="text-sm text-slate-400 mt-1">Kennzeichen: {{ vehicle.plate }}</div>
+                                <div class="text-xs text-slate-500 mt-2">Identifier: {{ vehicle.owner_identifier }}</div>
+                            </div>
+
+                            <div class="flex flex-col items-end gap-2">
+                                <div
+                                    class="px-3 py-1 rounded-full text-xs font-bold"
+                                    :class="vehicle.stored
+                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'"
+                                >
+                                    {{ vehicle.stored ? 'EINGEPARKT' : 'DRAUSSEN' }}
+                                </div>
+                                <div class="text-sm text-slate-300">Fuel {{ MathRef.round(vehicle.fuel || 0) }}%</div>
+                            </div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col bg-[#0b1016]">
+                <div class="p-6 border-b border-[#233048] flex items-center justify-between">
+                    <div>
+                        <div class="text-xs uppercase tracking-[0.25em] text-slate-500 mb-2">Details</div>
+                        <h3 class="text-2xl font-bold text-white">Fahrzeugdaten</h3>
+                    </div>
+                    <button
+                        @click="handleClose"
+                        class="w-11 h-11 rounded-2xl bg-[#141d29] hover:bg-[#1b2838] text-slate-300 text-xl"
+                    >✕</button>
+                </div>
+
+                <div class="flex-1 p-6">
+                    <div v-if="!selectedVehicle" class="h-full flex items-center justify-center text-center text-slate-400">
+                        <div>
+                            <div class="text-5xl mb-4">🛠️</div>
+                            <div class="text-xl text-white font-semibold mb-2">Wähle ein Fahrzeug aus</div>
+                            <div class="text-sm">Dann kannst du es ausparken, einparken oder prüfen.</div>
+                        </div>
+                    </div>
+
+                    <div v-else class="space-y-5">
+                        <div class="rounded-2xl border border-[#223147] bg-[#111822] p-5">
+                            <div class="text-sm text-slate-400 mb-2">Modell</div>
+                            <div class="text-3xl font-bold text-white">{{ selectedVehicle.model }}</div>
+                            <div class="text-sm text-slate-500 mt-2">Kennzeichen: {{ selectedVehicle.plate }}</div>
                         </div>
 
-                        <div class="flex-1 p-6">
-                            <div v-if="!selectedVehicle" class="text-center text-gray-500 mt-12">
-                                Wähle ein Fahrzeug aus
-                            </div>
-
-                            <div v-else class="space-y-6">
-                                <div>
-                                    <h4 class="text-white text-2xl font-bold mb-1">
-                                        {{ selectedVehicle.model }}
-                                    </h4>
-                                    <p class="text-gray-400">
-                                        Kennzeichen: {{ selectedVehicle.plate }}
-                                    </p>
-                                </div>
-
-                                <div class="space-y-3">
-                                    <div class="bg-gray-800/50 rounded-lg p-3">
-                                        <div class="text-xs text-gray-400 mb-1">Benzin</div>
-                                        <div class="flex items-center gap-2">
-                                            <div class="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-                                                <div 
-                                                    class="h-full transition-all"
-                                                    :class="selectedVehicle.fuel > 20 ? 'bg-green-500' : 'bg-red-500'"
-                                                    :style="{ width: selectedVehicle.fuel + '%' }"
-                                                ></div>
-                                            </div>
-                                            <span class="text-white text-sm font-medium">
-                                                {{ selectedVehicle.fuel }}%
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div class="bg-gray-800/50 rounded-lg p-3">
-                                        <div class="text-xs text-gray-400 mb-1">Status</div>
-                                        <div 
-                                            class="inline-block px-3 py-1 rounded text-sm font-medium"
-                                            :class="selectedVehicle.stored ? 'bg-green-600/20 text-green-400' : 'bg-yellow-600/20 text-yellow-400'"
-                                        >
-                                            {{ selectedVehicle.stored ? 'Eingelagert' : 'Draußen' }}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="space-y-2 pt-4">
-                                    <button 
-                                        v-if="selectedVehicle.stored"
-                                        @click="handleSpawn"
-                                        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors"
-                                    >
-                                        🚗 Ausholen
-                                    </button>
-                                    <button 
-                                        v-else
-                                        @click="handleStore"
-                                        class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors"
-                                    >
-                                        🅿️ Einlagern
-                                    </button>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="rounded-2xl border border-[#223147] bg-[#111822] p-4">
+                                <div class="text-xs text-slate-400 mb-2">Status</div>
+                                <div class="text-lg font-semibold" :class="selectedVehicle.stored ? 'text-emerald-400' : 'text-amber-300'">
+                                    {{ selectedVehicle.stored ? 'Eingeparkt' : 'Draußen' }}
                                 </div>
                             </div>
+                            <div class="rounded-2xl border border-[#223147] bg-[#111822] p-4">
+                                <div class="text-xs text-slate-400 mb-2">Fuel</div>
+                                <div class="text-lg font-semibold text-white">{{ MathRef.round(selectedVehicle.fuel || 0) }}%</div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-[#223147] bg-[#111822] p-4">
+                            <div class="text-xs text-slate-400 mb-2">Gespeichert auf Identifier</div>
+                            <div class="text-sm text-cyan-300 break-all">{{ selectedVehicle.owner_identifier }}</div>
+                        </div>
+
+                        <div class="space-y-3 pt-4">
+                            <button
+                                v-if="selectedVehicle.stored"
+                                @click="handleSpawn"
+                                class="w-full rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white py-4 font-bold text-lg transition"
+                            >Fahrzeug ausparken</button>
+                            <button
+                                v-else
+                                @click="handleStore"
+                                class="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white py-4 font-bold text-lg transition"
+                            >Fahrzeug einparken</button>
                         </div>
                     </div>
                 </div>
             </div>
-        </Transition>
+        </div>
+    </div>
     `
 };
 

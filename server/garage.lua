@@ -163,8 +163,9 @@ function FW.Garage.GetVehiclesByOwnerIdentifiers(identifiers, cb)
         local seenPlates = {}
 
         for _, row in ipairs(rows) do
-            if row.plate and not seenPlates[row.plate] then
-                seenPlates[row.plate] = true
+            local plateKey = tostring(row.plate or ''):match('^%s*(.-)%s*$')
+            if plateKey ~= '' and not seenPlates[plateKey] then
+                seenPlates[plateKey] = true
                 table.insert(normalized, decorateVehicleRow(row))
             end
         end
@@ -181,6 +182,36 @@ function FW.Garage.GetVehicleByPlate(plate, cb)
         end
         cb(row)
     end)
+end
+
+function FW.Garage.GetOutsideVehiclesByOwnerIdentifiers(identifiers, cb)
+    if type(identifiers) ~= 'table' or #identifiers == 0 then
+        cb({})
+        return
+    end
+
+    local placeholders = {}
+    for _ = 1, #identifiers do
+        table.insert(placeholders, '?')
+    end
+
+    MySQL.query(('SELECT * FROM player_vehicles WHERE owner_identifier IN (%s) AND state = ? ORDER BY updated_at DESC'):format(table.concat(placeholders, ',')),
+        (function()
+            local params = {}
+            for _, identifier in ipairs(identifiers) do
+                table.insert(params, identifier)
+            end
+            table.insert(params, 'outside')
+            return params
+        end)(),
+        function(rows)
+            rows = rows or {}
+            for index, row in ipairs(rows) do
+                rows[index] = decorateVehicleRow(row)
+            end
+            cb(rows)
+        end
+    )
 end
 
 function FW.Garage.SaveVehicle(identifier, data, cb)
@@ -345,6 +376,16 @@ RegisterNetEvent('fw:garage:vehicleSpawned', function(plate, netId, coords, prop
         if not playerOwnsVehicle(src, vehicle) then return end
         FW.Garage.UpdateVehicleState(plate, 'outside', coords, props, netId, function() end)
         TriggerClientEvent('FW:Notify', src, ('Fahrzeug %s wurde ausgeparkt.'):format(plate), 'success')
+    end)
+end)
+
+RegisterNetEvent('fw:garage:requestOutsideVehicles', function()
+    local src = source
+    local player = FW.GetPlayer and FW.GetPlayer(src)
+    local identifiers = player and player.identifier and { player.identifier } or getPlayerIdentifiersForGarage(src)
+
+    FW.Garage.GetOutsideVehiclesByOwnerIdentifiers(identifiers, function(vehicles)
+        TriggerClientEvent('fw:garage:spawnPersistedOutsideVehicles', src, vehicles)
     end)
 end)
 

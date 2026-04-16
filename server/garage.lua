@@ -70,7 +70,13 @@ local function getPrimaryPlayerIdentifier(src)
 end
 
 local function playerOwnsVehicle(src, vehicle)
-    if not vehicle or vehicle.owned ~= true then return false end
+    if not vehicle then return false end
+
+    local owned = vehicle.owned == true or vehicle.owned == 1 or vehicle.owned == '1'
+    if not owned then
+        print(('[FW.Garage] playerOwnsVehicle: vehicle %s is not marked owned (%s)'):format(tostring(vehicle.plate), tostring(vehicle.owned)))
+        return false
+    end
 
     local player = FW.GetPlayer and FW.GetPlayer(src)
     if player and player.identifier and vehicle.owner_identifier == player.identifier then

@@ -27,6 +27,7 @@ const App = {
         const activeRoute = ref(null);
         const routeData = ref({});
         const showHUD = ref(true);
+        const garageVisible = computed(() => isVisible.value && activeRoute.value === 'garage');
 
         // --- ROUTING CONFIGURATION ---
         const routes = {
@@ -135,7 +136,7 @@ const App = {
         onMounted(() => window.addEventListener('message', messageHandler));
         onUnmounted(() => window.removeEventListener('message', messageHandler));
 
-        return { isVisible, activeRoute, routeData, CurrentComponent, showHUD, isCopyDialogVisible, copyDialogText, closeCopyDialog };
+        return { isVisible, activeRoute, routeData, CurrentComponent, showHUD, garageVisible, isCopyDialogVisible, copyDialogText, closeCopyDialog };
     },
     template: `
     <div class="w-full h-full select-none overflow-hidden relative font-sans">
@@ -145,10 +146,16 @@ const App = {
         <admin-inspector-overlay></admin-inspector-overlay>
         <admin-placement-overlay></admin-placement-overlay>
         <Transition name="fade">
-            <div v-if="isVisible && CurrentComponent" 
+            <div v-if="isVisible && CurrentComponent && activeRoute !== 'garage'" 
                  style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; align-items: center; justify-content: center; pointer-events: auto;"
                  :style="{ background: activeRoute === 'multichar' || activeRoute === 'creator' || activeRoute === 'appearance' ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.6)' }">
                 <component :is="CurrentComponent" :data="routeData"></component>
+            </div>
+        </Transition>
+
+        <Transition name="fade">
+            <div v-if="garageVisible" style="position: fixed; inset: 0; z-index: 10001; pointer-events: auto;">
+                <garage-module :data="routeData"></garage-module>
             </div>
         </Transition>
 
@@ -183,6 +190,7 @@ app.component('notify-component', NotifyModule);
 app.component('interaction-component', InteractionModule);
 app.component('admin-inspector-overlay', AdminInspectorOverlay);
 app.component('admin-placement-overlay', AdminPlacementOverlay);
+app.component('garage-module', GarageModule);
 app.mount('#app');
 
 // ============================================

@@ -1,14 +1,11 @@
-// ============================================
-// 1. STORE: modules/garage/GarageStore.js
-// ============================================
+import { defineStore } from '../settings/pinia.js';
 
-
-window.useGarageStore = Pinia.defineStore('garage', {
+export const useGarageStore = defineStore('garage', {
     state: () => ({
         isOpen: false,
-        vehicles: [],           // Spieler Fahrzeuge
+        vehicles: [],
         selectedVehicle: null,
-        filter: 'all',          // 'all', 'owned', 'stored'
+        filter: 'all',
         isLoading: false
     }),
 
@@ -22,7 +19,7 @@ window.useGarageStore = Pinia.defineStore('garage', {
 
         selectedVehicleData: (state) => {
             if (!state.selectedVehicle) return null;
-            return state.vehicles.find(v => v.plate === state.selectedVehicle);
+            return state.vehicles.find(v => v.plate === state.selectedVehicle) || null;
         }
     },
 
@@ -45,11 +42,7 @@ window.useGarageStore = Pinia.defineStore('garage', {
                 this.vehicles = result.vehicles || [];
             } catch (error) {
                 console.error('[GarageStore] Error loading vehicles:', error);
-                // Fallback für Dev
-                this.vehicles = [
-                    { plate: 'ABC123', model: 'Adder', stored: true, fuel: 85, owned: true },
-                    { plate: 'XYZ789', model: 'T20', stored: false, fuel: 60, owned: true }
-                ];
+                this.vehicles = [];
             } finally {
                 this.isLoading = false;
             }
@@ -66,7 +59,6 @@ window.useGarageStore = Pinia.defineStore('garage', {
         async spawnVehicle(plate) {
             try {
                 await window.NUIBridge.send('garage:spawnVehicle', { plate });
-                console.log(`[GarageStore] Spawned vehicle ${plate}`);
                 this.close();
             } catch (error) {
                 console.error('[GarageStore] Error spawning vehicle:', error);
@@ -76,7 +68,6 @@ window.useGarageStore = Pinia.defineStore('garage', {
         async storeVehicle(plate) {
             try {
                 await window.NUIBridge.send('garage:storeVehicle', { plate });
-                console.log(`[GarageStore] Stored vehicle ${plate}`);
                 await this.loadVehicles();
             } catch (error) {
                 console.error('[GarageStore] Error storing vehicle:', error);

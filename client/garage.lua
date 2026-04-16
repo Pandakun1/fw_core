@@ -3,8 +3,9 @@ local isGarageOpen = false
 local hydratedOutsideVehicles = {}
 local outsideVehicleSync = {}
 local outsideVehicleLastSync = {}
-local OUTSIDE_SYNC_DISTANCE_THRESHOLD = 2.5
-local OUTSIDE_SYNC_HEADING_THRESHOLD = 12.5
+local OUTSIDE_SYNC_DISTANCE_THRESHOLD = 4.0
+local OUTSIDE_SYNC_HEADING_THRESHOLD = 20.0
+local OUTSIDE_SYNC_INTERVAL_MS = 15000
 
 local function normalizePlate(value)
     return string.upper((tostring(value or ''):gsub('^%s*(.-)%s*$', '%1')))
@@ -390,7 +391,7 @@ end
 
 CreateThread(function()
     while true do
-        Wait(10000)
+        Wait(OUTSIDE_SYNC_INTERVAL_MS)
         for plateKey, vehicle in pairs(outsideVehicleSync) do
             if vehicle and DoesEntityExist(vehicle) then
                 local state = collectVehicleState(vehicle)
@@ -424,7 +425,7 @@ AddEventHandler('gameEventTriggered', function(name, args)
     for plateKey, vehicle in pairs(outsideVehicleSync) do
         if vehicle and DoesEntityExist(vehicle) then
             local driver = GetPedInVehicleSeat(vehicle, -1)
-            if driver == ped or #(GetEntityCoords(ped) - GetEntityCoords(vehicle)) < 10.0 then
+            if driver == ped then
                 syncOutsideVehicleNow(plateKey, vehicle)
             end
         end

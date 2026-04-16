@@ -1,6 +1,7 @@
 FW = FW or {}
 FW.Garage = FW.Garage or {}
 FW.Garage.ActiveOutsideVehicles = FW.Garage.ActiveOutsideVehicles or {}
+FW.Garage.PendingSpawnRequests = FW.Garage.PendingSpawnRequests or {}
 
 local RESOURCE_NAME = GetCurrentResourceName()
 local DEFAULT_SPAWN_OFFSET = vector3(3.0, 0.0, 0.0)
@@ -328,7 +329,9 @@ RegisterNetEvent('fw:garage:storeVehicle', function(plate, props)
 
         FW.Garage.UpdateVehicleState(plate, 'stored', nil, props or vehicle.props or {}, nil, function(affectedRows)
             if affectedRows > 0 then
-                FW.Garage.ActiveOutsideVehicles[tostring(plate or ''):match('^%s*(.-)%s*$')] = nil
+                local normalizedPlate = tostring(plate or ''):match('^%s*(.-)%s*$')
+                FW.Garage.ActiveOutsideVehicles[normalizedPlate] = nil
+                FW.Garage.PendingSpawnRequests[normalizedPlate] = nil
                 TriggerClientEvent('fw:garage:storedVehicle', src, plate)
                 TriggerClientEvent('FW:Notify', src, ('Fahrzeug %s wurde eingeparkt.'):format(plate), 'success')
             else
@@ -343,7 +346,21 @@ RegisterNetEvent('fw:garage:spawnVehicle', function(plate)
     local identifier = getPrimaryPlayerIdentifier(src)
     if not identifier or not plate then return end
 
-    FW.Garage.GetVehicleByPlate(plate, function(vehicle)
+    local normalizedPlate = tostring(plate or ''):match('^%s*(.-)%s*$')
+    if normalizedPlate == '' then return end
+
+    if FW.Garage.PendingSpawnRequests[normalizedPlate] then
+        TriggerClientEvent('FW:Notify', src, 'Für dieses Fahrzeug läuft bereits ein Spawn.', 'error')
+        return
+    end
+
+    local active = FW.Garage.ActiveOutsideVehicles[normalizedPlate]
+    if active then
+        TriggerClientEvent('FW:Notify', src, 'Dieses Fahrzeug ist bereits draußen aktiv.', 'error')
+        return
+    end
+
+    FW.Garage.GetVehicleByPlate(normalizedPlate, function(vehicle)
         if not playerOwnsVehicle(src, vehicle) then
             TriggerClientEvent('FW:Notify', src, 'Dieses Fahrzeug gehört dir nicht.', 'error')
             return
@@ -354,13 +371,18 @@ RegisterNetEvent('fw:garage:spawnVehicle', function(plate)
             return
         end
 
+        FW.Garage.PendingSpawnRequests[normalizedPlate] = {
+            source = src,
+            requestedAt = os.time()
+        }
+
         local props = vehicle.props or {}
         local spawnCoords = {
             heading = props.heading or 90.0
         }
 
         TriggerClientEvent('fw:garage:spawnVehicleClient', src, {
-            plate = plate,
+            plate = normalizedPlate,
             model = vehicle.vehicle_model,
             props = props,
             coords = spawnCoords,
@@ -377,7 +399,11 @@ RegisterNetEvent('fw:garage:vehicleSpawned', function(plate, netId, coords, prop
     local normalizedPlate = tostring(plate or ''):match('^%s*(.-)%s*$')
 
     FW.Garage.GetVehicleByPlate(normalizedPlate, function(vehicle)
-        if not playerOwnsVehicle(src, vehicle) then return end
+        if not playerOwnsVehicle(src, vehicle) then
+            FW.Garage.PendingSpawnRequests[normalizedPlate] = nil
+            return
+        end
+        FW.Garage.PendingSpawnRequests[normalizedPlate] = nil
         FW.Garage.ActiveOutsideVehicles[normalizedPlate] = {
             owner = vehicle.owner_identifier,
             source = src,
@@ -469,7 +495,9 @@ RegisterNetEvent('fw:garage:test:removeOwnedVehicle', function(plate)
 
         FW.Garage.DeleteVehicle(plate, vehicle.owner_identifier, function(affectedRows)
             if affectedRows > 0 then
-                FW.Garage.ActiveOutsideVehicles[tostring(plate or ''):match('^%s*(.-)%s*$')] = nil
+                local normalizedPlate = tostring(plate or ''):match('^%s*(.-)%s*$')
+                FW.Garage.ActiveOutsideVehicles[normalizedPlate] = nil
+                FW.Garage.PendingSpawnRequests[normalizedPlate] = nil
                 TriggerClientEvent('fw:garage:deleteSpawnedVehicle', src, plate)
                 TriggerClientEvent('FW:Notify', src, ('Fahrzeug %s entfernt.'):format(plate), 'success')
             else
@@ -575,7 +603,9 @@ RegisterCommand('removeownedvehicle', function(source, args)
 
         FW.Garage.DeleteVehicle(plate, vehicle.owner_identifier, function(affectedRows)
             if affectedRows > 0 then
-                FW.Garage.ActiveOutsideVehicles[tostring(plate or ''):match('^%s*(.-)%s*$')] = nil
+                local normalizedPlate = tostring(plate or ''):match('^%s*(.-)%s*$')
+                FW.Garage.ActiveOutsideVehicles[normalizedPlate] = nil
+                FW.Garage.PendingSpawnRequests[normalizedPlate] = nil
                 TriggerClientEvent('fw:garage:deleteSpawnedVehicle', src, plate)
                 TriggerClientEvent('FW:Notify', src, ('Fahrzeug %s entfernt.'):format(plate), 'success')
             else

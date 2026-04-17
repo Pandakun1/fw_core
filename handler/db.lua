@@ -219,3 +219,16 @@ function FW.DB.UpdateInventory(identifier, inventory, cb)
         end
     )
 end
+
+function FW.DB.CreateNewJob(jobName, label, grade)
+    MySQL.insert(
+        [[
+            INSERT INTO jobs
+                (jobname, label, grade)
+            VALUES (?, ?, ?)
+        ]],
+        {
+            jobName, label, grade
+        }
+    )
+end

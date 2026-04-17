@@ -3,12 +3,6 @@ local menuOpen = false
 FW = FW or {}
 FW.Admin = FW.Admin or {}
 
--- REMOVED: Command registration - now handled in nui.lua
--- RegisterCommand('admin', function()
---     ToggleAdminMenu()
--- end, false)
--- RegisterKeyMapping("admin", "AdminMenu an/aus", "keyboard", "F9")
-
 function GetAdminMenuData()
     return {
         categories = {
@@ -28,6 +22,13 @@ function GetAdminMenuData()
                         { id = "remitem", label = "Item von Spieler entfernen" },
                         { id = "testnachricht", label = "Testnachricht" },
                         }
+                },
+                {
+                    id = "creators",
+                    label = "Creator Tools",
+                    items = {
+                        { id = "creatorMode", label = "Creator Mode" }
+                    }
                 },
                 {
                     id = "vehicles",
@@ -137,6 +138,9 @@ RegisterNUICallback('adminAction', function(data, cb)
         FW.Admin.toggleNoClip()
     elseif cat == "players" and item == "identifier" then
         FW.Admin.identifier()
+    elseif cat == "creators" and item == "creatorMode" then
+        CloseAdminMenu()
+        FW.Admin.ToggleCreatorMode()
     elseif cat == "vehicles" and item == "fix_car" then
         FW.Admin.FixCurrentVehicle()
     elseif cat == "vehicles" and item == "delete_car" then

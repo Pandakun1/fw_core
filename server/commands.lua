@@ -83,3 +83,10 @@ RegisterCommand('multichar', function(source, args, rawCommand)
     TriggerClientEvent('fw:client:returnToMultichar', src)
 end, false)
 
+RegisterCommand('createJob', function(source)
+    local src = source
+    if src == 0 then return end
+
+    TriggerClientEvent('openJobCreator', src)
+end, false)
+

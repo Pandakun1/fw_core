@@ -13,6 +13,7 @@ window.useAdminStore = Pinia.defineStore('admin', {
         items: [],
         categories: [
             { id: 'players', label: 'Spieler', icon: '👥' },
+            { id: 'creators', label: 'Creator Tools', icon: '🛠️' },
             { id: 'vehicles', label: 'Fahrzeuge', icon: '🚗' },
             { id: 'items', label: 'Items', icon: '📦' },
             { id: 'noclip', label: 'Noclip', icon: '✈️' }
@@ -34,6 +35,8 @@ window.useAdminStore = Pinia.defineStore('admin', {
             if (categoryId === 'players') this.loadPlayers();
             if (categoryId === 'vehicles') this.loadVehicles();
             if (categoryId === 'items') this.loadItems();
+            if (categoryId === 'creators') this.loadCreators();
+
         },
         selectPlayer(player) { this.selectedPlayer = player; },
         
@@ -73,6 +76,12 @@ window.useAdminStore = Pinia.defineStore('admin', {
         toggleGodmode() {
             this.godmodeEnabled = !this.godmodeEnabled;
             window.NUIBridge.send('admin:toggleGodmode', { enabled: this.godmodeEnabled });
+        },
+        loadCreators() {
+            this.creatorModeEnabled = !this.creatorModeEnabled;
+            window.NUIBridge.send('admin:toggleCreatorMode', { enabled: this.creatorModeEnabled });
+            // Implementation for loading creator tools
         }
+        
     }
 });

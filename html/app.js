@@ -1,21 +1,24 @@
 const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
 
+// --- StorePreload
+import './modules/creator/CreatorStore.js';
+import './modules/creator/creatorStores/DoorsCreatorStore.js';
+import './modules/creator/creatorStores/JobsCreatorStore.js';
+
 // --- IMPORTS DER MODULE ---
 import BriefcaseInventory from './modules/inventory/InventoryModule.js';
 import AdminModule from './modules/admin/AdminModule.js';
 import GarageModule from './modules/garage/GarageModule.js';
 import HUDModule from './modules/hud/HUDModule.js';
+import CreatorModule from './modules/creator/CreatorModule.js';
 import NotifyModule from './modules/notify/NotifyModule.js';
 import InteractionModule from './modules/interaction/InteractionModule.js';
 import AdminInspectorOverlay from './modules/admin/AdminInspectorOverlay.js';
 import AdminPlacementOverlay from './modules/admin/AdminPlacementOverlay.js';
-
-// NEU: Character Modules
 import MulticharModule from './modules/character/MulticharModule.js';
 import CharCreatorModule from './modules/character/CharCreatorModule.js';
 import AppearanceModule from './modules/character/AppearanceModule.js';
 
-// Settings System
 import { useSettingsStore } from './modules/settings/SettingsStore.js';
 
 const App = {
@@ -32,8 +35,8 @@ const App = {
         const routes = {
             inventory: BriefcaseInventory,
             admin: AdminModule,
+            creatorMode: CreatorModule,
             garage: GarageModule,
-            // NEU:
             multichar: MulticharModule,
             creator: CharCreatorModule,
             appearance: AppearanceModule
@@ -74,13 +77,18 @@ const App = {
             }
 
             if (action === 'open') {
-                activeRoute.value = eventData.data.route; 
+                const route = eventData?.data?.route || null;
+                if (!route) return;
+
+                activeRoute.value = route;
                 routeData.value = eventData.data || {};
                 isVisible.value = true;
-                
-                if (['multichar', 'creator', 'appearance'].includes(activeRoute.value)) {
+
+                if (['multichar', 'creator', 'appearance', 'creatorMode'].includes(activeRoute.value)) {
                     showHUD.value = false;
                 }
+
+                return;
             }
 
             if (action === 'openInventory') {
@@ -133,8 +141,8 @@ const App = {
         <admin-placement-overlay></admin-placement-overlay>
         <Transition name="fade">
             <div v-if="isVisible && CurrentComponent" 
-                 style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; align-items: center; justify-content: center; pointer-events: auto;"
-                 :style="{ background: activeRoute === 'multichar' || activeRoute === 'creator' || activeRoute === 'appearance' ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.6)' }">
+                style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; align-items: center; justify-content: center; pointer-events: auto;"
+                :style="{ background: ['multichar', 'creator', 'appearance', 'creatorMode'].includes(activeRoute) ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.6)' }">
                 <component :is="CurrentComponent" :data="routeData"></component>
             </div>
         </Transition>
@@ -165,6 +173,10 @@ const App = {
 };
 
 const app = createApp(App);
+
+const pinia = Pinia.createPinia();
+app.use(pinia);
+
 app.component('hud-component', HUDModule);
 app.component('notify-component', NotifyModule);
 app.component('interaction-component', InteractionModule);

@@ -24,6 +24,7 @@ end)
 -- Legacy Support für Framework
 RegisterNetEvent('FW:Notify')
 AddEventHandler('FW:Notify', function(msg, type, duration)
+    if not duration then duration = 3000 end
     TriggerEvent('fw:client:notify', msg, type, duration)
 end)
 

@@ -1,4 +1,4 @@
-const { computed } = Vue;
+const { computed, onMounted, onUnmounted } = Vue;
 
 const DoorsCreatorModule = {
     name: 'DoorsCreatorModule',
@@ -98,3 +98,4 @@ const DoorsCreatorModule = {
 };
 
 export default DoorsCreatorModule;
+

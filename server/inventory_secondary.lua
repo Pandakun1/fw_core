@@ -822,6 +822,19 @@ end, true)
 
 RegisterNetEvent('fw:inventory:saveGroundInventory', function(groundInventory, mainInventory)
     local src = source
+    local playerPed = GetPlayerPed(src)
+    local playerCoords = GetEntityCoords(playerPed)
+
+    -- Alte Ground-Items in der Nähe dieses Spielers entfernen,
+    -- weil der Client den kompletten neuen Ground-Zustand sendet.
+    for id, groundItem in pairs(FW.GroundItems) do
+        if groundItem and groundItem.coords then
+            local distance = #(playerCoords - groundItem.coords)
+            if distance < 5.0 then
+                FW.GroundItems[id] = nil
+            end
+        end
+    end
     
     print('[FW Ground] 💾 Saving Ground Inventory for player', src)
     print('[FW Ground DEBUG] Ground items:', #groundInventory)
@@ -861,19 +874,22 @@ RegisterNetEvent('fw:inventory:saveGroundInventory', function(groundInventory, m
             end)
         end
     end
-    
+
     -- 2. Lege Ground-Items auf den Boden (via dropItem Event)
-    for _, item in ipairs(groundInventory) do
+    for _, item in pairs(groundInventory) do
         if type(item) == 'table' and item.name and (item.quantity or item.amount) then
             local quantity = item.quantity or item.amount or 1
             print('[FW Ground] 🌍 Dropping', quantity, 'x', item.name, 'on ground')
-            
-            -- Triggere dropItem Event für jedes Item
-            local playerPed = GetPlayerPed(src)
-            local playerCoords = GetEntityCoords(playerPed)
-            
+
             -- Füge Item zu FW.GroundItems hinzu
-            local groundItemId = #FW.GroundItems + 1
+            local function GenerateGroundSaveId()
+                local id
+                repeat
+                    id = math.random(100000, 999999) .. '_' .. os.time()
+                until FW.GroundItems[id] == nil
+                return id
+            end
+            local groundItemId = GenerateGroundSaveId()
             FW.GroundItems[groundItemId] = {
                 id = groundItemId,
                 itemName = item.name,

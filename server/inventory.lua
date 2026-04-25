@@ -2,6 +2,8 @@ FW = FW or {}
 FW.Inventory = FW.Inventory or {}
 FW.Inventory.List = FW.Inventory.List or {}
 FW.GroundItems = FW.GroundItems or {}
+FW.Equipment = FW.Equipment or {}
+FW.EquipmentConfig = FW.EquipmentConfig or {}
 
 -- Helper: Generiere eindeutige ID für Ground Items
 local function GenerateGroundItemId()
@@ -49,24 +51,113 @@ function LoadJsonFromResource(fileName)
 
 end
 
+local FORCE_NON_STACKABLE_TYPES = {
+    weapon = true,
+    vest = true,
+    armor = true,
+    backpack = true,
+    large_bag = true,
+    hip_bag = true,
+    small_bag = true,
+    bag = true
+}
+
+local function IsForceNonStackableItem(item)
+    if not item or type(item) ~= 'table' then
+        return false
+    end
+
+    if item.hasStorage == true then
+        return true
+    end
+
+    if item.equipmentId ~= nil then
+        return true
+    end
+
+    if item.equipSlot ~= nil then
+        return true
+    end
+
+    local itemType = item.type or 'item'
+    if FORCE_NON_STACKABLE_TYPES[itemType] then
+        return true
+    end
+
+    local metadata = item.metadata or {}
+    if metadata.serial or metadata.plate or metadata.durability or metadata.ammo or metadata.owner or metadata.equipmentId then
+        return true
+    end
+
+    return false
+end
+
+local function NormalizeStackable(item)
+    -- Sicherheitsnetz:
+    -- Diese Funktion darf nur mit einem Item-Table arbeiten.
+    -- Wenn aus Versehen true/false/nil/string übergeben wird, blocken wir stackable.
+    if type(item) ~= 'table' then
+        print(('[FW Inventory] WARNING NormalizeStackable bekam kein Item-Table, sondern: %s'):format(type(item)))
+        return false
+    end
+
+    if IsForceNonStackableItem(item) then
+        return false
+    end
+
+    return item.stackable == true
+end
+
 function FW.Inventory.LoadItems()
     local filename = "configs/itemlist.json"
     local items = LoadJsonFromResource(filename)
 
     for _, item in ipairs(items) do
         if item.name and item.label then
-            FW.Inventory.List[item.name] = {
-                name = item.name,
-                label = item.label,
-                emoji = item.emoji or '📦',
-                itemweight = item.itemweight or 0,
-                type = item.type or 'item',
-                canUse = item.canUse or false
-            }
+            local normalizedItem = {
+            name = item.name,
+            label = item.label,
+            emoji = item.emoji or '📦',
+            itemweight = item.itemweight or 0,
+            type = item.type or 'item',
+            canUse = item.canUse or false,
+            hasStorage = item.hasStorage or false,
+            equipSlot = item.equipSlot or nil,
+            equipmentId = item.equipmentId or nil,
+            metadata = item.metadata or {}
+        }
+
+        normalizedItem.stackable = NormalizeStackable(normalizedItem)
+
+        FW.Inventory.List[item.name] = normalizedItem
             --print(('[FW] Item mit dem Label: %s erfolgreich registriert.'):format(item.label))
         else
             print('[FW] Ungltiger Item-Eintrag in der itemlist.json (kein name/label).')
         end
+    end
+
+    if FW.EquipmentConfig and FW.EquipmentConfig.equipmentItems then
+        local mergedEquipment = 0
+
+        for itemName, equipItem in pairs(FW.EquipmentConfig.equipmentItems) do
+            FW.Inventory.List[itemName] = FW.Inventory.List[itemName] or {}
+
+            FW.Inventory.List[itemName].name = equipItem.name or itemName
+            FW.Inventory.List[itemName].label = equipItem.label or FW.Inventory.List[itemName].label or itemName
+            FW.Inventory.List[itemName].emoji = equipItem.emoji or FW.Inventory.List[itemName].emoji or '📦'
+            FW.Inventory.List[itemName].itemweight = equipItem.itemweight or FW.Inventory.List[itemName].itemweight or 0
+            FW.Inventory.List[itemName].type = equipItem.type or FW.Inventory.List[itemName].type or 'item'
+            FW.Inventory.List[itemName].equipSlot = equipItem.equipSlot or FW.Inventory.List[itemName].equipSlot
+            FW.Inventory.List[itemName].hasStorage = equipItem.hasStorage or false
+            FW.Inventory.List[itemName].canUse = equipItem.canUse or FW.Inventory.List[itemName].canUse or false
+
+            -- Equipment niemals stackbar
+            FW.Inventory.List[itemName].stackable = false
+
+            mergedEquipment = mergedEquipment + 1
+        end
+
+        print(('[FW] ✅ %d Equipment-Items in Inventory.List gemerged.'):format(mergedEquipment))
     end
 
     print(('[FW] %d Items aus itemlist.json geladen.'):format(#items))
@@ -183,11 +274,9 @@ function FW.Inventory.AddItem(src, itemName, amount, metadata, slot)
     -- If slot specified, add to that slot or stack
     if slot ~= nil then
         local existingItem = slots[slot]
-        if existingItem and existingItem.name == itemName then
-            -- Stack on existing item
+        if existingItem and existingItem.name == itemName and NormalizeStackable(itemDef) then
             existingItem.quantity = (existingItem.quantity or 1) + amount
         else
-            -- Place new item in specified slot
             slots[slot] = {
                 name = itemName,
                 label = itemDef.label,
@@ -196,7 +285,11 @@ function FW.Inventory.AddItem(src, itemName, amount, metadata, slot)
                 itemweight = itemDef.itemweight,
                 type = itemDef.type,
                 canUse = itemDef.canUse,
-                metadata = metadata or {}
+                hasStorage = itemDef.hasStorage or false,
+                equipSlot = itemDef.equipSlot or nil,
+                equipmentId = itemDef.equipmentId or nil,
+                metadata = metadata or {},
+                stackable = NormalizeStackable(itemDef)
             }
         end
     else
@@ -225,6 +318,7 @@ function FW.Inventory.AddItem(src, itemName, amount, metadata, slot)
                 itemweight = itemDef.itemweight,
                 type = itemDef.type,
                 canUse = itemDef.canUse,
+                stackable = NormalizeStackable(itemDef),
                 metadata = metadata or {}
             }
             slot = freeSlot
@@ -294,6 +388,9 @@ function FW.Inventory.RemoveItem(src, itemName, amount, fromSlot)
 end
 
 RegisterNetEvent('fw:inventory:LoadItemList', function()
+    if FW.Equipment and FW.Equipment.LoadConfig then
+        FW.Equipment.LoadConfig()
+    end
     FW.Inventory.LoadItems()
 end)
 
@@ -367,13 +464,33 @@ FW.RegisterServerCallback('fw:inventory:getInventoryData', function(source, cb)
             local finalEmoji = item.emoji or '📦'
             local finalWeight = item.itemweight or 0
             local finalCanUse = item.canUse or false
-            
+            local finalHasStorage = item.hasStorage or false
+            local finalEquipSlot = item.equipSlot
+            local finalEquipmentId = item.equipmentId
+            local finalMetadata = item.metadata or {}
+
             if itemData then
-                finalType = itemData.type or 'item'
+                finalType = itemData.type or finalType
                 finalEmoji = itemData.emoji or finalEmoji
                 finalWeight = itemData.itemweight or finalWeight
                 finalCanUse = itemData.canUse or finalCanUse
+                finalHasStorage = itemData.hasStorage or finalHasStorage
+                finalEquipSlot = itemData.equipSlot or finalEquipSlot
+                finalEquipmentId = itemData.equipmentId or finalEquipmentId
             end
+
+            local finalStackable = NormalizeStackable({
+                name = item.name,
+                type = finalType,
+                hasStorage = finalHasStorage,
+                equipSlot = finalEquipSlot,
+                equipmentId = finalEquipmentId,
+                metadata = finalMetadata,
+
+                -- wichtig:
+                -- stackable darf true sein, wird aber durch NormalizeStackable bei Equipment wieder false
+                stackable = itemData and itemData.stackable or item.stackable
+            })
             
             inventoryObject[uniqueKey] = {
                 slot = i - 1, -- Frontend uses 0-indexed
@@ -384,6 +501,7 @@ FW.RegisterServerCallback('fw:inventory:getInventoryData', function(source, cb)
                 itemweight = finalWeight,
                 type = finalType,
                 canUse = finalCanUse,
+                stackable = finalStackable,
                 metadata = item.metadata or {}
             }
             itemCount = itemCount + 1
@@ -815,19 +933,64 @@ RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
 
     -- Validate equipment slot compatibility
     if toIsEquip then
-        local itemData = FW.Equipment.GetItemData(fromItem.name)
-        print(('[FW Equipment] DEBUG GetItemData result: %s'):format(itemData and 'FOUND' or 'NOT FOUND'))
+        local itemName = fromItem.name or fromItem.itemName
+        local itemData = FW.Equipment.GetItemData(itemName)
+
+        local slotConfig = FW.EquipmentConfig
+            and FW.EquipmentConfig.equipmentSlots
+            and FW.EquipmentConfig.equipmentSlots[toSlot]
+
+        local itemType = nil
+        local itemEquipSlot = nil
+
         if itemData then
-            print(('[FW Equipment] DEBUG itemData.equipSlot=%s, target=%s'):format(
-                tostring(itemData.equipSlot), 
-                tostring(toSlot)
-            ))
+            itemType = itemData.type
+            itemEquipSlot = itemData.equipSlot
         end
-        
-        if not itemData or itemData.equipSlot ~= toSlot then
-            print(('[FW Equipment] Item %s cannot be equipped to %s slot'):format(fromItem.name, toSlot))
+
+        -- Fallback auf Itemdaten aus Inventar / itemlist.json
+        itemType = itemType or fromItem.type
+        itemEquipSlot = itemEquipSlot or fromItem.equipSlot
+
+        local allowed = false
+
+        -- Direkter equipSlot-Match: backpack_medium -> bag1
+        if itemEquipSlot and itemEquipSlot == toSlot then
+            allowed = true
+        end
+
+        -- Fallback über allowedTypes: type backpack darf in bag1
+        if not allowed and slotConfig and slotConfig.allowedTypes and itemType then
+            for _, allowedType in ipairs(slotConfig.allowedTypes) do
+                if allowedType == itemType then
+                    allowed = true
+                    break
+                end
+            end
+        end
+
+        print(('[FW Equipment] Validate equip: item=%s type=%s equipSlot=%s target=%s result=%s'):format(
+            tostring(itemName),
+            tostring(itemType),
+            tostring(itemEquipSlot),
+            tostring(toSlot),
+            allowed and 'ALLOWED' or 'BLOCKED'
+        ))
+
+        if not allowed then
+            print(('[FW Equipment] Item %s cannot be equipped to %s slot'):format(tostring(itemName), tostring(toSlot)))
             TriggerClientEvent('fw:client:notify', src, 'Ungültiges Item für diesen Slot', 'error')
             return
+        end
+
+        -- Equipment-Metadaten sauber ergänzen
+        if itemData then
+            fromItem.type = itemData.type or fromItem.type
+            fromItem.equipSlot = itemData.equipSlot or fromItem.equipSlot
+            fromItem.hasStorage = itemData.hasStorage or fromItem.hasStorage or false
+            fromItem.itemweight = itemData.itemweight or fromItem.itemweight or 0
+            fromItem.canUse = itemData.canUse or fromItem.canUse or false
+            fromItem.stackable = false
         end
     end
 
@@ -882,8 +1045,10 @@ RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
 
     -- Update player state
     Player.setInventory(slotsCopy)
-    for slot, item in pairs(equipmentCopy) do
-        Player.setEquipment(slot, item)
+    local equipmentSlotNames = { 'vest', 'weapon', 'bag1', 'bag2' }
+
+    for _, slotName in ipairs(equipmentSlotNames) do
+        Player.setEquipment(slotName, equipmentCopy[slotName])
     end
 
     -- Save to database
@@ -906,6 +1071,7 @@ RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
                     itemweight = item.itemweight,
                     type = item.type,
                     canUse = item.canUse,
+                    stackable = item.stackable ~= false,
                     metadata = item.metadata or {}
                 }
             end
@@ -919,20 +1085,31 @@ RegisterNetEvent('fw:inventory:moveItem', function(fromSlot, toSlot)
             bag2 = nil
         }
         
-        for slot, item in pairs(equipmentCopy) do
+        local equipmentSlotNames = { 'vest', 'weapon', 'bag1', 'bag2' }
+
+        for _, slot in ipairs(equipmentSlotNames) do
+            local item = equipmentCopy[slot]
+
             if item and item.name then
                 local itemData = FW.Inventory.List[item.name]
+                local equipData = FW.Equipment.GetItemData(item.name)
+
                 equipmentData[slot] = {
                     name = item.name,
-                    label = item.label or (itemData and itemData.label) or item.name,
-                    emoji = item.emoji or (itemData and itemData.emoji) or '📦',
+                    label = item.label or (equipData and equipData.label) or (itemData and itemData.label) or item.name,
+                    emoji = item.emoji or (equipData and equipData.emoji) or (itemData and itemData.emoji) or '📦',
                     quantity = item.quantity or 1,
-                    itemweight = item.itemweight or (itemData and itemData.itemweight) or 0,
-                    type = item.type or (itemData and itemData.type) or 'item',
-                    canUse = item.canUse or (itemData and itemData.canUse) or false,
+                    itemweight = item.itemweight or (equipData and equipData.itemweight) or (itemData and itemData.itemweight) or 0,
+                    type = item.type or (equipData and equipData.type) or (itemData and itemData.type) or 'item',
+                    equipSlot = item.equipSlot or (equipData and equipData.equipSlot) or slot,
+                    hasStorage = item.hasStorage or (equipData and equipData.hasStorage) or false,
+                    canUse = item.canUse or (equipData and equipData.canUse) or (itemData and itemData.canUse) or false,
+                    stackable = false,
                     metadata = item.metadata or {},
                     equipmentId = item.equipmentId
                 }
+            else
+                equipmentData[slot] = nil
             end
         end
         
@@ -976,6 +1153,7 @@ RegisterNetEvent('fw:inventory:updateInventoryOrder', function(data)
                     itemweight = item.itemweight or 0,
                     type = item.type or 'item',
                     canUse = item.canUse or false,
+                    stackable = item.stackable or false,
                     metadata = item.metadata or {}
                 }
             end

@@ -40,6 +40,10 @@ window.useCreatorStore = Pinia.defineStore('creator', {
             this.isFocused = false;
         },
 
+        setVisible(state) {
+            this.isOpen = !!state;
+        },
+
         toggleFocus() {
             if (!this.isOpen) return;
             this.isFocused = !this.isFocused;

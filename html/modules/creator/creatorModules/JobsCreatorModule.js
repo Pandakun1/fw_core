@@ -1,4 +1,4 @@
-const { computed } = Vue;
+const { computed, onMounted, onUnmounted } = Vue;
 
 const JobsCreatorModule = {
     name: 'JobsCreatorModule',

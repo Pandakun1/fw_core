@@ -195,7 +195,9 @@ const InventoryModule = {
                             hasStorage: itemData.hasStorage || false,
                             equipmentId: itemData.equipmentId || null,
                             itemweight: itemData.itemweight || 0,
-                            canUse: itemData.canUse || false
+                            canUse: itemData.canUse || false,
+                            stackable: itemData.stackable !== false,
+                            metadata: itemData.metadata || {} // Metadata direkt aus Server-Daten übernehmen
                         };
                         loadedCount++;
                     } else if (itemData) {
@@ -242,6 +244,14 @@ const InventoryModule = {
         const loadedCount = items.filter(item => item !== null).length;
         FWDebug.log('Inventory', 'Total loaded', loadedCount, '/', maxSlots);
         
+        equipmentSlots.value = {
+            vest: null,
+            weapon: null,
+            bag1: null,
+            bag2: null
+        };
+
+
         // Load equipment data if provided
         if (props.data?.equipment) {
             console.log('[InventoryModule] Loading equipment data:', props.data.equipment);
@@ -256,11 +266,13 @@ const InventoryModule = {
                         emoji: equipItem.emoji || '📦',
                         quantity: equipItem.amount || 1,
                         type: equipItem.type || 'item',
-                        equipSlot: slotName,
+                        equipSlot: equipItem.equipSlot || slotName,
                         hasStorage: equipItem.hasStorage || false,
                         equipmentId: equipItem.equipmentId || null,
                         itemweight: equipItem.itemweight || 0,
-                        canUse: equipItem.canUse || false
+                        canUse: equipItem.canUse || false,
+                        stackable: false,
+                        metadata: equipItem.metadata || {}
                     };
                     console.log(`[InventoryModule] ✅ Loaded equipment in ${slotName}:`, equipmentSlots.value[slotName].name);
                 }
@@ -294,28 +306,314 @@ const InventoryModule = {
     // Helpers
     const isItemDefined = (item) => item !== null && item?.emoji !== undefined && item?.emoji !== '';
     
+    const getItemKey = (item) => {
+        return item?.itemName || item?.name || null;
+    };
+
+    const normalizeMetadata = (metadata) => {
+        if (!metadata || typeof metadata !== 'object') return {};
+        return metadata;
+    };
+
+    const metadataEquals = (a, b) => {
+        return JSON.stringify(normalizeMetadata(a)) === JSON.stringify(normalizeMetadata(b));
+    };
+
+    // Stack-Regel:
+    // - stackable === false blockiert
+    // - Equipment / Storage / Items mit eindeutiger Metadata werden blockiert
+    // - gleiche Items mit gleicher Metadata dürfen gestackt werden
+    const isStackableItem = (item) => {
+        if (!isItemDefined(item)) return false;
+
+        if (item.stackable === false) return false;
+
+        // Equipment / einzigartige Items nicht automatisch stacken
+        if (item.equipmentId) return false;
+        if (item.hasStorage) return false;
+
+        // Waffen / Ausrüstung sicherheitshalber blockieren
+        const blockedTypes = [
+            'weapon',
+            'vest',
+            'armor',
+            'backpack',
+            'large_bag',
+            'hip_bag',
+            'small_bag',
+            'bag'
+        ];
+
+        if (blockedTypes.includes(item.type)) return false;
+
+        // Items mit eindeutigen Metadaten nicht automatisch stacken
+        const metadata = normalizeMetadata(item.metadata);
+        if (
+            metadata.serial ||
+            metadata.plate ||
+            metadata.durability ||
+            metadata.ammo ||
+            metadata.owner ||
+            metadata.equipmentId
+        ) {
+            return false;
+        }
+
+        return true;
+    };
+
+    const buildInventoryPayload = (items) => {
+        return items
+            .map((item, index) => {
+                if (!item) return null;
+
+                return {
+                    slot: index,
+                    name: item.itemName || item.name,
+                    label: item.name,
+                    emoji: item.emoji,
+                    quantity: item.quantity || 1,
+                    itemweight: item.itemweight || 0,
+                    type: item.type || 'item',
+                    canUse: item.canUse || false,
+                    metadata: item.metadata || {},
+                    hasStorage: item.hasStorage || false,
+                    equipmentId: item.equipmentId || null,
+                    equipSlot: item.equipSlot || null,
+                    stackable: isStackableItem(item)
+                };
+            })
+            .filter(item => item !== null);
+    };
+
+    const syncMainInventoryOrder = () => {
+        NUIBridge.send('updateInventoryOrder', {
+            inventory: buildInventoryPayload(inventoryItems.value)
+        });
+    };
+
+    const syncDualInventoryOrder = () => {
+        if (!dualInventoryOpen.value) {
+            syncMainInventoryOrder();
+            return;
+        }
+
+        const mainInventoryArray = buildInventoryPayload(inventoryItems.value);
+        const secondInventoryArray = buildInventoryPayload(secondInventoryItems.value);
+
+        if (dualInventoryMode.value === 'trunk') {
+            NUIBridge.send('saveTrunk', {
+                plate: dualInventoryMetadata.value.plate,
+                inventory: secondInventoryArray,
+                mainInventory: mainInventoryArray
+            });
+        } else if (dualInventoryMode.value === 'glovebox') {
+            NUIBridge.send('saveGlovebox', {
+                plate: dualInventoryMetadata.value.plate,
+                inventory: secondInventoryArray,
+                mainInventory: mainInventoryArray
+            });
+        } else if (dualInventoryMode.value === 'stash') {
+            NUIBridge.send('saveStash', {
+                stashId: dualInventoryMetadata.value.stashId,
+                inventory: secondInventoryArray,
+                mainInventory: mainInventoryArray
+            });
+        } else if (dualInventoryMode.value === 'ground') {
+            NUIBridge.send('saveGround', {
+                inventory: secondInventoryArray,
+                mainInventory: mainInventoryArray
+            });
+        } else {
+            syncMainInventoryOrder();
+        }
+    };
+
+    const stackAllSameItemsIntoSlot = (rawIndex) => {
+        const isSecondInventory = typeof rawIndex === 'string' && rawIndex.startsWith('second-');
+        const targetIndex = isSecondInventory
+            ? parseInt(rawIndex.replace('second-', ''))
+            : rawIndex;
+
+        const targetArray = isSecondInventory
+            ? secondInventoryItems.value
+            : inventoryItems.value;
+
+        const targetItem = targetArray[targetIndex];
+
+        if (!isItemDefined(targetItem)) return false;
+        if (!isStackableItem(targetItem)) {
+            console.log('[Inventar] Shift-Stack blockiert: Item ist nicht stackbar:', targetItem.name);
+            return false;
+        }
+
+        const targetKey = getItemKey(targetItem);
+        if (!targetKey) return false;
+
+        let addedQuantity = 0;
+        const newItems = [...targetArray];
+
+        for (let i = 0; i < newItems.length; i++) {
+            if (i === targetIndex) continue;
+
+            const item = newItems[i];
+            if (!isItemDefined(item)) continue;
+            if (!isStackableItem(item)) continue;
+
+            const itemKey = getItemKey(item);
+
+            if (
+                itemKey === targetKey &&
+                metadataEquals(item.metadata, targetItem.metadata)
+            ) {
+                addedQuantity += item.quantity || 1;
+                newItems[i] = null;
+            }
+        }
+
+        if (addedQuantity <= 0) {
+            console.log('[Inventar] Shift-Stack: Keine weiteren gleichen Items gefunden:', targetItem.name);
+            return false;
+        }
+
+        newItems[targetIndex] = {
+            ...targetItem,
+            quantity: (targetItem.quantity || 1) + addedQuantity
+        };
+
+        if (isSecondInventory) {
+            secondInventoryItems.value = newItems;
+            syncDualInventoryOrder();
+        } else {
+            inventoryItems.value = newItems;
+            syncMainInventoryOrder();
+        }
+
+        console.log(
+            '[Inventar] Shift-Stack:',
+            addedQuantity,
+            'x',
+            targetItem.name,
+            'in Slot',
+            rawIndex,
+            'gezogen. Neue Menge:',
+            newItems[targetIndex].quantity
+        );
+
+        return true;
+    };
+
+    const shiftMoveStackToOppositeInventory = (rawIndex) => {
+        if (!dualInventoryOpen.value) {
+            return false;
+        }
+
+        const isFromSecond = typeof rawIndex === 'string' && rawIndex.startsWith('second-');
+        const fromIndex = isFromSecond
+            ? parseInt(rawIndex.replace('second-', ''))
+            : rawIndex;
+
+        const fromArray = isFromSecond
+            ? secondInventoryItems.value
+            : inventoryItems.value;
+
+        const toArray = isFromSecond
+            ? inventoryItems.value
+            : secondInventoryItems.value;
+
+        const sourceItem = fromArray[fromIndex];
+
+        if (!isItemDefined(sourceItem)) {
+            console.log('[Inventar] Shift-Move blockiert: Kein Item im Quellslot:', rawIndex);
+            return false;
+        }
+
+        const targetIndex = toArray.findIndex(slot => !isItemDefined(slot));
+
+        if (targetIndex === -1) {
+            console.log(
+                '[Inventar] Shift-Move blockiert: Kein freier Slot im Zielinventar für:',
+                sourceItem.name
+            );
+            return false;
+        }
+
+        // Kopien erzeugen, damit Vue sauber reagiert
+        const newFromArray = [...fromArray];
+        const newToArray = [...toArray];
+
+        newToArray[targetIndex] = {
+            ...sourceItem,
+            id: targetIndex
+        };
+
+        newFromArray[fromIndex] = null;
+
+        if (isFromSecond) {
+            secondInventoryItems.value = newFromArray;
+            inventoryItems.value = newToArray;
+        } else {
+            inventoryItems.value = newFromArray;
+            secondInventoryItems.value = newToArray;
+
+            // Optionales Tracking für bestehende Logik
+            movedFromMainInventory.add(fromIndex);
+        }
+
+        syncDualInventoryOrder();
+
+        console.log(
+            '[Inventar] Shift-Move:',
+            sourceItem.name,
+            'x',
+            sourceItem.quantity || 1,
+            isFromSecond ? 'vom Second Inventory ins Spielerinventar' : 'vom Spielerinventar ins Second Inventory',
+            '→ Zielslot:',
+            isFromSecond ? targetIndex : `second-${targetIndex}`
+        );
+
+        return true;
+    };
+
     // Equipment Validation: Prüft ob Item in Equipment-Slot gedroppt werden darf
     const canEquipToSlot = (item, targetSlot) => {
-        FWDebug.log('Equipment', 'Validate', item?.name, item?.type, '→', targetSlot);
-        
-        if (!item || !item.type) {
-            FWDebug.log('Equipment', 'Invalid item or no type');
+        FWDebug.log('Equipment', 'Validate', item?.name, item?.type, item?.equipSlot, '→', targetSlot);
+
+        if (!item) {
             return { allowed: false, message: 'Ungültiges Item' };
         }
-        
+
         const slotConfig = equipmentConfig.value[targetSlot];
         if (!slotConfig) {
             FWDebug.log('Equipment', 'Invalid slot', targetSlot);
             return { allowed: false, message: 'Ungültiger Slot' };
         }
-        
-        // Prüfe ob Item-Typ erlaubt ist
-        const isAllowed = slotConfig.allowedTypes.includes(item.type);
-        FWDebug.log('Equipment', isAllowed ? 'OK' : 'REJECT', item.type, 'in', targetSlot);
-        
+
+        const itemType = item.type || 'item';
+        const itemEquipSlot = item.equipSlot || null;
+
+        // Direkter Slot-Match
+        if (itemEquipSlot && itemEquipSlot === targetSlot) {
+            return { allowed: true, message: null };
+        }
+
+        // Typ-Match über allowedTypes
+        const isAllowedByType = Array.isArray(slotConfig.allowedTypes)
+            && slotConfig.allowedTypes.includes(itemType);
+
+        FWDebug.log(
+            'Equipment',
+            isAllowedByType ? 'OK' : 'REJECT',
+            item.name,
+            itemType,
+            itemEquipSlot,
+            'in',
+            targetSlot
+        );
+
         return {
-            allowed: isAllowed,
-            message: isAllowed ? null : slotConfig.rejectMessage
+            allowed: isAllowedByType,
+            message: isAllowedByType ? null : (slotConfig.rejectMessage || 'Ungültiges Item für diesen Slot')
         };
     };
 
@@ -540,6 +838,11 @@ const InventoryModule = {
         } else if (dualInventoryMode.value === 'stash') {
             NUIBridge.send('saveStash', {
                 stashId: dualInventoryMetadata.value.stashId,
+                inventory: secondInvArray,
+                mainInventory: mainInvArray
+            });
+        } else if (dualInventoryMode.value === 'ground') {
+            NUIBridge.send('saveGround', {
                 inventory: secondInvArray,
                 mainInventory: mainInvArray
             });
@@ -1340,6 +1643,41 @@ const InventoryModule = {
         if (!isItemDefined(sourceArray[actualIndex])) return;
         if (e.button !== 0) return; // Only left mouse button
 
+        // Shift + Linksklick:
+        // Alle gleichen stackbaren Items in den angeklickten Slot ziehen.
+        // Wichtig: Danach kein Drag starten.
+        if (e.ctrlKey) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const stacked = stackAllSameItemsIntoSlot(index);
+
+            if (stacked) {
+                // Context-Menü sicher schließen, falls offen
+                closeContextMenu?.();
+            }
+
+            return;
+        }
+
+        if (e.shiftKey) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (!dualInventoryOpen.value) {
+                return;
+            }
+
+            const moved = shiftMoveStackToOppositeInventory(index);
+
+            if (moved) {
+                closeContextMenu?.();
+            }
+
+            return;
+        }
+
+
         e.preventDefault();
         
         const item = sourceArray[actualIndex];
@@ -1726,6 +2064,11 @@ const InventoryModule = {
                         inventory: inventoryArray,
                         mainInventory: mainInventoryArray
                     });
+                } else if (dualInventoryMode.value === 'ground') {
+                    NUIBridge.send('saveGround', {
+                        inventory: secondInvArray,
+                        mainInventory: mainInvArray
+                    });
                 }
                 
                 console.log('[Inventar] ✅ Dual inventory saved:', dualInventoryMode.value);
@@ -1977,6 +2320,11 @@ const InventoryModule = {
                                     inventory: secondInvArray,
                                     mainInventory: mainInvArray
                                 });
+                            } else if (dualInventoryMode.value === 'ground') {
+                                NUIBridge.send('saveGround', {
+                                    inventory: secondInvArray,
+                                    mainInventory: mainInvArray
+                                });
                             }
                             
                             console.log('[Inventar] ✅ Dual-Inventar gespeichert nach innerem Move');
@@ -2074,6 +2422,11 @@ const InventoryModule = {
                                 inventory: secondInvArray,
                                 mainInventory: mainInvArray
                             });
+                        } else if (dualInventoryMode.value === 'ground') {
+                            NUIBridge.send('saveGround', {
+                                inventory: secondInvArray,
+                                mainInventory: mainInvArray
+                            });
                         }
                         
                         console.log('[Inventar] ✅ Beide Inventare gespeichert nach Move');
@@ -2140,7 +2493,12 @@ const InventoryModule = {
                         itemName: actualItemName,
                         name: itemData.label || actualItemName || 'Unbekannt',
                         emoji: itemData.emoji || getEmojiForItem(actualItemName),
-                        quantity: itemData.amount || 1
+                        quantity: itemData.amount || 1,
+                        type: itemData.type || 'item',
+                        itemweight: itemData.itemweight || 0,
+                        canUse: itemData.canUse || false,
+                        metadata: itemData.metadata || {},
+                        stackable: itemData.stackable !== false
                     };
                     loadedCount++;
                 }
@@ -2167,7 +2525,8 @@ const InventoryModule = {
                         hasStorage: equipItem.hasStorage || false,
                         equipmentId: equipItem.equipmentId || null,
                         itemweight: equipItem.itemweight || 0,
-                        canUse: equipItem.canUse || false
+                        canUse: equipItem.canUse || false,
+                        stackable: equipItem.stackable || false
                     };
                     console.log(`[Inventar] ✅ Equipment updated in ${slotName}:`, equipmentSlots.value[slotName].name);
                 } else {
@@ -2204,7 +2563,8 @@ const InventoryModule = {
                     quantity: itemData.amount || 1,
                     itemweight: itemData.itemweight,
                     type: itemData.type,
-                    canUse: itemData.canUse
+                    canUse: itemData.canUse || false,
+                    stackable: itemData.stackable !== false
                 };
             }
         }

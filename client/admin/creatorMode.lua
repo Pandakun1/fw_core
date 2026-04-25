@@ -127,12 +127,13 @@ FW.Admin = FW.Admin or {}
 FW.Creator = FW.Creator or {}
 
 local CreatorState = {
+    sessionActive = false,
     visible = false,
     focused = false,
     activeMode = nil,
     noclipEnabled = false,
 
-    pendingTast = nil,
+    pendingTask = nil,
 
     cachedVehicle = nil,
     previewTickRegistered = false,
@@ -196,6 +197,50 @@ local function ResetCreatorDrafts()
         bossmenu = nil,
         stash = nil
     }
+end
+
+local function HideCreatorMenuOnly()
+    CreatorState.visible = false
+    CreatorState.focused = false
+
+    SetNuiFocus(false, false)
+
+    SendNUIMessage({
+        action = 'creator:setVisible',
+        visible = false
+    })
+end
+
+local function ShowCreatorMenuOnly()
+    CreatorState.visible = true
+    CreatorState.focused = true
+
+    SetNuiFocus(true, true)
+
+    SendNUIMessage({
+        action = 'creator:setVisible',
+        visible = true
+    })
+
+    SendNUIMessage({
+        action = 'creator:setFocus',
+        focused = true
+    })
+
+    SendNUIMessage({
+        action = 'creator:setMode',
+        mode = CreatorState.activeMode
+    })
+
+    SendNUIMessage({
+        action = 'creator:setNoclipState',
+        enabled = CreatorState.noclipEnabled
+    })
+end
+
+local function StartCreatorTask(task)
+    CreatorState.pendingTask = task
+    HideCreatorMenuOnly()
 end
 
 local function SetCreatorAppearance(enabled)
@@ -273,17 +318,16 @@ local function SetCreatorFocus(state)
 end
 
 local function OpenCreator()
+    CreatorState.sessionActive = true
     CreatorState.visible = true
     CreatorState.focused = true
 
-    -- Falls Admin-Menü offen ist, zuerst schließen
     if FW.Admin and FW.Admin.IsMenuOpen and FW.Admin.IsMenuOpen() then
         CloseAdminMenu()
     end
 
     SetNuiFocus(true, true)
 
-    -- Zentrales App-Route-System öffnen
     SendNUIMessage({
         action = 'open',
         data = {
@@ -291,7 +335,11 @@ local function OpenCreator()
         }
     })
 
-    -- Creator-spezifischen State setzen
+    SendNUIMessage({
+        action = 'creator:setVisible',
+        visible = true
+    })
+
     SendNUIMessage({
         action = 'creator:setFocus',
         focused = true
@@ -320,14 +368,19 @@ local function HideCreatorMenu()
 end
 
 local function ExitCreatorMode()
-    HideCreatorMenu()
+    CreatorState.sessionActive = false
+    CreatorState.visible = false
+    CreatorState.focused = false
+    CreatorState.pendingTask = nil
     CreatorState.activeMode = nil
+
+    ClearCreatorOutline()
     SetCreatorNoclip(false, true)
 
-    SendNUIMessage({
-        action = 'creator:setMode',
-        mode = nil
-    })
+    SetNuiFocus(false, false)
+
+    SendNUIMessage({ action = 'closeMenu' })
+    SendNUIMessage({ action = 'creator:setMode', mode = nil })
 
     Notify('[Creator] Creator Mode beendet.')
 end
@@ -396,7 +449,6 @@ local function GetGameplayCameraForward()
 end
 
 local function SafeDoorRaycast(maxDistance)
-    HideCreatorMenu()
     local ped = PlayerPedId()
     local origin = GetGameplayCamCoord()
     local destination = origin + GetGameplayCameraForward() * (maxDistance or 20.0)
@@ -420,7 +472,6 @@ local function SafeDoorRaycast(maxDistance)
         return nil, hitCoords
     end
 
-    OpenCreator()
     return entity, hitCoords
 end
 
@@ -519,7 +570,7 @@ local function RegisterCreatorPreviewTick()
     end
 
     FW.Client.RegisterNearbyTick(CREATOR_NEARBY_TICK_ID, function(_, sleep)
-        if not CreatorState.visible then
+        if not CreatorState.sessionActive and not CreatorState.pendingTask then
             return sleep
         end
 
@@ -569,6 +620,136 @@ CreateThread(function()
     end
 end)
 
+
+local lastDoorRaycastAt = 0
+local cachedDoorEntity = nil
+local cachedDoorHitCoords = nil
+local creatorOutlinedTarget = nil
+
+local function ClearCreatorOutline()
+    if creatorOutlinedTarget and DoesEntityExist(creatorOutlinedTarget) then
+        SetEntityDrawOutline(creatorOutlinedTarget, false)
+    end
+    creatorOutlinedTarget = nil
+end
+
+local function ApplyCreatorOutline(entity)
+    if creatorOutlinedTarget == entity then
+        return
+    end
+
+    ClearCreatorOutline()
+
+    if entity and DoesEntityExist(entity) then
+        SetEntityDrawOutlineShader(1)
+        SetEntityDrawOutlineColor(0, 255, 255, 180)
+        SetEntityDrawOutline(entity, true)
+        creatorOutlinedTarget = entity
+    end
+end
+
+CreateThread(function()
+    while true do
+        if not CreatorState.pendingTask then
+            Wait(250)
+        else
+            Wait(0)
+
+            local task = CreatorState.pendingTask
+
+            if task.type == 'doors_capture_primary' or task.type == 'doors_capture_secondary' then
+                local now = GetGameTimer()
+                if now - lastDoorRaycastAt >= 35 then
+                    lastDoorRaycastAt = now
+                    cachedDoorEntity, cachedDoorHitCoords = SafeDoorRaycast(25.0)
+                end
+
+                local entity, hitCoords = cachedDoorEntity, cachedDoorHitCoords
+
+                if entity and DoesEntityExist(entity) then
+                    ApplyCreatorOutline(entity)
+
+                    BeginTextCommandDisplayHelp('STRING')
+                    AddTextComponentSubstringPlayerName('Tür anschauen und ~INPUT_FRONTEND_ACCEPT~ drücken. ~INPUT_FRONTEND_CANCEL~ bricht ab.')
+                    EndTextCommandDisplayHelp(0, false, false, -1)
+
+                    if IsControlJustPressed(0, 201) then -- ENTER
+                        local capture = BuildDoorCapture(entity, hitCoords)
+
+                        if capture then
+                            if task.type == 'doors_capture_primary' then
+                                CreatorState.doors.primary = capture
+
+                                SendNUIMessage({
+                                    action = 'creator:doors:setPrimary',
+                                    entity = capture
+                                })
+                            else
+                                CreatorState.doors.secondary = capture
+
+                                SendNUIMessage({
+                                    action = 'creator:doors:setSecondary',
+                                    entity = capture
+                                })
+                            end
+                        end
+
+                        CreatorState.pendingTask = nil
+                        ShowCreatorMenuOnly()
+                    elseif IsControlJustPressed(0, 177) or IsControlJustPressed(0, 200) then
+                        ClearCreatorOutline()
+                        CreatorState.pendingTask = nil
+                        ShowCreatorMenuOnly()
+                    end
+                else
+                    ClearCreatorOutline()
+                    BeginTextCommandDisplayHelp('STRING')
+                    AddTextComponentSubstringPlayerName('Keine gültige Tür im Blick. ~INPUT_FRONTEND_CANCEL~ bricht ab.')
+                    EndTextCommandDisplayHelp(0, false, false, -1)
+
+                    if IsControlJustPressed(0, 177) or IsControlJustPressed(0, 200) then
+                        ClearCreatorOutline()
+                        CreatorState.pendingTask = nil
+                        ShowCreatorMenuOnly()
+                    end
+                end
+            elseif task.type == 'jobs_capture_point' then
+                local coords = GetPlayerCoordsWithHeading()
+
+                DrawMarker(
+                    28,
+                    coords.x, coords.y, coords.z + 0.02,
+                    0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0,
+                    0.12, 0.12, 0.12,
+                    80, 200, 255, 180,
+                    false, false, 2, false, nil, nil, false
+                )
+
+                BeginTextCommandDisplayHelp('STRING')
+                AddTextComponentSubstringPlayerName(('Position für ~b~%s~s~ mit ~INPUT_FRONTEND_ACCEPT~ bestätigen. ~INPUT_FRONTEND_CANCEL~ bricht ab.'):format(task.pointType))
+                EndTextCommandDisplayHelp(0, false, false, -1)
+
+                if IsControlJustPressed(0, 201) then
+                    CreatorState.jobs.points[task.pointType] = coords
+
+                    SendNUIMessage({
+                        action = 'creator:jobs:setPoint',
+                        pointType = task.pointType,
+                        coords = coords
+                    })
+
+                    CreatorState.pendingTask = nil
+                    ShowCreatorMenuOnly()
+                elseif IsControlJustPressed(0, 177) or IsControlJustPressed(0, 200) then
+                    CreatorState.pendingTask = nil
+                    ShowCreatorMenuOnly()
+                end
+            end
+        end
+    end
+end)
+
 RegisterNUICallback('creator:close', function(_, cb)
     HideCreatorMenu()
     cb({ ok = true })
@@ -614,17 +795,11 @@ RegisterNUICallback('creator:doors:capturePrimary', function(_, cb)
         return
     end
 
-    local result, err = CaptureDoorsPrimary()
-    if not result then
-        cb({ ok = false, error = err })
-        return
-    end
-
-    cb({
-        ok = true,
-        coords = result.coords,
-        entity = result
+    StartCreatorTask({
+        type = 'doors_capture_primary'
     })
+
+    cb({ ok = true, started = true })
 end)
 
 RegisterNUICallback('creator:doors:captureSecondary', function(_, cb)
@@ -633,17 +808,11 @@ RegisterNUICallback('creator:doors:captureSecondary', function(_, cb)
         return
     end
 
-    local result, err = CaptureDoorsSecondary()
-    if not result then
-        cb({ ok = false, error = err })
-        return
-    end
-
-    cb({
-        ok = true,
-        coords = result.coords,
-        entity = result
+    StartCreatorTask({
+        type = 'doors_capture_secondary'
     })
+
+    cb({ ok = true, started = true })
 end)
 
 RegisterNUICallback('creator:doors:saveDraft', function(data, cb)
@@ -669,16 +838,18 @@ RegisterNUICallback('creator:jobs:capturePoint', function(data, cb)
         return
     end
 
-    local result = CaptureJobPoint(data and data.type)
-    if not result then
-        cb({ ok = false, error = 'invalid_point_type' })
+    local pointType = data and data.type
+    if not pointType then
+        cb({ ok = false, error = 'missing_point_type' })
         return
     end
 
-    cb({
-        ok = true,
-        coords = result
+    StartCreatorTask({
+        type = 'jobs_capture_point',
+        pointType = pointType
     })
+
+    cb({ ok = true, started = true })
 end)
 
 RegisterNUICallback('creator:jobs:saveDraft', function(data, cb)

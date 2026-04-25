@@ -23,6 +23,22 @@ const CreatorModule = {
 
         const creatorStore = creatorStoreFactory();
 
+        creatorStore.setVisible(true);
+
+        const doorsStoreFactory = window.useDoorsCreatorStore;
+        const jobsStoreFactory = window.useJobsCreatorStore;
+
+        if (typeof doorsStoreFactory !== 'function') {
+            throw new Error('window.useDoorsCreatorStore ist nicht verfügbar');
+        }
+
+        if (typeof jobsStoreFactory !== 'function') {
+            throw new Error('window.useJobsCreatorStore ist nicht verfügbar');
+        }
+
+        const doorsStore = doorsStoreFactory();
+        const jobsStore = jobsStoreFactory();
+
         const isOpen = computed(() => creatorStore.isOpen);
         const isFocused = computed(() => creatorStore.isFocused);
         const noclipEnabled = computed(() => creatorStore.noclipEnabled);
@@ -74,6 +90,7 @@ const CreatorModule = {
 
             if (data.action === 'creator:open') {
                 creatorStore.open();
+                creatorStore.setVisible(true);
                 return;
             }
 
@@ -99,6 +116,26 @@ const CreatorModule = {
 
             if (data.action === 'creator:setNoclipState') {
                 creatorStore.setNoclip(data.enabled === true);
+            }
+
+            if (data.action === 'creator:setVisible') {
+                creatorStore.setVisible(data.visible);
+                return;
+            }
+
+            if (data.action === 'creator:doors:setPrimary') {
+                doorsStore.setPrimaryDoor(data.entity);
+                return;
+            }
+
+            if (data.action === 'creator:doors:setSecondary') {
+                doorsStore.setSecondaryDoor(data.entity);
+                return;
+            }
+
+            if (data.action === 'creator:jobs:setPoint') {
+                jobsStore.setPoint(data.pointType, data.coords);
+                return;
             }
         };
 
@@ -171,7 +208,7 @@ const CreatorModule = {
     },
 
     template: `
-    <div class="absolute left-0 top-1/2 -translate-y-1/2 w-[1100px] h-[720px] flex text-white">
+    <div v-if="isOpen" class="absolute left-0 top-1/2 -translate-y-1/2 w-[1100px] h-[720px] flex text-white">
         <div class="w-[340px] ml-4 rounded-l-2xl border border-[#2a2b36] bg-[#121317ee] shadow-2xl overflow-hidden">
             <div class="px-5 py-4 border-b border-[#2a2b36]">
                 <div class="text-xl font-bold text-cyan-400">CREATOR PANEL</div>

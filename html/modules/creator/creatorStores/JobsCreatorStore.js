@@ -22,6 +22,11 @@ window.useJobsCreatorStore = Pinia.defineStore('jobsCreator', {
             };
         },
 
+        setPoint(type, coords) {
+            if (!type) return;
+            this.points[type] = coords || null;
+        },
+
         async capturePoint(type) {
             try {
                 const result = await window.NUIBridge.send('creator:jobs:capturePoint', { type });

@@ -14,6 +14,14 @@ window.useDoorsCreatorStore = Pinia.defineStore('doorsCreator', {
             this.secondaryDoor = null;
         },
 
+        setPrimaryDoor(entity) {
+            this.primaryDoor = entity || null;
+        },
+
+        setSecondaryDoor(entity) {
+            this.secondaryDoor = entity || null;
+        },
+
         async captureCurrentPosition() {
             try {
                 const result = await window.NUIBridge.send('creator:doors:capturePrimary');
